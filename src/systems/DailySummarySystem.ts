@@ -1,21 +1,12 @@
-import type { GameState } from "../state/GameState";
+/**
+ * DailySummarySystem — builds the end-of-day recap from state.dayStats.
+ *
+ * NOTE: not wired into the game loop yet. When enabled, call startDay() at
+ * each new day and finalizeDay() when a day ends; it pauses the game and
+ * sets meta.showDaySummary for a recap screen (UI still to be built).
+ */
 
-export type DaySummary = {
-  dayNumber: number;
-
-  giftsMade: number;
-  giftsSold: number;
-
-  moneyEarned: number;
-  wagesDue: number;
-  wagesPaid: number;
-
-  moneyStart: number;
-  moneyEnd: number;
-  netChange: number;
-
-  note: string;
-};
+import type { GameState, DaySummary } from "../state/GameState";
 
 export function createDailySummarySystem() {
   function startDay(state: GameState) {
@@ -58,3 +49,5 @@ export function createDailySummarySystem() {
 
   return { startDay, finalizeDay };
 }
+
+export type DailySummarySystem = ReturnType<typeof createDailySummarySystem>;

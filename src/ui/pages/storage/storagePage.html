@@ -1,0 +1,57 @@
+<!-- STORAGE PAGE — finished-goods inventory + sell interface -->
+<div id="tab-storage" class="tab-panel">
+  <div class="storage-layout">
+    <!-- Inventory Overview -->
+    <div class="panel inventory-panel">
+      <div class="panel-header">
+        <h3 class="panel-title">📦 Inventory (Finished Gifts)</h3>
+      </div>
+      <div id="inventoryGrid" class="inventory-grid"></div>
+    </div>
+
+    <!-- Sell Section -->
+    <div class="panel sell-panel">
+      <div class="panel-header">
+        <h3 class="panel-title">💵 Sell Items</h3>
+        <p class="panel-desc">Pick a type and sell for money</p>
+      </div>
+
+      <div class="sell-interface">
+        <!-- Type Selector (dynamic) -->
+        <div id="sellTypeSelector" class="sell-type-selector"></div>
+
+        <div class="sell-preview">
+          <div class="sell-amount">
+            <span class="sell-label">Selling</span>
+            <strong id="sellAmountLabel">0</strong>
+            <span class="sell-unit" id="sellUnitLabel">gifts</span>
+          </div>
+          <div class="sell-arrow">→</div>
+          <div class="sell-value">
+            <span class="sell-label">You'll get</span>
+            <strong id="sellPreviewMoney">$0.00</strong>
+          </div>
+        </div>
+
+        <input id="sellSlider" class="sell-slider" type="range" min="0" max="0" value="0" />
+
+        <div class="sell-quick-actions">
+          <div class="sell-group">
+            <button class="sell-quick" data-sell="10">10</button>
+            <button class="sell-quick" data-sell="100">100</button>
+            <button class="sell-quick" data-sell="1000">1k</button>
+            <button class="sell-quick" data-sell="max">Max</button>
+          </div>
+          <div class="sell-group">
+            <button class="sell-pct" data-pct="0.25">25%</button>
+            <button class="sell-pct" data-pct="0.50">50%</button>
+            <button class="sell-pct" data-pct="1.00">100%</button>
+          </div>
+        </div>
+
+        <button id="sellBtn" class="sell-btn">💵 Sell</button>
+        <div id="sellFloatLayer" class="sell-float-layer"></div>
+      </div>
+    </div>
+  </div>
+</div>

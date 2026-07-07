@@ -1,5 +1,12 @@
+/**
+ * ProductionSystem — hand-crafting via the big click button.
+ * Automatic production is handled by PipelineSystem.
+ * Tuning: config/productionConfig.ts
+ */
+
 import type { GameState } from "../state/GameState";
-import { addToStage } from "../state/GameState";
+import { addToStage } from "../helpers/inventoryHelpers";
+import { pluralize } from "../helpers/textHelpers";
 import type { Modifiers } from "./ModifierSystem";
 
 export type ProductionView = {
@@ -18,17 +25,15 @@ export function createProductionSystem() {
     const toyType = state.selectedClickToyType || "plushy";
     // addToStage with "finished" auto-increments lifetimeGifts + dayStats.giftsMade
     addToStage(state, toyType, "finished", amount);
-    state.meta.statusText = `Made ${amount} gift${amount === 1 ? "" : "s"} by hand.`;
+    state.meta.statusText = `Made ${amount} ${pluralize(amount, "gift")} by hand.`;
     return amount;
-  }
-
-  function update(_state: GameState, _mods: Modifiers, _dtSeconds: number) {
-    // Automatic production handled by PipelineSystem
   }
 
   function getView(state: GameState, mods: Modifiers): ProductionView {
     return { giftsPerClick: getGiftsPerClick(state, mods) };
   }
 
-  return { makeClick, update, getView, getGiftsPerClick };
+  return { makeClick, getView, getGiftsPerClick };
 }
+
+export type ProductionSystem = ReturnType<typeof createProductionSystem>;

@@ -1,0 +1,119 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   CLICK PAGE — hand-crafting card, toy selector, big click button.
+   Markup: clickPage.html · Logic: clickPage.ts
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.click-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.click-card {
+  text-align: center;
+  padding: var(--space-xl);
+}
+
+.click-title {
+  margin: 0 0 var(--space-xs);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.click-desc {
+  margin: 0 0 var(--space-md);
+  color: var(--text-muted);
+}
+
+.click-toy-selector {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xl);
+}
+
+.click-toy-btn {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s ease;
+}
+
+.click-toy-btn:hover {
+  background: var(--bg-panel-hover);
+  color: var(--text);
+}
+
+.click-toy-btn.active {
+  background: rgba(74, 158, 255, 0.15);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.click-area {
+  position: relative;
+  display: inline-block;
+  margin-bottom: var(--space-xl);
+}
+
+.click-btn {
+  width: 140px;
+  height: 140px;
+  font-size: 64px;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border: 3px solid var(--border-light);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.click-btn:hover {
+  transform: scale(1.05);
+  border-color: var(--accent);
+  box-shadow: 0 0 30px var(--accent-glow);
+}
+
+.click-btn:active {
+  transform: scale(0.95);
+}
+
+/* Layer the "+N" popups float inside (see components/floatingText.css) */
+.float-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.click-stats {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-lg);
+}
+
+.click-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.click-stat span {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.click-stat strong {
+  font-size: 18px;
+  font-family: var(--font-mono);
+}

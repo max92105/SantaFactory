@@ -1,6 +1,11 @@
-import { SECONDS_PER_GAME_DAY, SEASON_DAYS } from "../state/defaults";
+/**
+ * TimeSystem — advances the in-game clock and detects day/season boundaries.
+ * Tuning: config/timeConfig.ts
+ */
+
+import { SECONDS_PER_GAME_DAY, SEASON_DAYS } from "../config/timeConfig";
 import type { GameState } from "../state/GameState";
-import { clamp01 } from "../utils/clamp";
+import { clamp01 } from "../helpers/mathHelpers";
 
 export type TimeView = {
   day: number;
@@ -42,7 +47,6 @@ export function createTimeSystem() {
   function getView(state: GameState): TimeView {
     const p = clamp01(state.time.dayProgress);
 
-    // Simple labels you can improve later
     const timeOfDayLabel =
       p < 0.25 ? "Morning" : p < 0.5 ? "Afternoon" : p < 0.75 ? "Evening" : "Night";
 
@@ -56,3 +60,5 @@ export function createTimeSystem() {
 
   return { update, getView };
 }
+
+export type TimeSystem = ReturnType<typeof createTimeSystem>;

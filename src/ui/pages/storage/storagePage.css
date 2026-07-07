@@ -1,0 +1,225 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   STORAGE PAGE — inventory grid and the sell interface.
+   Markup: storagePage.html · Logic: storagePage.ts
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.storage-layout {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--space-md);
+}
+
+.inventory-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.inventory-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--bg-panel-hover);
+  border-radius: var(--radius-md);
+}
+
+.inventory-icon {
+  font-size: 32px;
+}
+
+.inventory-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.inventory-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.inventory-value {
+  font-size: 24px;
+  font-family: var(--font-mono);
+}
+
+.inventory-rate {
+  margin-left: auto;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--success);
+  opacity: 0.8;
+}
+
+/* ── Sell interface ─────────────────────────────────────────────────────── */
+.sell-interface {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.sell-type-selector {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.sell-type-btn {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+}
+
+.sell-type-btn:hover {
+  background: var(--bg-panel-hover);
+  color: var(--text);
+}
+
+.sell-type-btn.active {
+  background: rgba(74, 158, 255, 0.15);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.sell-type-rate {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.sell-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  background: var(--bg-panel-hover);
+  border-radius: var(--radius-md);
+}
+
+.sell-amount,
+.sell-value {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sell-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.sell-amount strong,
+.sell-value strong {
+  font-size: 24px;
+  font-family: var(--font-mono);
+}
+
+.sell-value strong {
+  color: var(--success);
+}
+
+.sell-unit {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.sell-arrow {
+  font-size: 24px;
+  color: var(--text-dim);
+}
+
+.sell-slider {
+  width: 100%;
+  height: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--bg-panel-hover);
+  border-radius: 4px;
+  outline: none;
+}
+
+.sell-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.sell-quick-actions {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: center;
+}
+
+.sell-group {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.sell-quick,
+.sell-pct {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sell-quick:hover,
+.sell-pct:hover {
+  background: var(--bg-panel-hover);
+  border-color: var(--border-light);
+}
+
+.sell-btn {
+  width: 100%;
+  padding: var(--space-md);
+  background: linear-gradient(135deg, var(--success), #22c55e);
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sell-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.sell-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Layer the "+$X" popups float inside (see components/floatingText.css) */
+.sell-float-layer {
+  position: relative;
+  height: 0;
+  pointer-events: none;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .storage-layout {
+    grid-template-columns: 1fr;
+  }
+}

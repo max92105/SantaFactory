@@ -1,0 +1,49 @@
+<!-- SHOP PAGE — hire elves, buy upgrades (machines coming later) -->
+<div id="tab-shop" class="tab-panel">
+  <div class="shop-layout">
+    <!-- Sub-tabs for future expansion -->
+    <nav class="shop-nav">
+      <button class="shop-tab active" data-shop="workforce">🧝 Workforce</button>
+      <button class="shop-tab" data-shop="upgrades">⬆️ Upgrades</button>
+      <button class="shop-tab disabled" data-shop="machines">🔧 Machines</button>
+    </nav>
+
+    <div class="shop-content">
+      <!-- Workforce Section -->
+      <div id="shop-workforce" class="shop-section active">
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Hire Elves</h3>
+            <p class="panel-desc">Expand your workforce to automate production</p>
+          </div>
+          <div id="producersList" class="shop-list"></div>
+        </div>
+      </div>
+
+      <!-- Upgrades Section -->
+      <div id="shop-upgrades" class="shop-section">
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Upgrades</h3>
+            <p class="panel-desc">Permanent improvements to your factory</p>
+          </div>
+          <div id="upgradesList" class="shop-list"></div>
+        </div>
+      </div>
+
+      <!-- Machines Section (Future) -->
+      <div id="shop-machines" class="shop-section">
+        <div class="panel">
+          <div class="panel-header">
+            <h3 class="panel-title">Machines</h3>
+            <p class="panel-desc">Coming soon...</p>
+          </div>
+          <div class="empty-state">
+            <span class="empty-icon">🚧</span>
+            <p>Machines will be available in a future update</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

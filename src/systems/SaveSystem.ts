@@ -1,5 +1,11 @@
+/**
+ * SaveSystem — persistence to localStorage.
+ * Storage key: config/saveConfig.ts. Loading merges the save over a fresh
+ * state so old saves keep working when new fields are added.
+ */
+
 import type { GameState } from "../state/GameState";
-import { SAVE_KEY } from "../state/defaults";
+import { SAVE_KEY } from "../config/saveConfig";
 import { createInitialState } from "../state/GameState";
 
 export function createSaveSystem() {
@@ -32,7 +38,7 @@ export function createSaveSystem() {
         derived: { ...fresh.derived, ...(parsed.derived ?? {}) },
       };
 
-      // older saves used derived.giftsPerClick
+      // Migration: older saves used derived.giftsPerClick
       if (typeof parsed?.derived?.giftsPerClick === "number" && typeof state.derived.baseGpc !== "number") {
         state.derived.baseGpc = parsed.derived.giftsPerClick;
       }
@@ -61,3 +67,5 @@ export function createSaveSystem() {
 
   return { save, load, clear };
 }
+
+export type SaveSystem = ReturnType<typeof createSaveSystem>;

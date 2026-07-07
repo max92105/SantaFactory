@@ -1,5 +1,11 @@
+/**
+ * ModifierSystem — folds all owned upgrades into one Modifiers object
+ * that other systems consume. Add new effect types in config/upgradesConfig.ts;
+ * the exhaustive switch below will force you to handle them here.
+ */
+
 import type { GameState } from "../state/GameState";
-import { upgrades } from "../data/upgrades";
+import { upgrades } from "../config/upgradesConfig";
 
 export type Modifiers = {
   gpcFlat: number;
@@ -54,7 +60,7 @@ export function createModifierSystem() {
           break;
 
         default: {
-          // Exhaustiveness guard (helps when you add new effect types)
+          // Exhaustiveness guard (fails to compile when a new effect type is unhandled)
           const _never: never = e;
           void _never;
         }
@@ -66,3 +72,5 @@ export function createModifierSystem() {
 
   return { getModifiers };
 }
+
+export type ModifierSystem = ReturnType<typeof createModifierSystem>;

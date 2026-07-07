@@ -1,0 +1,60 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   METRICS PAGE — stat panels and the wage warning banner.
+   Markup: metricsPage.html · Logic: metricsPage.ts
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.metrics-layout {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-sm);
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-md);
+  background: var(--bg-panel-hover);
+  border-radius: var(--radius-md);
+}
+
+.metric-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: var(--space-xs);
+}
+
+.metric-value {
+  font-size: 18px;
+  font-family: var(--font-mono);
+}
+
+.wage-warning {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--warning);
+}
+
+.warning-icon {
+  font-size: 16px;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .metrics-layout {
+    grid-template-columns: 1fr;
+  }
+}

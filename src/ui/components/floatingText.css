@@ -1,0 +1,52 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   FLOATING TEXT — "+N" click popups and "+$X" sell popups.
+   Logic: floatingText.ts (spawned elements remove themselves on animationend)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Green "+N" spawned over the click button */
+.float-text {
+  position: absolute;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--success);
+  text-shadow: 0 2px 8px rgba(74, 222, 128, 0.5);
+  pointer-events: none;
+  animation: floatUp 0.8s ease-out forwards;
+}
+
+@keyframes floatUp {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-60px);
+  }
+}
+
+/* Gold "+$X" spawned over the sell button */
+.sell-float {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--warning);
+  text-shadow: 0 2px 8px rgba(251, 191, 36, 0.5);
+  pointer-events: none;
+  animation: sellFloatUp 0.8s ease-out forwards;
+  white-space: nowrap;
+}
+
+@keyframes sellFloatUp {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-40px);
+  }
+}

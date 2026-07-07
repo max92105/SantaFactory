@@ -1,8 +1,34 @@
-import { BASE_GIFTS_PER_CLICK } from "./defaults";
-import { toyTypes } from "../data/toyTypes";
-import type { DaySummary } from "../systems/DailySummarySystem.ts";
+/**
+ * The single mutable game state — everything that gets saved lives here.
+ *
+ * Rules:
+ *  - Only systems (src/systems) mutate state; UI reads it and calls systems.
+ *  - Inventory read/write goes through helpers/inventoryHelpers.ts.
+ */
 
+import { BASE_GIFTS_PER_CLICK } from "../config/productionConfig";
+import { toyTypes } from "../config/toyTypesConfig";
+
+/** Per-toy-type item counts at each production stage. */
 export type ToyInventory = { raw: number; assembled: number; finished: number };
+
+/** End-of-day recap data (produced by DailySummarySystem — not wired into the loop yet). */
+export type DaySummary = {
+  dayNumber: number;
+
+  giftsMade: number;
+  giftsSold: number;
+
+  moneyEarned: number;
+  wagesDue: number;
+  wagesPaid: number;
+
+  moneyStart: number;
+  moneyEnd: number;
+  netChange: number;
+
+  note: string;
+};
 
 export type GameState = {
   resources: {
@@ -10,15 +36,14 @@ export type GameState = {
     lifetimeGifts: number;
   };
 
-  // Per toy type inventory: { plushy: { raw: 5, assembled: 3, finished: 10 }, ... }
+  /** Per toy type inventory: { plushy: { raw: 5, assembled: 3, finished: 10 }, ... } */
   inventory: Record<string, ToyInventory>;
 
-  // Workforce management
   workforce: {
     totalElves: number;
-    // How many elves are assigned to each pipeline step
-    assignments: Record<string, number>; // stepId -> elf count
-    // Unassigned elves (available to assign)
+    /** How many elves are assigned to each pipeline step (stepId -> count). */
+    assignments: Record<string, number>;
+    /** Elves available to assign. */
     unassigned: number;
   };
 
@@ -26,7 +51,7 @@ export type GameState = {
     lifetimeSoldGifts: number;
   };
 
-  // Stats that reset every day (debug + balancing)
+  /** Stats that reset every day (debug + balancing). */
   dayStats: {
     giftsMade: number;
     giftsSold: number;
@@ -41,7 +66,7 @@ export type GameState = {
 
   time: {
     day: number;
-    dayProgress: number;
+    dayProgress: number; // 0..1
   };
 
   owned: {
@@ -61,7 +86,7 @@ export type GameState = {
     lastDaySummary: DaySummary | null;
   };
 
-  // Which toy type the player clicks to produce
+  /** Which toy type the player clicks to produce. */
   selectedClickToyType: string;
 
   derived: {
@@ -129,43 +154,4 @@ export function createInitialState(): GameState {
       baseGpc: BASE_GIFTS_PER_CLICK,
     },
   };
-}
-
-// ── Inventory helpers ──────────────────────────────────────────────────
-
-import type { ProductionStage } from "../data/pipeline";
-
-export function ensureInventory(state: GameState, toyType: string): ToyInventory {
-  if (!state.inventory[toyType]) {
-    state.inventory[toyType] = { raw: 0, assembled: 0, finished: 0 };
-  }
-  return state.inventory[toyType];
-}
-
-export function getStageCount(state: GameState, toyType: string, stage: ProductionStage): number {
-  return ensureInventory(state, toyType)[stage];
-}
-
-export function addToStage(state: GameState, toyType: string, stage: ProductionStage, amount: number): void {
-  const inv = ensureInventory(state, toyType);
-  inv[stage] += amount;
-  if (stage === "finished") {
-    state.resources.lifetimeGifts += amount;
-    state.dayStats.giftsMade += amount;
-  }
-}
-
-export function removeFromStage(state: GameState, toyType: string, stage: ProductionStage, amount: number): boolean {
-  const inv = ensureInventory(state, toyType);
-  if (inv[stage] < amount) return false;
-  inv[stage] -= amount;
-  return true;
-}
-
-export function getTotalFinished(state: GameState): number {
-  let total = 0;
-  for (const inv of Object.values(state.inventory)) {
-    total += inv.finished;
-  }
-  return total;
 }

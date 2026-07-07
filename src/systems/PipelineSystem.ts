@@ -1,7 +1,13 @@
+/**
+ * PipelineSystem — automatic multi-step production driven by assigned elves.
+ * Items flow raw → assembled → finished through the steps in config/pipelineConfig.ts.
+ */
+
 import type { GameState } from "../state/GameState";
-import { addToStage, getStageCount, removeFromStage } from "../state/GameState";
-import { pipelineSteps, type PipelineStepDef, type ProductionStage } from "../data/pipeline";
-import { toyTypes } from "../data/toyTypes";
+import { addToStage, getStageCount, removeFromStage } from "../helpers/inventoryHelpers";
+import { pipelineSteps, type PipelineStepDef, type ProductionStage } from "../config/pipelineConfig";
+import { toyTypes } from "../config/toyTypesConfig";
+import { pluralizeElves } from "../helpers/textHelpers";
 import type { Modifiers } from "./ModifierSystem";
 
 export type StepProgress = {
@@ -17,6 +23,7 @@ export type PipelineView = {
 };
 
 export function createPipelineSystem() {
+  /** Fractional work-in-progress per step (not saved — resets on reload). */
   const progressAccum: Record<string, number> = {};
 
   /**
@@ -34,9 +41,7 @@ export function createPipelineSystem() {
     return toyTypes.some((t) => getStageCount(state, t.id, step.inputStage!) >= 1);
   }
 
-  /**
-   * For a shared step, find a toy type that has items in the input stage.
-   */
+  /** For a shared step, find a toy type that has items in the input stage. */
   function findAvailableType(state: GameState, inputStage: ProductionStage): string | null {
     for (const t of toyTypes) {
       if (getStageCount(state, t.id, inputStage) >= 1) return t.id;
@@ -98,7 +103,7 @@ export function createPipelineSystem() {
 
     state.workforce.assignments[stepId] = (state.workforce.assignments[stepId] ?? 0) + count;
     state.workforce.unassigned -= count;
-    state.meta.statusText = `Assigned ${count} elf${count > 1 ? "ves" : ""} to ${step.name}.`;
+    state.meta.statusText = `Assigned ${count} ${pluralizeElves(count)} to ${step.name}.`;
     return true;
   }
 
@@ -111,7 +116,7 @@ export function createPipelineSystem() {
 
     state.workforce.assignments[stepId] = current - count;
     state.workforce.unassigned += count;
-    state.meta.statusText = `Unassigned ${count} elf${count > 1 ? "ves" : ""} from ${step.name}.`;
+    state.meta.statusText = `Unassigned ${count} ${pluralizeElves(count)} from ${step.name}.`;
     return true;
   }
 
@@ -134,3 +139,5 @@ export function createPipelineSystem() {
 
   return { update, assignElves, unassignElves, getView, getStepOutputPerSecond };
 }
+
+export type PipelineSystem = ReturnType<typeof createPipelineSystem>;

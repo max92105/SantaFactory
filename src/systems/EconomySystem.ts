@@ -1,10 +1,13 @@
-import type { GameState } from "../state/GameState";
-import { ensureInventory } from "../state/GameState";
-import { toyTypes, getToyType } from "../data/toyTypes";
-import type { Modifiers } from "./ModifierSystem";
+/**
+ * EconomySystem — selling finished toys for money.
+ * Sell values per toy live in config/toyTypesConfig.ts.
+ */
 
-// Sellable types are toy type IDs (only finished items can be sold)
-export type SellableType = string;
+import type { GameState } from "../state/GameState";
+import { ensureInventory, getSellableStock } from "../helpers/inventoryHelpers";
+import { toyTypes, getToyType } from "../config/toyTypesConfig";
+import { pluralize } from "../helpers/textHelpers";
+import type { Modifiers } from "./ModifierSystem";
 
 export type SellRateEntry = { toyType: string; name: string; icon: string; rate: number };
 
@@ -13,6 +16,7 @@ export type EconomyView = {
 };
 
 export function createEconomySystem() {
+  /** Current sell price for one finished unit of a toy type (upgrades included). */
   function getSellRate(toyTypeId: string, mods: Modifiers): number {
     const def = getToyType(toyTypeId);
     return (def?.baseSellValue ?? 1) * mods.sellRateMult;
@@ -23,17 +27,14 @@ export function createEconomySystem() {
       toyType: t.id,
       name: t.name,
       icon: t.icon,
-      rate: t.baseSellValue * mods.sellRateMult,
+      rate: getSellRate(t.id, mods),
     }));
   }
 
-  function getFinishedStock(state: GameState, toyTypeId: string): number {
-    return Math.max(0, Math.floor(ensureInventory(state, toyTypeId).finished));
-  }
-
+  /** Sell up to `amount` finished units. Returns money earned (0 if nothing sold). */
   function sellItems(state: GameState, mods: Modifiers, toyTypeId: string, amount: number): number {
     const inv = ensureInventory(state, toyTypeId);
-    const sellable = Math.max(0, Math.min(amount, Math.floor(inv.finished)));
+    const sellable = Math.max(0, Math.min(amount, getSellableStock(state, toyTypeId)));
     if (sellable <= 0) return 0;
 
     const rate = getSellRate(toyTypeId, mods);
@@ -48,7 +49,7 @@ export function createEconomySystem() {
 
     const def = getToyType(toyTypeId);
     const label = def?.name ?? toyTypeId;
-    state.meta.statusText = `Sold ${sellable} ${label}${sellable > 1 ? "s" : ""} for $${earned.toFixed(2)}.`;
+    state.meta.statusText = `Sold ${sellable} ${pluralize(sellable, label)} for $${earned.toFixed(2)}.`;
     return earned;
   }
 
@@ -56,5 +57,7 @@ export function createEconomySystem() {
     return { sellRates: getSellRates(mods) };
   }
 
-  return { sellItems, getView, getSellRate, getSellRates, getFinishedStock };
+  return { sellItems, getView, getSellRate, getSellRates };
 }
+
+export type EconomySystem = ReturnType<typeof createEconomySystem>;

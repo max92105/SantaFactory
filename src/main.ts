@@ -1,5 +1,9 @@
-import "./styles/main.css";
-import { createGame } from "./app/Game";
+/**
+ * Entry point — loads global styles and boots the game.
+ * Everything else is wired in core/Game.ts.
+ */
 
-const game = createGame();
-game.start();
+import "./ui/styles/base.css";
+import { createGame } from "./core/Game";
+
+createGame().start();

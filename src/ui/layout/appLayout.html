@@ -1,0 +1,86 @@
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<!-- APP LAYOUT: header (menu / resources / time) + tab nav + footer       -->
+<!-- Pages are mounted into #tabContent by core/Game.ts                    -->
+<!-- ════════════════════════════════════════════════════════════════════ -->
+<header class="header">
+  <!-- Left: Menu + Brand -->
+  <div class="header-left">
+    <div class="menu">
+      <button id="menuBtn" class="menu-btn" aria-label="Menu">☰</button>
+      <div id="menuPanel" class="menu-panel hidden">
+        <button id="saveBtn" class="menu-item">💾 Save</button>
+        <button id="loadBtn" class="menu-item">📂 Load</button>
+        <button id="resetBtn" class="menu-item danger">🗑️ Reset</button>
+      </div>
+    </div>
+    <div class="brand">
+      <span class="brand-icon">🎅</span>
+      <div class="brand-text">
+        <div class="brand-title">Santa Factory</div>
+        <div class="brand-sub">Elf Manager</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Center: Resources -->
+  <div class="header-center">
+    <div class="resource-bar">
+      <div class="resource resource-expandable" data-resource="gifts" id="giftsResource">
+        <span class="resource-icon">🎁</span>
+        <div class="resource-info">
+          <span class="resource-label">Gifts <span class="expand-hint">▼</span></span>
+          <strong class="resource-value" id="hudGifts">0</strong>
+        </div>
+        <div class="resource-dropdown" id="giftsDropdown"></div>
+      </div>
+      <div class="resource" data-resource="money">
+        <span class="resource-icon">💰</span>
+        <div class="resource-info">
+          <span class="resource-label">Money</span>
+          <strong class="resource-value" id="hudMoney">$0</strong>
+        </div>
+      </div>
+      <div class="resource" data-resource="elves">
+        <span class="resource-icon">🧝</span>
+        <div class="resource-info">
+          <span class="resource-label">Elves</span>
+          <strong class="resource-value" id="hudElves">0</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Time -->
+  <div class="header-right">
+    <div class="time-display">
+      <div class="time-day">
+        <span class="time-label">Day</span>
+        <strong><span id="hudDay">1</span> / 365</strong>
+      </div>
+      <div class="time-clock">
+        <span id="hudTimeOfDay">Morning</span>
+        <div class="time-progress">
+          <div id="timeBarFill" class="time-progress-fill"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="main-content">
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="click">🖱️ Click</button>
+    <button class="tab-btn" data-tab="factory">🏭 Factory</button>
+    <button class="tab-btn" data-tab="shop">🛒 Shop</button>
+    <button class="tab-btn" data-tab="storage">📦 Storage</button>
+    <button class="tab-btn" data-tab="metrics">📊 Metrics</button>
+  </nav>
+
+  <!-- Each page (ui/pages/*) mounts its panel here -->
+  <div id="tabContent" class="tab-content"></div>
+</main>
+
+<footer class="footer">
+  <span class="status-label">Status:</span>
+  <span id="statusText" class="status-text">Ready.</span>
+</footer>

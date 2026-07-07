@@ -1,0 +1,119 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SHOP PAGE — sub-tab nav, hire/upgrade rows, machines placeholder.
+   Markup: shopPage.html · Logic: shopPage.ts
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.shop-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.shop-nav {
+  display: flex;
+  gap: var(--space-xs);
+  padding: var(--space-xs);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.shop-tab {
+  padding: var(--space-sm) var(--space-md);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.shop-tab:hover:not(.disabled) {
+  color: var(--text);
+  background: var(--bg-panel-hover);
+}
+
+.shop-tab.active {
+  color: var(--text);
+  background: var(--accent);
+}
+
+.shop-tab.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.shop-section {
+  display: none;
+}
+
+.shop-section.active {
+  display: block;
+}
+
+.shop-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* ── Shop row (one purchasable item) ────────────────────────────────────── */
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md);
+  background: var(--bg-panel-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.row-title {
+  font-weight: 600;
+  margin-bottom: var(--space-xs);
+}
+
+.row-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.row-meta {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.row button {
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.row button:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.row button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Empty placeholder (machines "coming soon") ─────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: var(--space-xl);
+  color: var(--text-muted);
+}
+
+.empty-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: var(--space-md);
+}

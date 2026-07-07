@@ -4,7 +4,7 @@ applyTo: "src/**"
 ---
 # Game Direction Reference
 
-Always consult [GAME_DIRECTION.md](../../src/GAME_DIRECTION.md) before implementing or modifying game features.
+Always consult [GAME_DIRECTION.md](../../docs/GAME_DIRECTION.md) before implementing or modifying game features.
 
 ## Core Design Pillars
 

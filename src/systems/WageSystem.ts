@@ -1,16 +1,25 @@
+/**
+ * WageSystem — end-of-day payroll.
+ * Wage amounts live on hire packages (config/producersConfig.ts);
+ * failure penalties live in config/wagesConfig.ts.
+ */
+
 import type { GameState } from "../state/GameState";
-import { producers } from "../data/producers";
+import { producers } from "../config/producersConfig";
+import {
+  WAGE_RULE_TEXT,
+  UNPAID_ELVES_LOST_PER_STEP,
+  UNPAID_ELVES_LOST_FROM_UNASSIGNED,
+} from "../config/wagesConfig";
 
 export function createWageSystem() {
-  const wageRuleText = "If you can't pay wages, you lose elves from each pipeline step.";
-
   function getWageRuleText(): string {
-    return wageRuleText;
+    return WAGE_RULE_TEXT;
   }
 
+  /** Total wages owed at the end of the current day. */
   function calcDailyWages(state: GameState): number {
-    // Calculate wages based on owned producer packages
-    // Each producer package has elvesProvided * dailyWagePerElf
+    // Each hire package owes: owned * elvesProvided * dailyWagePerElf
     let total = 0;
     for (const def of producers) {
       const count = state.owned.producers[def.id] ?? 0;
@@ -42,28 +51,31 @@ export function createWageSystem() {
       return;
     }
 
-    // Penalty: lose elves when can't pay
-    // For now, lose 1 elf from each assigned step and 1 from unassigned
+    applyUnpaidWagePenalty(state, wages);
+  }
+
+  /** Can't pay: elves quit from each assigned step and from the unassigned pool. */
+  function applyUnpaidWagePenalty(state: GameState, wagesOwed: number) {
     let totalLost = 0;
 
-    // Remove from assignments first
     for (const stepId of Object.keys(state.workforce.assignments)) {
       const assigned = state.workforce.assignments[stepId];
-      if (assigned > 0) {
-        state.workforce.assignments[stepId] = assigned - 1;
-        state.workforce.totalElves -= 1;
-        totalLost += 1;
+      const lost = Math.min(assigned, UNPAID_ELVES_LOST_PER_STEP);
+      if (lost > 0) {
+        state.workforce.assignments[stepId] = assigned - lost;
+        state.workforce.totalElves -= lost;
+        totalLost += lost;
       }
     }
 
-    // Remove from unassigned pool
-    if (state.workforce.unassigned > 0) {
-      state.workforce.unassigned -= 1;
-      state.workforce.totalElves -= 1;
-      totalLost += 1;
+    const lostUnassigned = Math.min(state.workforce.unassigned, UNPAID_ELVES_LOST_FROM_UNASSIGNED);
+    if (lostUnassigned > 0) {
+      state.workforce.unassigned -= lostUnassigned;
+      state.workforce.totalElves -= lostUnassigned;
+      totalLost += lostUnassigned;
     }
 
-    // Also reduce producer count to keep wage calculation in sync
+    // Also shrink each hire package by one so tomorrow's wage bill goes down too
     for (const def of producers) {
       const count = state.owned.producers[def.id] ?? 0;
       if (count > 0) {
@@ -72,11 +84,13 @@ export function createWageSystem() {
     }
 
     state.dayStats.wagesPaid = 0;
-    state.meta.lastWageResult = `FAILED: owed $${wages.toFixed(2)} (lost ${totalLost} elves)`;
-    state.meta.statusText = `Couldn't pay $${wages.toFixed(
+    state.meta.lastWageResult = `FAILED: owed $${wagesOwed.toFixed(2)} (lost ${totalLost} elves)`;
+    state.meta.statusText = `Couldn't pay $${wagesOwed.toFixed(
       2
     )} wages. Some elves quit (lost ${totalLost} elves).`;
   }
 
   return { calcDailyWages, payEndOfDayWages, getWageRuleText };
 }
+
+export type WageSystem = ReturnType<typeof createWageSystem>;
