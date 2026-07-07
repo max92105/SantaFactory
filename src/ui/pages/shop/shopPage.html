@@ -1,49 +1,29 @@
-<!-- SHOP PAGE — hire elves, buy upgrades (machines coming later) -->
+<!-- UPGRADES PAGE (internal id "shop") — new toys, hiring, upgrades -->
 <div id="tab-shop" class="tab-panel">
   <div class="shop-layout">
-    <!-- Sub-tabs for future expansion -->
+    <!-- Section nav — add more sections here when needed -->
     <nav class="shop-nav">
-      <button class="shop-tab active" data-shop="workforce">🧝 Workforce</button>
+      <button class="shop-tab active" data-shop="toys">🧸 New Toys</button>
+      <button class="shop-tab" data-shop="hiring">🧝 Hiring</button>
       <button class="shop-tab" data-shop="upgrades">⬆️ Upgrades</button>
-      <button class="shop-tab disabled" data-shop="machines">🔧 Machines</button>
     </nav>
 
-    <div class="shop-content">
-      <!-- Workforce Section -->
-      <div id="shop-workforce" class="shop-section active">
-        <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title">Hire Elves</h3>
-            <p class="panel-desc">Expand your workforce to automate production</p>
-          </div>
-          <div id="producersList" class="shop-list"></div>
-        </div>
-      </div>
+    <!-- New Toys -->
+    <section id="shop-toys" class="shop-section active">
+      <p class="section-desc">Unlock new toy lines for your factory to produce and sell.</p>
+      <div id="toysList" class="shop-list"></div>
+    </section>
 
-      <!-- Upgrades Section -->
-      <div id="shop-upgrades" class="shop-section">
-        <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title">Upgrades</h3>
-            <p class="panel-desc">Permanent improvements to your factory</p>
-          </div>
-          <div id="upgradesList" class="shop-list"></div>
-        </div>
-      </div>
+    <!-- Hiring -->
+    <section id="shop-hiring" class="shop-section">
+      <p class="section-desc">Expand your workforce. Hiring costs follow the elves you currently employ.</p>
+      <div id="producersList" class="shop-list"></div>
+    </section>
 
-      <!-- Machines Section (Future) -->
-      <div id="shop-machines" class="shop-section">
-        <div class="panel">
-          <div class="panel-header">
-            <h3 class="panel-title">Machines</h3>
-            <p class="panel-desc">Coming soon...</p>
-          </div>
-          <div class="empty-state">
-            <span class="empty-icon">🚧</span>
-            <p>Machines will be available in a future update</p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Upgrades -->
+    <section id="shop-upgrades" class="shop-section">
+      <p class="section-desc">Permanent improvements to your factory.</p>
+      <div id="upgradesList" class="shop-list"></div>
+    </section>
   </div>
 </div>

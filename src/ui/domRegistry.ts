@@ -36,19 +36,22 @@ export type DomRefs = {
   makeGiftBtn: HTMLButtonElement;
   floatLayer: HTMLDivElement;
   clickGpc: HTMLElement;
+  clickStock: HTMLElement;
   clickToySelector: HTMLDivElement;
 
   // Factory page
   totalElves: HTMLElement;
+  assignedElves: HTMLElement;
   unassignedElves: HTMLElement;
   pipelineList: HTMLDivElement;
   wipGrid: HTMLDivElement;
 
-  // Shop page
+  // Shop page ("Upgrades" tab)
   shopTabs: NodeListOf<HTMLButtonElement>;
-  shopWorkforce: HTMLDivElement;
-  shopUpgrades: HTMLDivElement;
-  shopMachines: HTMLDivElement;
+  shopToys: HTMLElement;
+  shopHiring: HTMLElement;
+  shopUpgrades: HTMLElement;
+  toysList: HTMLDivElement;
   producersList: HTMLDivElement;
   upgradesList: HTMLDivElement;
 
@@ -67,12 +70,15 @@ export type DomRefs = {
   // Metrics page
   mGpc: HTMLElement;
   mGps: HTMLElement;
-  mSellRate: HTMLElement;
+  mSellRates: HTMLDivElement;
   mGifts: HTMLElement;
   mMoney: HTMLElement;
   mNetWorth: HTMLElement;
   mLifetimeGifts: HTMLElement;
   mLifetimeSold: HTMLElement;
+  mDayMade: HTMLElement;
+  mDaySold: HTMLElement;
+  mDayEarned: HTMLElement;
   mWagesDue: HTMLElement;
   mWageResult: HTMLElement;
   wageRuleText: HTMLElement;
@@ -120,19 +126,22 @@ export function getDomRefs(): DomRefs {
     makeGiftBtn: mustGet("makeGiftBtn"),
     floatLayer: mustGet("floatLayer"),
     clickGpc: mustGet("clickGpc"),
+    clickStock: mustGet("clickStock"),
     clickToySelector: mustGet("clickToySelector"),
 
     // Factory page
     totalElves: mustGet("totalElves"),
+    assignedElves: mustGet("assignedElves"),
     unassignedElves: mustGet("unassignedElves"),
     pipelineList: mustGet("pipelineList"),
     wipGrid: mustGet("wipGrid"),
 
-    // Shop page
+    // Shop page ("Upgrades" tab)
     shopTabs: document.querySelectorAll<HTMLButtonElement>(".shop-tab"),
-    shopWorkforce: mustGet("shop-workforce"),
+    shopToys: mustGet("shop-toys"),
+    shopHiring: mustGet("shop-hiring"),
     shopUpgrades: mustGet("shop-upgrades"),
-    shopMachines: mustGet("shop-machines"),
+    toysList: mustGet("toysList"),
     producersList: mustGet("producersList"),
     upgradesList: mustGet("upgradesList"),
 
@@ -151,12 +160,15 @@ export function getDomRefs(): DomRefs {
     // Metrics page
     mGpc: mustGet("mGpc"),
     mGps: mustGet("mGps"),
-    mSellRate: mustGet("mSellRate"),
+    mSellRates: mustGet("mSellRates"),
     mGifts: mustGet("mGifts"),
     mMoney: mustGet("mMoney"),
     mNetWorth: mustGet("mNetWorth"),
     mLifetimeGifts: mustGet("mLifetimeGifts"),
     mLifetimeSold: mustGet("mLifetimeSold"),
+    mDayMade: mustGet("mDayMade"),
+    mDaySold: mustGet("mDaySold"),
+    mDayEarned: mustGet("mDayEarned"),
     mWagesDue: mustGet("mWagesDue"),
     mWageResult: mustGet("mWageResult"),
     wageRuleText: mustGet("wageRuleText"),

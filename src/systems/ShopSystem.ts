@@ -1,13 +1,16 @@
 /**
- * ShopSystem — purchase logic for hire packages and upgrades.
- * Pure state changes only; the shop UI lives in ui/pages/shop/shopPage.ts.
- * Prices/definitions: config/producersConfig.ts and config/upgradesConfig.ts.
+ * ShopSystem — purchase logic for toy unlocks, hire packages and upgrades.
+ * Pure state changes only; the UI lives in ui/pages/shop/shopPage.ts.
+ * Prices/definitions: config/toyTypesConfig.ts, config/producersConfig.ts
+ * and config/upgradesConfig.ts.
  */
 
 import type { GameState } from "../state/GameState";
 import { getProducer } from "../config/producersConfig";
 import { getUpgrade } from "../config/upgradesConfig";
-import { getProducerCost } from "../helpers/costHelpers";
+import { getToyType } from "../config/toyTypesConfig";
+import { getProducerCostForState } from "../helpers/costHelpers";
+import { isToyUnlocked } from "../helpers/unlockHelpers";
 import { pluralizeElves } from "../helpers/textHelpers";
 
 export function createShopSystem() {
@@ -15,8 +18,7 @@ export function createShopSystem() {
     const def = getProducer(producerId);
     if (!def) return false;
 
-    const owned = state.owned.producers[producerId] ?? 0;
-    const cost = getProducerCost(def, owned);
+    const cost = getProducerCostForState(def, state);
 
     if (state.resources.money < cost) {
       state.meta.statusText = `Not enough money to buy ${def.name}.`;
@@ -24,7 +26,7 @@ export function createShopSystem() {
     }
 
     state.resources.money -= cost;
-    state.owned.producers[producerId] = owned + 1;
+    state.owned.producers[producerId] = (state.owned.producers[producerId] ?? 0) + 1;
 
     // New hires land in the unassigned pool
     state.workforce.totalElves += def.elvesProvided;
@@ -50,7 +52,24 @@ export function createShopSystem() {
     return true;
   }
 
-  return { buyProducer, buyUpgrade };
+  /** One-time unlock of a new toy line (New Toys section). */
+  function buyToyUnlock(state: GameState, toyTypeId: string): boolean {
+    const def = getToyType(toyTypeId);
+    if (!def) return false;
+    if (isToyUnlocked(state, toyTypeId)) return false;
+
+    if (state.resources.money < def.unlockCost) {
+      state.meta.statusText = `Not enough money to unlock ${def.name}.`;
+      return false;
+    }
+
+    state.resources.money -= def.unlockCost;
+    state.owned.toys[toyTypeId] = true;
+    state.meta.statusText = `New toy unlocked: ${def.icon} ${def.name}!`;
+    return true;
+  }
+
+  return { buyProducer, buyUpgrade, buyToyUnlock };
 }
 
 export type ShopSystem = ReturnType<typeof createShopSystem>;

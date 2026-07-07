@@ -10,7 +10,7 @@ import "./appLayout.css";
 import type { FrameViews, GameContext } from "../../core/GameContext";
 import { createInitialState } from "../../state/GameState";
 import { ensureInventory, getTotalFinished } from "../../helpers/inventoryHelpers";
-import { toyTypes } from "../../config/toyTypesConfig";
+import { getUnlockedToyTypes } from "../../helpers/unlockHelpers";
 import { formatInt, formatMoney } from "../../helpers/formatHelpers";
 
 /** Inject the layout shell into the app root. Must run before any page mounts. */
@@ -94,9 +94,9 @@ export function renderAppLayout(ctx: GameContext, views: FrameViews): void {
   dom.hudMoney.textContent = formatMoney(state.resources.money);
   dom.hudElves.textContent = formatInt(state.workforce.totalElves);
 
-  // Gift breakdown dropdown (per toy type)
+  // Gift breakdown dropdown (per unlocked toy type)
   dom.giftsDropdown.innerHTML = "";
-  for (const t of toyTypes) {
+  for (const t of getUnlockedToyTypes(state)) {
     const inv = ensureInventory(state, t.id);
     const item = document.createElement("div");
     item.className = "dropdown-item";

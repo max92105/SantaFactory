@@ -1,11 +1,16 @@
 <!-- CLICK PAGE — hand-craft gifts by clicking (bootstrap production) -->
 <div id="tab-click" class="tab-panel active">
-  <div class="click-container">
-    <div class="click-card">
-      <h2 class="click-title">Make Gifts</h2>
-      <p class="click-desc">Click to craft gifts by hand</p>
+  <div class="click-layout">
+    <!-- Toy picker — scales to any number of toy types (scrollable grid) -->
+    <aside class="click-toys">
+      <h3 class="section-title">Toy to craft</h3>
+      <div id="clickToySelector" class="toy-grid"></div>
+    </aside>
 
-      <div id="clickToySelector" class="click-toy-selector"></div>
+    <!-- Crafting area -->
+    <section class="click-main">
+      <h2 class="click-title">Make Gifts</h2>
+      <p class="click-desc">Click to craft the selected toy by hand</p>
 
       <div class="click-area">
         <button id="makeGiftBtn" class="click-btn" aria-label="Make Gift">
@@ -19,7 +24,11 @@
           <span>Per Click</span>
           <strong id="clickGpc">1</strong>
         </div>
+        <div class="click-stat">
+          <span>In Stock</span>
+          <strong id="clickStock">0</strong>
+        </div>
       </div>
-    </div>
+    </section>
   </div>
 </div>

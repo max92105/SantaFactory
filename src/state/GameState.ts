@@ -70,8 +70,11 @@ export type GameState = {
   };
 
   owned: {
+    /** Purchase history per hire package (drives unlock rules, not prices). */
     producers: Record<string, number>;
     upgrades: Record<string, boolean>;
+    /** Toy lines the player has unlocked (see helpers/unlockHelpers.ts). */
+    toys: Record<string, boolean>;
   };
 
   meta: {
@@ -96,8 +99,10 @@ export type GameState = {
 
 export function createInitialState(): GameState {
   const inventory: Record<string, ToyInventory> = {};
+  const toys: Record<string, boolean> = {};
   for (const t of toyTypes) {
     inventory[t.id] = { raw: 0, assembled: 0, finished: 0 };
+    toys[t.id] = t.unlockCost <= 0; // free toys start unlocked
   }
 
   return {
@@ -136,6 +141,7 @@ export function createInitialState(): GameState {
     owned: {
       producers: {},
       upgrades: {},
+      toys,
     },
 
     meta: {

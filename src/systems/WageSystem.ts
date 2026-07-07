@@ -1,12 +1,12 @@
 /**
  * WageSystem — end-of-day payroll.
- * Wage amounts live on hire packages (config/producersConfig.ts);
- * failure penalties live in config/wagesConfig.ts.
+ * Wages are per elf (config/wagesConfig.ts) so the bill always matches the
+ * elves you actually have; failure penalties live in the same config.
  */
 
 import type { GameState } from "../state/GameState";
-import { producers } from "../config/producersConfig";
 import {
+  ELF_DAILY_WAGE,
   WAGE_RULE_TEXT,
   UNPAID_ELVES_LOST_PER_STEP,
   UNPAID_ELVES_LOST_FROM_UNASSIGNED,
@@ -19,14 +19,7 @@ export function createWageSystem() {
 
   /** Total wages owed at the end of the current day. */
   function calcDailyWages(state: GameState): number {
-    // Each hire package owes: owned * elvesProvided * dailyWagePerElf
-    let total = 0;
-    for (const def of producers) {
-      const count = state.owned.producers[def.id] ?? 0;
-      if (count <= 0) continue;
-      total += count * def.elvesProvided * def.dailyWagePerElf;
-    }
-    return total;
+    return state.workforce.totalElves * ELF_DAILY_WAGE;
   }
 
   function payEndOfDayWages(state: GameState) {
@@ -54,7 +47,11 @@ export function createWageSystem() {
     applyUnpaidWagePenalty(state, wages);
   }
 
-  /** Can't pay: elves quit from each assigned step and from the unassigned pool. */
+  /**
+   * Can't pay: elves quit from each assigned step and from the unassigned
+   * pool. Hire prices follow the current elf count (helpers/costHelpers.ts),
+   * so losing elves automatically makes rehiring cheaper.
+   */
   function applyUnpaidWagePenalty(state: GameState, wagesOwed: number) {
     let totalLost = 0;
 
@@ -73,14 +70,6 @@ export function createWageSystem() {
       state.workforce.unassigned -= lostUnassigned;
       state.workforce.totalElves -= lostUnassigned;
       totalLost += lostUnassigned;
-    }
-
-    // Also shrink each hire package by one so tomorrow's wage bill goes down too
-    for (const def of producers) {
-      const count = state.owned.producers[def.id] ?? 0;
-      if (count > 0) {
-        state.owned.producers[def.id] = count - 1;
-      }
     }
 
     state.dayStats.wagesPaid = 0;

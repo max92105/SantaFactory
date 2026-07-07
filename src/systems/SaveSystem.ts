@@ -33,6 +33,7 @@ export function createSaveSystem() {
         owned: {
           producers: { ...fresh.owned.producers, ...(parsed.owned?.producers ?? {}) },
           upgrades: { ...fresh.owned.upgrades, ...(parsed.owned?.upgrades ?? {}) },
+          toys: { ...fresh.owned.toys, ...(parsed.owned?.toys ?? {}) },
         },
         meta: { ...fresh.meta, ...(parsed.meta ?? {}) },
         derived: { ...fresh.derived, ...(parsed.derived ?? {}) },
@@ -53,6 +54,14 @@ export function createSaveSystem() {
 
       if (typeof state.meta.lastWageResult !== "string") {
         state.meta.lastWageResult = "—";
+      }
+
+      // Migration: saves from before toy unlocks could already produce every
+      // toy, so grandfather them in rather than re-locking their toys.
+      if (!parsed.owned?.toys) {
+        for (const id of Object.keys(state.owned.toys)) {
+          state.owned.toys[id] = true;
+        }
       }
 
       return state;

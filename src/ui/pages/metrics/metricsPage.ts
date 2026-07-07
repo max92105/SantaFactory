@@ -1,6 +1,6 @@
 /**
- * metricsPage — the "Metrics" tab: read-only dashboard of production,
- * economy, lifetime and wage numbers.
+ * metricsPage — the "Metrics" tab: read-only dashboard of today's numbers,
+ * production, economy, lifetime and wage stats.
  * Markup: metricsPage.html · Styles: metricsPage.css
  */
 
@@ -9,7 +9,8 @@ import "./metricsPage.css";
 
 import type { Page } from "../Page";
 import type { FrameViews } from "../../../core/GameContext";
-import { toyTypes } from "../../../config/toyTypesConfig";
+import { getPipelineStep } from "../../../config/pipelineConfig";
+import { getUnlockedToyTypes } from "../../../helpers/unlockHelpers";
 import { ensureInventory, getTotalFinished } from "../../../helpers/inventoryHelpers";
 import { formatInt, formatMoney, formatMoneyPrecise } from "../../../helpers/formatHelpers";
 
@@ -31,11 +32,24 @@ export function createMetricsPage(): Page {
       const state = ctx.getState();
       const { dom } = ctx;
       const sellRates = views.economy.sellRates;
+      const unlocked = getUnlockedToyTypes(state);
+
+      // Today
+      dom.mDayMade.textContent = formatInt(state.dayStats.giftsMade);
+      dom.mDaySold.textContent = formatInt(state.dayStats.giftsSold);
+      dom.mDayEarned.textContent = formatMoneyPrecise(state.dayStats.moneyEarned);
+      dom.mWagesDue.textContent = formatMoney(views.wagesDue);
 
       // Production
       dom.mGpc.textContent = formatInt(views.production.giftsPerClick);
-      dom.mGps.textContent = "—"; // TODO: surface pipeline output/sec here
-      dom.mSellRate.textContent = formatMoneyPrecise(sellRates[0]?.rate ?? 0);
+
+      // Pipeline output: finished gifts per second across final steps
+      let finishedPerSec = 0;
+      for (const step of views.pipeline.steps) {
+        const def = getPipelineStep(step.stepId);
+        if (def?.outputStage === "finished") finishedPerSec += step.outputPerSecond;
+      }
+      dom.mGps.textContent = `${finishedPerSec.toFixed(2)}/s`;
 
       // Economy
       dom.mGifts.textContent = formatInt(getTotalFinished(state));
@@ -43,19 +57,28 @@ export function createMetricsPage(): Page {
 
       // Net worth = cash + sell value of all finished goods
       let netWorth = state.resources.money;
-      for (const t of toyTypes) {
+      for (const t of unlocked) {
         const inv = ensureInventory(state, t.id);
         const rate = sellRates.find((r) => r.toyType === t.id)?.rate ?? 0;
         netWorth += inv.finished * rate;
       }
       dom.mNetWorth.textContent = formatMoneyPrecise(netWorth);
 
+      // Per-toy sell rates (only unlocked toys)
+      dom.mSellRates.innerHTML = "";
+      for (const t of unlocked) {
+        const rate = sellRates.find((r) => r.toyType === t.id)?.rate ?? 0;
+        const row = document.createElement("div");
+        row.className = "sell-rate-row";
+        row.innerHTML = `<span>${t.icon} ${t.name}</span><strong>${formatMoneyPrecise(rate)}/ea</strong>`;
+        dom.mSellRates.appendChild(row);
+      }
+
       // Lifetime
       dom.mLifetimeGifts.textContent = formatInt(state.resources.lifetimeGifts);
       dom.mLifetimeSold.textContent = formatInt(state.stats.lifetimeSoldGifts);
 
       // Wages
-      dom.mWagesDue.textContent = formatMoney(views.wagesDue);
       dom.mWageResult.textContent = state.meta.lastWageResult;
       dom.wageRuleText.textContent = views.wageRuleText;
     },

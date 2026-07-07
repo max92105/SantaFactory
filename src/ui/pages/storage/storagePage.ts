@@ -10,6 +10,7 @@ import "./storagePage.css";
 import type { Page } from "../Page";
 import type { FrameViews, GameContext } from "../../../core/GameContext";
 import { toyTypes, getToyType } from "../../../config/toyTypesConfig";
+import { getUnlockedToyTypes } from "../../../helpers/unlockHelpers";
 import { getSellableStock, ensureInventory } from "../../../helpers/inventoryHelpers";
 import { formatInt, formatMoneyPrecise } from "../../../helpers/formatHelpers";
 import { spawnSellFloat } from "../../components/floatingText";
@@ -23,7 +24,12 @@ export function createStoragePage(): Page {
     const mods = ctx.systems.modifier.getModifiers(state);
     ctx.dom.sellTypeSelector.innerHTML = "";
 
-    for (const t of toyTypes) {
+    const unlocked = getUnlockedToyTypes(state);
+    if (!unlocked.some((t) => t.id === currentSellType) && unlocked[0]) {
+      currentSellType = unlocked[0].id;
+    }
+
+    for (const t of unlocked) {
       const rate = ctx.systems.economy.getSellRate(t.id, mods);
       const btn = document.createElement("button");
       btn.className = "sell-type-btn" + (t.id === currentSellType ? " active" : "");
@@ -100,9 +106,9 @@ export function createStoragePage(): Page {
       const { dom } = ctx;
       const sellRates = views.economy.sellRates;
 
-      // Inventory overview (finished goods per toy type)
+      // Inventory overview (finished goods per unlocked toy type)
       dom.inventoryGrid.innerHTML = "";
-      for (const t of toyTypes) {
+      for (const t of getUnlockedToyTypes(state)) {
         const inv = ensureInventory(state, t.id);
         const rate = sellRates.find((r) => r.toyType === t.id)?.rate ?? 0;
         const el = document.createElement("div");

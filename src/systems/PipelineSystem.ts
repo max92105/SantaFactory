@@ -7,6 +7,7 @@ import type { GameState } from "../state/GameState";
 import { addToStage, getStageCount, removeFromStage } from "../helpers/inventoryHelpers";
 import { pipelineSteps, type PipelineStepDef, type ProductionStage } from "../config/pipelineConfig";
 import { toyTypes } from "../config/toyTypesConfig";
+import { isToyUnlocked } from "../helpers/unlockHelpers";
 import { pluralizeElves } from "../helpers/textHelpers";
 import type { Modifiers } from "./ModifierSystem";
 
@@ -60,6 +61,9 @@ export function createPipelineSystem() {
     if (state.meta.isRunOver || state.meta.isPaused) return;
 
     for (const step of pipelineSteps) {
+      // Craft steps for toys the player hasn't unlocked yet don't run
+      if (step.toyType && !isToyUnlocked(state, step.toyType)) continue;
+
       const elves = state.workforce.assignments[step.id] ?? 0;
       if (elves <= 0) continue;
       if (!hasInput(state, step)) continue;

@@ -2,6 +2,8 @@
  * clickPage — the "Click" tab: pick a toy type and hand-craft it.
  * Markup: clickPage.html · Styles: clickPage.css
  * Logic: ProductionSystem (gifts per click, click action).
+ * The toy picker only shows unlocked toys and scrolls, so it scales to
+ * any number of toy types.
  */
 
 import clickPageHtml from "./clickPage.html?raw";
@@ -9,8 +11,10 @@ import "./clickPage.css";
 
 import type { Page } from "../Page";
 import type { FrameViews, GameContext } from "../../../core/GameContext";
-import { toyTypes } from "../../../config/toyTypesConfig";
-import { formatInt } from "../../../helpers/formatHelpers";
+import { getUnlockedToyTypes } from "../../../helpers/unlockHelpers";
+import { getToyType } from "../../../config/toyTypesConfig";
+import { ensureInventory } from "../../../helpers/inventoryHelpers";
+import { formatInt, formatMoneyPrecise } from "../../../helpers/formatHelpers";
 import { spawnClickFloat } from "../../components/floatingText";
 
 export function createClickPage(): Page {
@@ -36,27 +40,38 @@ export function createClickPage(): Page {
     },
 
     renderFrame(ctx, views: FrameViews) {
+      const state = ctx.getState();
       ctx.dom.clickGpc.textContent = formatInt(views.production.giftsPerClick);
 
-      const state = ctx.getState();
-      const selectedToy = toyTypes.find((t) => t.id === state.selectedClickToyType) ?? toyTypes[0];
+      const selectedToy = getToyType(state.selectedClickToyType);
       if (selectedToy) {
         ctx.dom.makeGiftBtn.textContent = selectedToy.icon;
+        ctx.dom.clickStock.textContent = formatInt(ensureInventory(state, selectedToy.id).finished);
       }
     },
   };
 }
 
-/** One button per toy type; clicking selects what the big button produces. */
+/** One tile per unlocked toy; clicking selects what the big button produces. */
 function buildToySelector(ctx: GameContext): void {
   const state = ctx.getState();
+  const unlocked = getUnlockedToyTypes(ctx.getState());
   ctx.dom.clickToySelector.innerHTML = "";
 
-  for (const t of toyTypes) {
+  // If the selected toy is somehow not unlocked, fall back to the first one
+  if (!unlocked.some((t) => t.id === state.selectedClickToyType) && unlocked[0]) {
+    state.selectedClickToyType = unlocked[0].id;
+  }
+
+  for (const t of unlocked) {
     const btn = document.createElement("button");
-    btn.className = "click-toy-btn" + (t.id === state.selectedClickToyType ? " active" : "");
+    btn.className = "toy-tile" + (t.id === state.selectedClickToyType ? " active" : "");
     btn.dataset.toyType = t.id;
-    btn.innerHTML = `${t.icon} ${t.name}`;
+    btn.innerHTML = `
+      <span class="toy-tile-icon">${t.icon}</span>
+      <span class="toy-tile-name">${t.name}</span>
+      <span class="toy-tile-value">${formatMoneyPrecise(t.baseSellValue)}</span>
+    `;
     btn.onclick = () => {
       ctx.getState().selectedClickToyType = t.id;
       ctx.rebuildUI();

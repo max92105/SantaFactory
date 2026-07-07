@@ -1,31 +1,34 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   STORAGE PAGE — inventory grid and the sell interface.
+   STORAGE PAGE — inventory list and the sell interface.
    Markup: storagePage.html · Logic: storagePage.ts
+   Inventory rows are divider-separated inside the card — no inner boxes.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .storage-layout {
   display: grid;
   grid-template-columns: 1fr 2fr;
-  gap: var(--space-md);
+  gap: var(--space-xl);
+  align-items: start;
 }
 
 .inventory-grid {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
 }
 
 .inventory-item {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  padding: var(--space-md);
-  background: var(--bg-panel-hover);
-  border-radius: var(--radius-md);
+  padding: var(--space-md) var(--space-xs);
+}
+
+.inventory-item + .inventory-item {
+  border-top: 1px solid var(--divider);
 }
 
 .inventory-icon {
-  font-size: 32px;
+  font-size: 26px;
 }
 
 .inventory-info {
@@ -34,39 +37,40 @@
 }
 
 .inventory-label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
 .inventory-value {
-  font-size: 24px;
+  font-size: 20px;
   font-family: var(--font-mono);
+  line-height: 1.2;
 }
 
 .inventory-rate {
   margin-left: auto;
-  font-size: 13px;
+  font-size: 12px;
   font-family: var(--font-mono);
   color: var(--success);
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 /* ── Sell interface ─────────────────────────────────────────────────────── */
 .sell-interface {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--space-lg);
 }
 
 .sell-type-selector {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-sm);
 }
 
 .sell-type-btn {
-  flex: 1;
   padding: var(--space-sm) var(--space-md);
-  background: var(--bg-panel);
+  background: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text-muted);
@@ -75,17 +79,16 @@
   transition: all 0.15s ease;
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: var(--space-xs);
 }
 
 .sell-type-btn:hover {
-  background: var(--bg-panel-hover);
+  border-color: var(--border-light);
   color: var(--text);
 }
 
 .sell-type-btn.active {
-  background: rgba(74, 158, 255, 0.15);
+  background: rgba(74, 158, 255, 0.1);
   border-color: var(--accent);
   color: var(--text);
 }
@@ -100,10 +103,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-lg);
-  padding: var(--space-lg);
-  background: var(--bg-panel-hover);
-  border-radius: var(--radius-md);
+  gap: var(--space-xl);
+  padding: var(--space-md) 0;
+  border-top: 1px solid var(--divider);
+  border-bottom: 1px solid var(--divider);
 }
 
 .sell-amount,
@@ -114,14 +117,15 @@
 }
 
 .sell-label {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-dim);
   text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .sell-amount strong,
 .sell-value strong {
-  font-size: 24px;
+  font-size: 22px;
   font-family: var(--font-mono);
 }
 
@@ -135,24 +139,24 @@
 }
 
 .sell-arrow {
-  font-size: 24px;
+  font-size: 20px;
   color: var(--text-dim);
 }
 
 .sell-slider {
   width: 100%;
-  height: 8px;
+  height: 6px;
   -webkit-appearance: none;
   appearance: none;
-  background: var(--bg-panel-hover);
-  border-radius: 4px;
+  background: var(--bg-inset);
+  border-radius: 3px;
   outline: none;
 }
 
 .sell-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   background: var(--accent);
   border-radius: 50%;
   cursor: pointer;
@@ -160,7 +164,7 @@
 
 .sell-quick-actions {
   display: flex;
-  gap: var(--space-md);
+  gap: var(--space-lg);
   justify-content: center;
 }
 
@@ -171,11 +175,11 @@
 
 .sell-quick,
 .sell-pct {
-  padding: var(--space-sm) var(--space-md);
-  background: var(--bg-panel);
+  padding: var(--space-xs) var(--space-md);
+  background: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  color: var(--text);
+  color: var(--text-muted);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -183,30 +187,29 @@
 
 .sell-quick:hover,
 .sell-pct:hover {
-  background: var(--bg-panel-hover);
   border-color: var(--border-light);
+  color: var(--text);
 }
 
 .sell-btn {
   width: 100%;
   padding: var(--space-md);
-  background: linear-gradient(135deg, var(--success), #22c55e);
+  background: var(--success);
   border: none;
   border-radius: var(--radius-md);
-  color: white;
-  font-size: 16px;
+  color: #06220f;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: filter 0.15s ease;
 }
 
 .sell-btn:hover:not(:disabled) {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
+  filter: brightness(1.08);
 }
 
 .sell-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 

@@ -115,6 +115,13 @@ export function createGame(): Game {
 
     if (timeResult.dayEnded) {
       systems.wage.payEndOfDayWages(state);
+
+      // Start a fresh "today" for the day-stat counters (Metrics tab)
+      state.dayStats.giftsMade = 0;
+      state.dayStats.giftsSold = 0;
+      state.dayStats.moneyEarned = 0;
+      state.dayStats.moneyStart = state.resources.money;
+
       // Wages change money/elves, so shop buttons etc. must refresh
       rebuildUI();
     }

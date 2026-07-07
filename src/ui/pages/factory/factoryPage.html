@@ -1,37 +1,34 @@
-<!-- FACTORY PAGE — workforce overview, production pipeline, work-in-progress -->
+<!-- FACTORY PAGE — workforce summary, production lines, work-in-progress -->
 <div id="tab-factory" class="tab-panel">
   <div class="factory-layout">
-    <!-- Workforce Overview -->
-    <div class="panel workforce-panel">
-      <div class="panel-header">
-        <h3 class="panel-title">👷 Workforce</h3>
+    <!-- Workforce summary bar (extend with more elf types later) -->
+    <div class="workforce-bar">
+      <div class="workforce-stat">
+        <span>🧝 Total Elves</span>
+        <strong id="totalElves">0</strong>
       </div>
-      <div class="workforce-stats">
-        <div class="workforce-stat">
-          <span>Total Elves</span>
-          <strong id="totalElves">0</strong>
-        </div>
-        <div class="workforce-stat highlight">
-          <span>Unassigned</span>
-          <strong id="unassignedElves">0</strong>
-        </div>
+      <div class="workforce-stat">
+        <span>Assigned</span>
+        <strong id="assignedElves">0</strong>
+      </div>
+      <div class="workforce-stat highlight">
+        <span>Unassigned</span>
+        <strong id="unassignedElves">0</strong>
       </div>
     </div>
 
-    <!-- Production Pipeline -->
-    <div class="panel pipeline-panel">
-      <div class="panel-header">
-        <h3 class="panel-title">⚙️ Production Pipeline</h3>
-      </div>
-      <div id="pipelineList" class="pipeline-list"></div>
-    </div>
+    <div class="factory-columns">
+      <!-- Production lines, grouped: per-toy crafting then shared steps -->
+      <section class="pipeline-section">
+        <h3 class="section-title">Production Lines</h3>
+        <div id="pipelineList" class="pipeline-list"></div>
+      </section>
 
-    <!-- Intermediate Resources -->
-    <div class="panel materials-panel">
-      <div class="panel-header">
-        <h3 class="panel-title">📦 Work in Progress</h3>
-      </div>
-      <div id="wipGrid" class="materials-grid"></div>
+      <!-- Per-toy stage counts as a table: one row per toy, one column per stage -->
+      <section class="wip-section">
+        <h3 class="section-title">Work in Progress</h3>
+        <div id="wipGrid" class="wip-table-wrap"></div>
+      </section>
     </div>
   </div>
 </div>

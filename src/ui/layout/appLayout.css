@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   APP LAYOUT — header (menu / brand / resources / time), main tab
-   navigation, and footer. Markup: appLayout.html
+   APP LAYOUT — flat header bar (menu / brand / resources / time), underline
+   tab navigation, and status footer. Markup: appLayout.html
+   No nested boxes: the header is one bar, resources are plain groups.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .header {
@@ -9,10 +10,7 @@
   align-items: center;
   gap: var(--space-xl);
   padding: var(--space-md) var(--space-lg);
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  margin-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border);
 }
 
 /* ── Header left: menu + brand ─────────────────────────────────────────── */
@@ -27,23 +25,23 @@
 }
 
 .menu-btn {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text);
+  font-size: 16px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .menu-btn:hover {
-  background: var(--bg-panel-hover);
-  border-color: var(--border-light);
+  background: var(--bg-inset);
+  color: var(--text);
 }
 
 .menu-panel {
@@ -51,15 +49,15 @@
   top: calc(100% + 8px);
   left: 0;
   min-width: 160px;
-  padding: var(--space-sm);
-  background: #1a1f2e;
+  padding: var(--space-xs);
+  background: var(--bg-panel-hover);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   z-index: 100;
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: 2px;
 }
 
 .menu-panel.hidden {
@@ -78,7 +76,7 @@
 }
 
 .menu-item:hover {
-  background: var(--bg-panel-hover);
+  background: var(--bg-inset);
 }
 
 .menu-item.danger {
@@ -92,23 +90,24 @@
 }
 
 .brand-icon {
-  font-size: 28px;
+  font-size: 24px;
 }
 
 .brand-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .brand-sub {
-  font-size: 11px;
-  color: var(--text-muted);
+  font-size: 10px;
+  color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
-/* ── Header center: resources ──────────────────────────────────────────── */
+/* ── Header center: resources (plain groups, no boxes) ─────────────────── */
 .header-center {
   display: flex;
   justify-content: center;
@@ -116,21 +115,22 @@
 
 .resource-bar {
   display: flex;
-  gap: var(--space-lg);
+  align-items: center;
 }
 
 .resource {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-lg);
+}
+
+.resource + .resource {
+  border-left: 1px solid var(--divider);
 }
 
 .resource-icon {
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .resource-info {
@@ -143,12 +143,14 @@
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  line-height: 1.3;
 }
 
 .resource-value {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   font-family: var(--font-mono);
+  line-height: 1.3;
 }
 
 /* Gift breakdown dropdown */
@@ -156,15 +158,15 @@
   cursor: pointer;
   position: relative;
   user-select: none;
-}
-
-.resource-expandable:hover {
-  background: var(--bg-panel-hover);
   border-radius: var(--radius-sm);
 }
 
+.resource-expandable:hover {
+  background: var(--bg-inset);
+}
+
 .expand-hint {
-  font-size: 10px;
+  font-size: 9px;
   opacity: 0.5;
   transition: transform 0.2s ease;
 }
@@ -179,11 +181,11 @@
   top: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
-  min-width: 180px;
-  background: #1a1f30;
+  min-width: 190px;
+  background: var(--bg-panel-hover);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  padding: var(--space-sm);
+  padding: var(--space-xs);
   z-index: 100;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
@@ -191,28 +193,28 @@
 .resource-dropdown.open {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
 }
 
 .dropdown-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--space-lg);
   padding: var(--space-xs) var(--space-sm);
   font-size: 13px;
   border-radius: var(--radius-sm);
 }
 
 .dropdown-item:hover {
-  background: var(--bg-panel-hover);
+  background: var(--bg-inset);
 }
 
 .dropdown-item strong {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 13px;
 }
 
-/* ── Header right: time ────────────────────────────────────────────────── */
+/* ── Header right: time (plain group) ──────────────────────────────────── */
 .header-right {
   display: flex;
   align-items: center;
@@ -222,16 +224,17 @@
   display: flex;
   align-items: center;
   gap: var(--space-lg);
-  padding: var(--space-sm) var(--space-md);
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
 }
 
 .time-day {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
+}
+
+.time-day strong {
+  font-family: var(--font-mono);
+  font-size: 14px;
 }
 
 .time-label {
@@ -243,73 +246,69 @@
 .time-clock {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-xs);
 }
 
 .time-clock span {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
 .time-progress {
-  width: 100px;
-  height: 6px;
-  background: var(--bg-panel);
-  border-radius: 3px;
+  width: 90px;
+  height: 4px;
+  background: var(--bg-inset);
+  border-radius: 2px;
   overflow: hidden;
 }
 
 .time-progress-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, var(--accent), #60a5fa);
+  background: var(--accent);
   transition: width 0.3s ease;
 }
 
-/* ── Main content + tab navigation ─────────────────────────────────────── */
+/* ── Main content + underline tab navigation ───────────────────────────── */
 .main-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
 }
 
 .tab-nav {
   display: flex;
   gap: var(--space-xs);
-  padding: var(--space-xs);
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  padding: 0 var(--space-lg);
+  border-bottom: 1px solid var(--border);
 }
 
 .tab-btn {
-  flex: 1;
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-md) var(--space-lg);
   background: transparent;
   border: none;
-  border-radius: var(--radius-md);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   color: var(--text-muted);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .tab-btn:hover {
   color: var(--text);
-  background: var(--bg-panel-hover);
 }
 
 .tab-btn.active {
   color: var(--text);
-  background: var(--accent);
-  background: linear-gradient(135deg, var(--accent), #60a5fa);
+  border-bottom-color: var(--accent);
 }
 
 .tab-content {
   flex: 1;
+  padding: var(--space-xl) var(--space-lg);
 }
 
 .tab-panel {
@@ -322,10 +321,8 @@
 
 /* ── Footer ─────────────────────────────────────────────────────────────── */
 .footer {
-  padding: var(--space-sm) var(--space-md);
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-lg);
+  border-top: 1px solid var(--border);
   font-size: 12px;
   color: var(--text-muted);
 }
@@ -333,6 +330,7 @@
 .status-label {
   font-weight: 600;
   margin-right: var(--space-sm);
+  color: var(--text-dim);
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
@@ -346,5 +344,9 @@
   .header-center,
   .header-right {
     justify-content: center;
+  }
+
+  .tab-nav {
+    overflow-x: auto;
   }
 }
