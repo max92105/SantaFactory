@@ -17,7 +17,7 @@ import { toyTypes } from "../../../config/toyTypesConfig";
 import { elfTypes, elfCategories, type ElfTypeDef } from "../../../config/elfTypesConfig";
 import { upgrades, describeUpgradeEffect } from "../../../config/upgradesConfig";
 import { getElfCost } from "../../../helpers/costHelpers";
-import { hiredOf } from "../../../helpers/workforceHelpers";
+import { countOfType } from "../../../helpers/workforceHelpers";
 import { isToyUnlocked } from "../../../helpers/unlockHelpers";
 import { formatCost, formatMoneyPrecise } from "../../../helpers/formatHelpers";
 
@@ -204,7 +204,7 @@ function buildElvesList(ctx: GameContext): void {
 /** One elf row: icon + name + description, then separated stats + Hire button. */
 function buildElfRow(ctx: GameContext, def: ElfTypeDef): HTMLDivElement {
   const state = ctx.getState();
-  const cost = getElfCost(def, hiredOf(state, def.id));
+  const cost = getElfCost(def, countOfType(state, def.id));
 
   const row = document.createElement("div");
   row.className = "shop-row elf-row";
