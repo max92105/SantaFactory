@@ -10,6 +10,8 @@ import { createGameLoop } from "./GameLoop";
 import type { FrameViews, GameContext, Systems } from "./GameContext";
 import { createInitialState, type GameState } from "../state/GameState";
 import { SEASON_DAYS } from "../config/timeConfig";
+import { brokenStationCount } from "../helpers/stationHelpers";
+import { resetSpentShifts } from "../helpers/workforceHelpers";
 
 import { createTimeSystem } from "../systems/TimeSystem";
 import { createEconomySystem } from "../systems/EconomySystem";
@@ -110,8 +112,16 @@ export function createGame(): Game {
 
     const mods = systems.modifier.getModifiers(state);
 
+    // A station breaking mid-tick changes the factory UI structure (repair
+    // button appears), so rebuild when the broken count changes.
+    const brokenBefore = brokenStationCount(state);
+
     const timeResult = systems.time.update(state, dtSeconds);
     systems.pipeline.update(state, mods, dtSeconds);
+
+    if (brokenStationCount(state) !== brokenBefore) {
+      rebuildUI();
+    }
 
     if (timeResult.dayEnded) {
       systems.wage.payEndOfDayWages(state);
@@ -120,7 +130,11 @@ export function createGame(): Game {
       state.dayStats.giftsMade = 0;
       state.dayStats.giftsSold = 0;
       state.dayStats.moneyEarned = 0;
+      state.dayStats.ruined = 0;
       state.dayStats.moneyStart = state.resources.money;
+
+      // New day: spent shifts free up again
+      resetSpentShifts(state);
 
       // Wages change money/elves, so shop buttons etc. must refresh
       rebuildUI();

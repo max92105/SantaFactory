@@ -1,29 +1,50 @@
-<!-- UPGRADES PAGE (internal id "shop") — new toys, hiring, upgrades -->
+<!-- UPGRADES PAGE (internal id "shop") — category rail + searchable content.
+     The rail stays put; only the list scrolls (inside the page scroll area). -->
 <div id="tab-shop" class="tab-panel">
-  <div class="shop-layout">
-    <!-- Section nav — add more sections here when needed -->
-    <nav class="shop-nav">
-      <button class="shop-tab active" data-shop="toys">🧸 New Toys</button>
-      <button class="shop-tab" data-shop="hiring">🧝 Hiring</button>
-      <button class="shop-tab" data-shop="upgrades">⬆️ Upgrades</button>
-    </nav>
+  <div class="shop">
+    <!-- Category rail (add more categories here as the game grows) -->
+    <aside class="shop-rail">
+      <button class="shop-cat active" data-shop="toys">
+        <span class="shop-cat-icon">🧸</span>
+        <span class="shop-cat-text">
+          <span class="shop-cat-name">New Toys</span>
+          <span class="shop-cat-sub">Unlock lines to produce</span>
+        </span>
+      </button>
+      <button class="shop-cat" data-shop="hiring">
+        <span class="shop-cat-icon">🧝</span>
+        <span class="shop-cat-text">
+          <span class="shop-cat-name">Hiring</span>
+          <span class="shop-cat-sub">Grow your workforce</span>
+        </span>
+      </button>
+      <button class="shop-cat" data-shop="upgrades">
+        <span class="shop-cat-icon">⬆️</span>
+        <span class="shop-cat-text">
+          <span class="shop-cat-name">Upgrades</span>
+          <span class="shop-cat-sub">Permanent boosts</span>
+        </span>
+      </button>
+    </aside>
 
-    <!-- New Toys -->
-    <section id="shop-toys" class="shop-section active">
-      <p class="section-desc">Unlock new toy lines for your factory to produce and sell.</p>
-      <div id="toysList" class="shop-list"></div>
-    </section>
+    <!-- Content: sticky header (title + search) over the scrolling list -->
+    <section class="shop-content">
+      <div class="shop-content-head">
+        <h2 class="shop-content-title" id="shopContentTitle">New Toys</h2>
+        <input id="shopSearch" class="shop-search" type="search" placeholder="Search toys…" autocomplete="off" />
+      </div>
 
-    <!-- Hiring -->
-    <section id="shop-hiring" class="shop-section">
-      <p class="section-desc">Expand your workforce. Hiring costs follow the elves you currently employ.</p>
-      <div id="producersList" class="shop-list"></div>
-    </section>
+      <div class="shop-view active" data-shop="toys">
+        <div id="toysList" class="shop-list"></div>
+      </div>
+      <div class="shop-view" data-shop="hiring">
+        <div id="elvesList" class="shop-list"></div>
+      </div>
+      <div class="shop-view" data-shop="upgrades">
+        <div id="upgradesList" class="shop-list"></div>
+      </div>
 
-    <!-- Upgrades -->
-    <section id="shop-upgrades" class="shop-section">
-      <p class="section-desc">Permanent improvements to your factory.</p>
-      <div id="upgradesList" class="shop-list"></div>
+      <div id="shopEmpty" class="shop-empty" hidden>No matches.</div>
     </section>
   </div>
 </div>

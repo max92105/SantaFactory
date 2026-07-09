@@ -1,5 +1,8 @@
 /**
- * storagePage — the "Storage" tab: finished-goods inventory and selling.
+ * storagePage — the "Storage" tab: a single searchable list of finished-goods
+ * inventory with per-row selling, plus a "sell all" action. Built to scale to
+ * many toys: rows scroll, a search box filters, and toys with stock sort to
+ * the top so the actionable ones are always in view.
  * Markup: storagePage.html · Styles: storagePage.css
  * Logic: EconomySystem (sell rates + selling).
  */
@@ -9,38 +12,87 @@ import "./storagePage.css";
 
 import type { Page } from "../Page";
 import type { FrameViews, GameContext } from "../../../core/GameContext";
-import { toyTypes, getToyType } from "../../../config/toyTypesConfig";
+import type { ToyTypeDef } from "../../../config/toyTypesConfig";
 import { getUnlockedToyTypes } from "../../../helpers/unlockHelpers";
-import { getSellableStock, ensureInventory } from "../../../helpers/inventoryHelpers";
+import { getSellableStock, ensureInventory, getTotalBroken } from "../../../helpers/inventoryHelpers";
 import { formatInt, formatMoneyPrecise } from "../../../helpers/formatHelpers";
 import { spawnSellFloat } from "../../components/floatingText";
 
 export function createStoragePage(): Page {
-  // Which toy type is currently selected for selling
-  let currentSellType: string = toyTypes[0]?.id ?? "plushy";
+  // Search text persists across rebuilds (rebuild() recreates rows each action)
+  let query = "";
 
-  function buildSellTypeSelector(ctx: GameContext): void {
+  /** Unlocked toys with their current stock/rate, sorted stock-first (value desc). */
+  function rankedToys(ctx: GameContext): { toy: ToyTypeDef; rate: number }[] {
     const state = ctx.getState();
     const mods = ctx.systems.modifier.getModifiers(state);
-    ctx.dom.sellTypeSelector.innerHTML = "";
+    return getUnlockedToyTypes(state)
+      .map((toy) => {
+        const stock = getSellableStock(state, toy.id);
+        const rate = ctx.systems.economy.getSellRate(toy.id, mods);
+        return { toy, rate, stock, value: stock * rate };
+      })
+      .sort((a, b) => Number(b.stock > 0) - Number(a.stock > 0) || b.value - a.value)
+      .map(({ toy, rate }) => ({ toy, rate }));
+  }
 
-    const unlocked = getUnlockedToyTypes(state);
-    if (!unlocked.some((t) => t.id === currentSellType) && unlocked[0]) {
-      currentSellType = unlocked[0].id;
-    }
+  function sell(ctx: GameContext, toyId: string, amount: number): number {
+    if (amount <= 0) return 0;
+    const state = ctx.getState();
+    const mods = ctx.systems.modifier.getModifiers(state);
+    return ctx.systems.economy.sellItems(state, mods, toyId, amount);
+  }
 
-    for (const t of unlocked) {
-      const rate = ctx.systems.economy.getSellRate(t.id, mods);
-      const btn = document.createElement("button");
-      btn.className = "sell-type-btn" + (t.id === currentSellType ? " active" : "");
-      btn.dataset.sellType = t.id;
-      btn.innerHTML = `${t.icon} ${t.name} <span class="sell-type-rate">${formatMoneyPrecise(rate)}</span>`;
-      btn.onclick = () => {
-        currentSellType = t.id;
-        ctx.dom.sellSlider.value = "0";
-        ctx.rebuildUI();
+  function flash(ctx: GameContext, earned: number): void {
+    if (earned > 0) spawnSellFloat(ctx.dom.sellFloatLayer, `+${formatMoneyPrecise(earned)}`);
+    ctx.rebuildUI();
+  }
+
+  function applyFilter(ctx: GameContext): void {
+    const q = query.trim().toLowerCase();
+    let visible = 0;
+    ctx.dom.storageList.querySelectorAll<HTMLElement>(".stock-row").forEach((row) => {
+      const match = q === "" || (row.dataset.name ?? "").includes(q);
+      row.hidden = !match;
+      if (match) visible += 1;
+    });
+    ctx.dom.storageEmpty.hidden = visible > 0;
+  }
+
+  function buildList(ctx: GameContext): void {
+    const list = ctx.dom.storageList;
+    list.innerHTML = "";
+
+    for (const { toy, rate } of rankedToys(ctx)) {
+      const row = document.createElement("div");
+      row.className = "stock-row";
+      row.dataset.toyType = toy.id;
+      row.dataset.name = toy.name.toLowerCase();
+      row.innerHTML = `
+        <span class="stock-icon">${toy.icon}</span>
+        <div class="stock-info">
+          <div class="stock-name">${toy.name}</div>
+          <div class="stock-rate">${formatMoneyPrecise(rate)} / ea</div>
+          <div class="stock-broken" data-broken hidden></div>
+        </div>
+        <div class="stock-count"><strong data-count>0</strong><span>in stock</span></div>
+        <div class="stock-value" data-value>$0.00</div>
+        <div class="stock-actions">
+          <button class="stock-btn stock-half" type="button">½</button>
+          <button class="stock-btn stock-all" type="button">Sell all</button>
+        </div>
+      `;
+
+      row.querySelector<HTMLButtonElement>(".stock-half")!.onclick = () => {
+        const stock = getSellableStock(ctx.getState(), toy.id);
+        flash(ctx, sell(ctx, toy.id, Math.floor(stock / 2)));
       };
-      ctx.dom.sellTypeSelector.appendChild(btn);
+      row.querySelector<HTMLButtonElement>(".stock-all")!.onclick = () => {
+        const stock = getSellableStock(ctx.getState(), toy.id);
+        flash(ctx, sell(ctx, toy.id, stock));
+      };
+
+      list.appendChild(row);
     }
   }
 
@@ -50,93 +102,58 @@ export function createStoragePage(): Page {
     },
 
     bind(ctx) {
-      const { dom } = ctx;
+      ctx.dom.storageSearch.oninput = () => {
+        query = ctx.dom.storageSearch.value;
+        applyFilter(ctx);
+      };
 
-      // Live preview while dragging the slider
-      dom.sellSlider.oninput = () => ctx.rebuildUI();
-
-      // Fixed-amount quick buttons (10 / 100 / 1k / Max)
-      dom.sellQuickButtons.forEach((btn) => {
-        btn.onclick = () => {
-          const max = getSellableStock(ctx.getState(), currentSellType);
-          const raw = btn.dataset.sell;
-
-          const next = raw === "max" ? max : Number(raw || 0);
-          dom.sellSlider.value = String(Math.max(0, Math.min(next, max)));
-          ctx.rebuildUI();
-        };
-      });
-
-      // Percentage quick buttons (25% / 50% / 100%)
-      dom.sellPctButtons.forEach((btn) => {
-        btn.onclick = () => {
-          const max = getSellableStock(ctx.getState(), currentSellType);
-          const pct = Number(btn.dataset.pct || 0);
-          const next = Math.floor(max * pct);
-
-          dom.sellSlider.value = String(Math.max(0, Math.min(next, max)));
-          ctx.rebuildUI();
-        };
-      });
-
-      // Sell button
-      dom.sellBtn.onclick = () => {
-        const state = ctx.getState();
-        const mods = ctx.systems.modifier.getModifiers(state);
-        const stock = getSellableStock(state, currentSellType);
-
-        const amount = Math.max(0, Math.min(Number(dom.sellSlider.value || 0), stock));
-        if (amount <= 0) return;
-
-        const earned = ctx.systems.economy.sellItems(state, mods, currentSellType, amount);
-
-        dom.sellSlider.value = "0";
-        spawnSellFloat(dom.sellFloatLayer, `+${formatMoneyPrecise(earned)}`);
-
-        ctx.rebuildUI();
+      ctx.dom.sellAllBtn.onclick = () => {
+        let total = 0;
+        for (const toy of getUnlockedToyTypes(ctx.getState())) {
+          total += sell(ctx, toy.id, getSellableStock(ctx.getState(), toy.id));
+        }
+        flash(ctx, total);
       };
     },
 
     rebuild(ctx) {
-      buildSellTypeSelector(ctx);
+      buildList(ctx);
+      applyFilter(ctx);
     },
 
     renderFrame(ctx, views: FrameViews) {
       const state = ctx.getState();
-      const { dom } = ctx;
-      const sellRates = views.economy.sellRates;
+      const rates = views.economy.sellRates;
 
-      // Inventory overview (finished goods per unlocked toy type)
-      dom.inventoryGrid.innerHTML = "";
-      for (const t of getUnlockedToyTypes(state)) {
-        const inv = ensureInventory(state, t.id);
-        const rate = sellRates.find((r) => r.toyType === t.id)?.rate ?? 0;
-        const el = document.createElement("div");
-        el.className = "inventory-item";
-        el.innerHTML = `
-          <span class="inventory-icon">${t.icon}</span>
-          <div class="inventory-info">
-            <span class="inventory-label">${t.name}</span>
-            <strong class="inventory-value">${formatInt(inv.finished)}</strong>
-          </div>
-          <span class="inventory-rate">${formatMoneyPrecise(rate)}/ea</span>
-        `;
-        dom.inventoryGrid.appendChild(el);
+      let totalStock = 0;
+      let totalValue = 0;
+
+      for (const toy of getUnlockedToyTypes(state)) {
+        const inv = ensureInventory(state, toy.id);
+        const stock = Math.floor(inv.finished);
+        const broken = Math.floor(inv.broken);
+        const rate = rates.find((r) => r.toyType === toy.id)?.rate ?? 0;
+        totalStock += stock;
+        totalValue += stock * rate;
+
+        const row = ctx.dom.storageList.querySelector<HTMLElement>(`[data-toy-type="${toy.id}"]`);
+        if (!row) continue;
+        row.querySelector("[data-count]")!.textContent = formatInt(stock);
+        row.querySelector("[data-value]")!.textContent = formatMoneyPrecise(stock * rate);
+
+        const brokenEl = row.querySelector<HTMLElement>("[data-broken]")!;
+        brokenEl.hidden = broken <= 0;
+        brokenEl.textContent = broken > 0 ? `🔨 ${formatInt(broken)} broken` : "";
+
+        // A row is "empty" (dimmed) only when it has nothing at all
+        row.classList.toggle("empty", stock <= 0 && broken <= 0);
+        row.querySelectorAll<HTMLButtonElement>("button").forEach((b) => (b.disabled = stock <= 0));
       }
 
-      // Sell slider bounds + live preview for the selected toy type
-      const stock = getSellableStock(state, currentSellType);
-      const current = Math.max(0, Math.min(Number(dom.sellSlider.value || 0), stock));
-
-      dom.sellSlider.max = String(stock);
-      if (Number(dom.sellSlider.value) > stock) dom.sellSlider.value = String(stock);
-
-      dom.sellAmountLabel.textContent = formatInt(current);
-      dom.sellUnitLabel.textContent = getToyType(currentSellType)?.name ?? "items";
-
-      const sellRate = sellRates.find((r) => r.toyType === currentSellType)?.rate ?? 0;
-      dom.sellPreviewMoney.textContent = formatMoneyPrecise(current * sellRate);
-      dom.sellBtn.disabled = current <= 0;
+      ctx.dom.storageTotalStock.textContent = formatInt(totalStock);
+      ctx.dom.storageTotalValue.textContent = formatMoneyPrecise(totalValue);
+      ctx.dom.storageTotalBroken.textContent = formatInt(getTotalBroken(state));
+      ctx.dom.sellAllBtn.disabled = totalStock <= 0;
     },
   };
 }

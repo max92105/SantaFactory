@@ -9,8 +9,29 @@
 import { BASE_GIFTS_PER_CLICK } from "../config/productionConfig";
 import { toyTypes } from "../config/toyTypesConfig";
 
-/** Per-toy-type item counts at each production stage. */
-export type ToyInventory = { raw: number; assembled: number; finished: number };
+/**
+ * Per-toy-type item counts. `raw`/`assembled`/`finished` are the production
+ * stages; `broken` holds items ruined by elf mistakes (kept, not a stage —
+ * may be sellable-for-less or repairable later).
+ */
+export type ToyInventory = { raw: number; assembled: number; finished: number; broken: number };
+
+/**
+ * One physical elf. The elf is the unit of assignment: when scheduled it works
+ * ONE step and covers a fixed set of shift slots (all chosen at assignment).
+ * Pulling it clears its whole schedule and marks it `spent` — idle until tomorrow.
+ *
+ *  - idle:     step === null, slots === [], spent === false  (assignable)
+ *  - on shift: step set,      slots set,    spent === false
+ *  - spent:    step === null, slots === [], spent === true   (until day reset)
+ */
+export type ElfInstance = {
+  id: number;
+  type: string;
+  step: string | null;
+  slots: string[];
+  spent: boolean;
+};
 
 /** End-of-day recap data (produced by DailySummarySystem — not wired into the loop yet). */
 export type DaySummary = {
@@ -40,15 +61,22 @@ export type GameState = {
   inventory: Record<string, ToyInventory>;
 
   workforce: {
-    totalElves: number;
-    /** How many elves are assigned to each pipeline step (stepId -> count). */
-    assignments: Record<string, number>;
-    /** Elves available to assign. */
-    unassigned: number;
+    /** Every physical elf is tracked individually (see ElfInstance). */
+    elves: ElfInstance[];
+    /** Monotonic id source for new elves. */
+    nextId: number;
   };
+
+  /** Per-step (station) runtime state — currently just breakdowns. */
+  stations: Record<string, { broken: boolean }>;
+
+  /** Transient notification queue drained by the UI each frame (toasts). */
+  pendingAlerts: string[];
 
   stats: {
     lifetimeSoldGifts: number;
+    /** Items ruined by elf mistakes over the whole run. */
+    lifetimeRuined: number;
   };
 
   /** Stats that reset every day (debug + balancing). */
@@ -56,6 +84,8 @@ export type GameState = {
     giftsMade: number;
     giftsSold: number;
     moneyEarned: number;
+    /** Items ruined by elf mistakes today. */
+    ruined: number;
 
     wagesDue: number;
     wagesPaid: number;
@@ -70,8 +100,6 @@ export type GameState = {
   };
 
   owned: {
-    /** Purchase history per hire package (drives unlock rules, not prices). */
-    producers: Record<string, number>;
     upgrades: Record<string, boolean>;
     /** Toy lines the player has unlocked (see helpers/unlockHelpers.ts). */
     toys: Record<string, boolean>;
@@ -101,7 +129,7 @@ export function createInitialState(): GameState {
   const inventory: Record<string, ToyInventory> = {};
   const toys: Record<string, boolean> = {};
   for (const t of toyTypes) {
-    inventory[t.id] = { raw: 0, assembled: 0, finished: 0 };
+    inventory[t.id] = { raw: 0, assembled: 0, finished: 0, broken: 0 };
     toys[t.id] = t.unlockCost <= 0; // free toys start unlocked
   }
 
@@ -114,19 +142,23 @@ export function createInitialState(): GameState {
     inventory,
 
     workforce: {
-      totalElves: 0,
-      assignments: {},
-      unassigned: 0,
+      elves: [],
+      nextId: 1,
     },
+
+    stations: {},
+    pendingAlerts: [],
 
     stats: {
       lifetimeSoldGifts: 0,
+      lifetimeRuined: 0,
     },
 
     dayStats: {
       giftsMade: 0,
       giftsSold: 0,
       moneyEarned: 0,
+      ruined: 0,
       wagesDue: 0,
       wagesPaid: 0,
       moneyStart: 0,
@@ -139,7 +171,6 @@ export function createInitialState(): GameState {
     },
 
     owned: {
-      producers: {},
       upgrades: {},
       toys,
     },

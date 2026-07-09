@@ -10,11 +10,17 @@ export type DomRefs = {
   hudMoney: HTMLElement;
   hudElves: HTMLElement;
   giftsResource: HTMLElement;
+  giftsToggle: HTMLButtonElement;
   giftsDropdown: HTMLElement;
+  elvesResource: HTMLElement;
+  elvesToggle: HTMLButtonElement;
+  elvesDropdown: HTMLElement;
 
-  // Header — time
+  // Header — season clock
   hudDay: HTMLElement;
   hudTimeOfDay: HTMLElement;
+  hudTimeIcon: HTMLElement;
+  hudDaysLeft: HTMLElement;
   timeBarFill: HTMLDivElement;
 
   // Header — menu
@@ -31,41 +37,47 @@ export type DomRefs = {
   tabShop: HTMLDivElement;
   tabStorage: HTMLDivElement;
   tabMetrics: HTMLDivElement;
+  factoryBadge: HTMLElement;
+
+  // Toasts
+  toastLayer: HTMLDivElement;
 
   // Click page
   makeGiftBtn: HTMLButtonElement;
   floatLayer: HTMLDivElement;
   clickGpc: HTMLElement;
   clickStock: HTMLElement;
+  clickToyName: HTMLElement;
+  clickToyValue: HTMLElement;
   clickToySelector: HTMLDivElement;
 
   // Factory page
   totalElves: HTMLElement;
   assignedElves: HTMLElement;
   unassignedElves: HTMLElement;
-  pipelineList: HTMLDivElement;
-  wipGrid: HTMLDivElement;
+  unassignedTypes: HTMLDivElement;
+  factoryRail: HTMLDivElement;
+  factoryDetail: HTMLDivElement;
 
   // Shop page ("Upgrades" tab)
-  shopTabs: NodeListOf<HTMLButtonElement>;
-  shopToys: HTMLElement;
-  shopHiring: HTMLElement;
-  shopUpgrades: HTMLElement;
+  shopCats: NodeListOf<HTMLButtonElement>;
+  shopViews: NodeListOf<HTMLElement>;
+  shopContentTitle: HTMLElement;
+  shopSearch: HTMLInputElement;
+  shopEmpty: HTMLElement;
   toysList: HTMLDivElement;
-  producersList: HTMLDivElement;
+  elvesList: HTMLDivElement;
   upgradesList: HTMLDivElement;
 
   // Storage page
-  inventoryGrid: HTMLDivElement;
-  sellTypeSelector: HTMLDivElement;
-  sellUnitLabel: HTMLElement;
-  sellSlider: HTMLInputElement;
-  sellBtn: HTMLButtonElement;
-  sellAmountLabel: HTMLElement;
-  sellPreviewMoney: HTMLElement;
+  storageList: HTMLDivElement;
+  storageEmpty: HTMLElement;
+  storageSearch: HTMLInputElement;
+  storageTotalStock: HTMLElement;
+  storageTotalValue: HTMLElement;
+  storageTotalBroken: HTMLElement;
+  sellAllBtn: HTMLButtonElement;
   sellFloatLayer: HTMLDivElement;
-  sellQuickButtons: NodeListOf<HTMLButtonElement>;
-  sellPctButtons: NodeListOf<HTMLButtonElement>;
 
   // Metrics page
   mGpc: HTMLElement;
@@ -74,11 +86,14 @@ export type DomRefs = {
   mGifts: HTMLElement;
   mMoney: HTMLElement;
   mNetWorth: HTMLElement;
+  mBrokenHeld: HTMLElement;
   mLifetimeGifts: HTMLElement;
   mLifetimeSold: HTMLElement;
+  mLifetimeRuined: HTMLElement;
   mDayMade: HTMLElement;
   mDaySold: HTMLElement;
   mDayEarned: HTMLElement;
+  mDayRuined: HTMLElement;
   mWagesDue: HTMLElement;
   mWageResult: HTMLElement;
   wageRuleText: HTMLElement;
@@ -100,11 +115,17 @@ export function getDomRefs(): DomRefs {
     hudMoney: mustGet("hudMoney"),
     hudElves: mustGet("hudElves"),
     giftsResource: mustGet("giftsResource"),
+    giftsToggle: mustGet("giftsToggle"),
     giftsDropdown: mustGet("giftsDropdown"),
+    elvesResource: mustGet("elvesResource"),
+    elvesToggle: mustGet("elvesToggle"),
+    elvesDropdown: mustGet("elvesDropdown"),
 
-    // Header — time
+    // Header — season clock
     hudDay: mustGet("hudDay"),
     hudTimeOfDay: mustGet("hudTimeOfDay"),
+    hudTimeIcon: mustGet("hudTimeIcon"),
+    hudDaysLeft: mustGet("hudDaysLeft"),
     timeBarFill: mustGet("timeBarFill"),
 
     // Header — menu
@@ -121,41 +142,47 @@ export function getDomRefs(): DomRefs {
     tabShop: mustGet("tab-shop"),
     tabStorage: mustGet("tab-storage"),
     tabMetrics: mustGet("tab-metrics"),
+    factoryBadge: mustGet("factoryBadge"),
+
+    // Toasts
+    toastLayer: mustGet("toastLayer"),
 
     // Click page
     makeGiftBtn: mustGet("makeGiftBtn"),
     floatLayer: mustGet("floatLayer"),
     clickGpc: mustGet("clickGpc"),
     clickStock: mustGet("clickStock"),
+    clickToyName: mustGet("clickToyName"),
+    clickToyValue: mustGet("clickToyValue"),
     clickToySelector: mustGet("clickToySelector"),
 
     // Factory page
     totalElves: mustGet("totalElves"),
     assignedElves: mustGet("assignedElves"),
     unassignedElves: mustGet("unassignedElves"),
-    pipelineList: mustGet("pipelineList"),
-    wipGrid: mustGet("wipGrid"),
+    unassignedTypes: mustGet("unassignedTypes"),
+    factoryRail: mustGet("factoryRail"),
+    factoryDetail: mustGet("factoryDetail"),
 
     // Shop page ("Upgrades" tab)
-    shopTabs: document.querySelectorAll<HTMLButtonElement>(".shop-tab"),
-    shopToys: mustGet("shop-toys"),
-    shopHiring: mustGet("shop-hiring"),
-    shopUpgrades: mustGet("shop-upgrades"),
+    shopCats: document.querySelectorAll<HTMLButtonElement>(".shop-cat"),
+    shopViews: document.querySelectorAll<HTMLElement>(".shop-view"),
+    shopContentTitle: mustGet("shopContentTitle"),
+    shopSearch: mustGet("shopSearch") as HTMLInputElement,
+    shopEmpty: mustGet("shopEmpty"),
     toysList: mustGet("toysList"),
-    producersList: mustGet("producersList"),
+    elvesList: mustGet("elvesList"),
     upgradesList: mustGet("upgradesList"),
 
     // Storage page
-    inventoryGrid: mustGet("inventoryGrid"),
-    sellTypeSelector: mustGet("sellTypeSelector"),
-    sellUnitLabel: mustGet("sellUnitLabel"),
-    sellSlider: mustGet("sellSlider"),
-    sellBtn: mustGet("sellBtn"),
-    sellAmountLabel: mustGet("sellAmountLabel"),
-    sellPreviewMoney: mustGet("sellPreviewMoney"),
+    storageList: mustGet("storageList"),
+    storageEmpty: mustGet("storageEmpty"),
+    storageSearch: mustGet("storageSearch") as HTMLInputElement,
+    storageTotalStock: mustGet("storageTotalStock"),
+    storageTotalValue: mustGet("storageTotalValue"),
+    storageTotalBroken: mustGet("storageTotalBroken"),
+    sellAllBtn: mustGet("sellAllBtn"),
     sellFloatLayer: mustGet("sellFloatLayer"),
-    sellQuickButtons: document.querySelectorAll<HTMLButtonElement>(".sell-quick"),
-    sellPctButtons: document.querySelectorAll<HTMLButtonElement>(".sell-pct"),
 
     // Metrics page
     mGpc: mustGet("mGpc"),
@@ -164,11 +191,14 @@ export function getDomRefs(): DomRefs {
     mGifts: mustGet("mGifts"),
     mMoney: mustGet("mMoney"),
     mNetWorth: mustGet("mNetWorth"),
+    mBrokenHeld: mustGet("mBrokenHeld"),
     mLifetimeGifts: mustGet("mLifetimeGifts"),
     mLifetimeSold: mustGet("mLifetimeSold"),
+    mLifetimeRuined: mustGet("mLifetimeRuined"),
     mDayMade: mustGet("mDayMade"),
     mDaySold: mustGet("mDaySold"),
     mDayEarned: mustGet("mDayEarned"),
+    mDayRuined: mustGet("mDayRuined"),
     mWagesDue: mustGet("mWagesDue"),
     mWageResult: mustGet("mWageResult"),
     wageRuleText: mustGet("wageRuleText"),

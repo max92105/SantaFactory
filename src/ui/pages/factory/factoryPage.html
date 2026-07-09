@@ -1,34 +1,29 @@
-<!-- FACTORY PAGE — workforce summary, production lines, work-in-progress -->
+<!-- FACTORY PAGE — workforce bar, production-line rail, focused line detail.
+     Pick a line on the left; schedule its shifts and watch its flow on the right. -->
 <div id="tab-factory" class="tab-panel">
-  <div class="factory-layout">
-    <!-- Workforce summary bar (extend with more elf types later) -->
+  <div class="factory">
+    <!-- Workforce summary + idle capacity by elf type -->
     <div class="workforce-bar">
-      <div class="workforce-stat">
-        <span>🧝 Total Elves</span>
-        <strong id="totalElves">0</strong>
+      <div class="workforce-totals">
+        <div class="workforce-stat">
+          <span>🧝 Total Elves</span>
+          <strong id="totalElves">0</strong>
+        </div>
+        <div class="workforce-stat highlight">
+          <span>On Shift Now</span>
+          <strong id="assignedElves">0</strong>
+        </div>
+        <div class="workforce-stat">
+          <span>Idle Elves</span>
+          <strong id="unassignedElves">0</strong>
+        </div>
       </div>
-      <div class="workforce-stat">
-        <span>Assigned</span>
-        <strong id="assignedElves">0</strong>
-      </div>
-      <div class="workforce-stat highlight">
-        <span>Unassigned</span>
-        <strong id="unassignedElves">0</strong>
-      </div>
+      <div id="unassignedTypes" class="unassigned-types"></div>
     </div>
 
-    <div class="factory-columns">
-      <!-- Production lines, grouped: per-toy crafting then shared steps -->
-      <section class="pipeline-section">
-        <h3 class="section-title">Production Lines</h3>
-        <div id="pipelineList" class="pipeline-list"></div>
-      </section>
-
-      <!-- Per-toy stage counts as a table: one row per toy, one column per stage -->
-      <section class="wip-section">
-        <h3 class="section-title">Work in Progress</h3>
-        <div id="wipGrid" class="wip-table-wrap"></div>
-      </section>
+    <div class="factory-body">
+      <aside class="factory-rail" id="factoryRail"></aside>
+      <section class="factory-detail" id="factoryDetail"></section>
     </div>
   </div>
 </div>

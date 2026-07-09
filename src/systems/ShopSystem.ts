@@ -1,38 +1,33 @@
 /**
- * ShopSystem — purchase logic for toy unlocks, hire packages and upgrades.
+ * ShopSystem — purchase logic for toy unlocks, elf hires and upgrades.
  * Pure state changes only; the UI lives in ui/pages/shop/shopPage.ts.
- * Prices/definitions: config/toyTypesConfig.ts, config/producersConfig.ts
+ * Prices/definitions: config/toyTypesConfig.ts, config/elfTypesConfig.ts
  * and config/upgradesConfig.ts.
  */
 
 import type { GameState } from "../state/GameState";
-import { getProducer } from "../config/producersConfig";
+import { getElfType } from "../config/elfTypesConfig";
 import { getUpgrade } from "../config/upgradesConfig";
 import { getToyType } from "../config/toyTypesConfig";
-import { getProducerCostForState } from "../helpers/costHelpers";
+import { getElfCost } from "../helpers/costHelpers";
+import { addElf, countOfType } from "../helpers/workforceHelpers";
 import { isToyUnlocked } from "../helpers/unlockHelpers";
-import { pluralizeElves } from "../helpers/textHelpers";
 
 export function createShopSystem() {
-  function buyProducer(state: GameState, producerId: string): boolean {
-    const def = getProducer(producerId);
+  /** Hire one elf of the given type into the unassigned pool. */
+  function buyElf(state: GameState, elfTypeId: string): boolean {
+    const def = getElfType(elfTypeId);
     if (!def) return false;
 
-    const cost = getProducerCostForState(def, state);
-
+    const cost = getElfCost(def, countOfType(state, elfTypeId));
     if (state.resources.money < cost) {
-      state.meta.statusText = `Not enough money to buy ${def.name}.`;
+      state.meta.statusText = `Not enough money to hire a ${def.name}.`;
       return false;
     }
 
     state.resources.money -= cost;
-    state.owned.producers[producerId] = (state.owned.producers[producerId] ?? 0) + 1;
-
-    // New hires land in the unassigned pool
-    state.workforce.totalElves += def.elvesProvided;
-    state.workforce.unassigned += def.elvesProvided;
-
-    state.meta.statusText = `Hired ${def.name} (+${def.elvesProvided} ${pluralizeElves(def.elvesProvided)}).`;
+    addElf(state, elfTypeId);
+    state.meta.statusText = `Hired a ${def.name}. Schedule their shifts in the Factory.`;
     return true;
   }
 
@@ -69,7 +64,7 @@ export function createShopSystem() {
     return true;
   }
 
-  return { buyProducer, buyUpgrade, buyToyUnlock };
+  return { buyElf, buyUpgrade, buyToyUnlock };
 }
 
 export type ShopSystem = ReturnType<typeof createShopSystem>;

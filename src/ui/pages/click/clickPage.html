@@ -1,34 +1,29 @@
-<!-- CLICK PAGE — hand-craft gifts by clicking (bootstrap production) -->
+<!-- CLICK PAGE — hand-craft gifts. Hero button + scalable toy tray (no boxes) -->
 <div id="tab-click" class="tab-panel active">
-  <div class="click-layout">
-    <!-- Toy picker — scales to any number of toy types (scrollable grid) -->
-    <aside class="click-toys">
-      <h3 class="section-title">Toy to craft</h3>
-      <div id="clickToySelector" class="toy-grid"></div>
-    </aside>
-
-    <!-- Crafting area -->
-    <section class="click-main">
-      <h2 class="click-title">Make Gifts</h2>
-      <p class="click-desc">Click to craft the selected toy by hand</p>
-
+  <div class="click-page">
+    <!-- Hero: the big craft button + what you're crafting -->
+    <div class="click-hero">
       <div class="click-area">
-        <button id="makeGiftBtn" class="click-btn" aria-label="Make Gift">
-          🎁
-        </button>
+        <button id="makeGiftBtn" class="click-btn" aria-label="Craft gift">🎁</button>
         <div id="floatLayer" class="float-layer"></div>
       </div>
 
-      <div class="click-stats">
-        <div class="click-stat">
-          <span>Per Click</span>
-          <strong id="clickGpc">1</strong>
-        </div>
-        <div class="click-stat">
-          <span>In Stock</span>
-          <strong id="clickStock">0</strong>
-        </div>
+      <div class="click-selected">
+        <span class="click-toy-name" id="clickToyName">Plushy</span>
+        <span class="click-toy-value" id="clickToyValue">$3.00 each</span>
       </div>
-    </section>
+
+      <div class="click-stats">
+        <span class="click-stat"><span class="click-stat-icon">⚡</span><strong id="clickGpc">1</strong> per click</span>
+        <span class="click-stat-sep">·</span>
+        <span class="click-stat"><span class="click-stat-icon">📦</span><strong id="clickStock">0</strong> in stock</span>
+      </div>
+    </div>
+
+    <!-- Make Gifts: pick which toy the button crafts. Scrolls for many toys. -->
+    <div class="click-selector">
+      <h2 class="click-title">Make Gifts</h2>
+      <div id="clickToySelector" class="toy-tray"></div>
+    </div>
   </div>
 </div>

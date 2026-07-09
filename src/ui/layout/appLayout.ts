@@ -11,7 +11,19 @@ import type { FrameViews, GameContext } from "../../core/GameContext";
 import { createInitialState } from "../../state/GameState";
 import { ensureInventory, getTotalFinished } from "../../helpers/inventoryHelpers";
 import { getUnlockedToyTypes } from "../../helpers/unlockHelpers";
+import { totalElves, countOfType, onShiftCount, totalIdle, ownedElfTypes } from "../../helpers/workforceHelpers";
+import { currentShiftSlot } from "../../config/shiftsConfig";
+import { brokenStationCount } from "../../helpers/stationHelpers";
+import { spawnToast } from "../components/toast";
 import { formatInt, formatMoney } from "../../helpers/formatHelpers";
+
+/** Emoji for each time-of-day label (single source for the HUD clock). */
+const TIME_OF_DAY_ICON: Record<string, string> = {
+  Morning: "🌅",
+  Afternoon: "☀️",
+  Evening: "🌆",
+  Night: "🌙",
+};
 
 /** Inject the layout shell into the app root. Must run before any page mounts. */
 export function mountAppLayout(root: HTMLElement): void {
@@ -37,14 +49,34 @@ export function bindAppLayout(ctx: GameContext): void {
     };
   });
 
-  // Gifts dropdown toggle
-  dom.giftsResource.onclick = (e) => {
-    e.stopPropagation();
-    dom.giftsDropdown.classList.toggle("open");
-  };
-  document.addEventListener("click", () => {
+  // Resource breakdowns (Gifts, Elves): only the arrow toggles; one open at a
+  // time; click again or outside to close.
+  const closeAllDropdowns = () => {
     dom.giftsDropdown.classList.remove("open");
-  });
+    dom.giftsToggle.setAttribute("aria-expanded", "false");
+    dom.elvesDropdown.classList.remove("open");
+    dom.elvesToggle.setAttribute("aria-expanded", "false");
+  };
+  const toggleDropdown = (drop: HTMLElement, toggle: HTMLElement) => {
+    const willOpen = !drop.classList.contains("open");
+    closeAllDropdowns();
+    if (willOpen) {
+      drop.classList.add("open");
+      toggle.setAttribute("aria-expanded", "true");
+    }
+  };
+  dom.giftsToggle.onclick = (e) => {
+    e.stopPropagation();
+    toggleDropdown(dom.giftsDropdown, dom.giftsToggle);
+  };
+  dom.elvesToggle.onclick = (e) => {
+    e.stopPropagation();
+    toggleDropdown(dom.elvesDropdown, dom.elvesToggle);
+  };
+  // Clicks inside a panel shouldn't close it
+  dom.giftsDropdown.onclick = (e) => e.stopPropagation();
+  dom.elvesDropdown.onclick = (e) => e.stopPropagation();
+  document.addEventListener("click", closeAllDropdowns);
 
   // Menu toggle
   const closeMenu = () => dom.menuPanel.classList.add("hidden");
@@ -92,21 +124,66 @@ export function renderAppLayout(ctx: GameContext, views: FrameViews): void {
 
   dom.hudGifts.textContent = formatInt(getTotalFinished(state));
   dom.hudMoney.textContent = formatMoney(state.resources.money);
-  dom.hudElves.textContent = formatInt(state.workforce.totalElves);
+  dom.hudElves.textContent = formatInt(totalElves(state));
 
   // Gift breakdown dropdown (per unlocked toy type)
   dom.giftsDropdown.innerHTML = "";
+  const header = document.createElement("div");
+  header.className = "dropdown-header";
+  header.textContent = "Gifts in stock";
+  dom.giftsDropdown.appendChild(header);
   for (const t of getUnlockedToyTypes(state)) {
     const inv = ensureInventory(state, t.id);
     const item = document.createElement("div");
     item.className = "dropdown-item";
-    item.innerHTML = `<span>${t.icon} ${t.name} (finished)</span><strong>${formatInt(inv.finished)}</strong>`;
+    item.innerHTML = `<span>${t.icon} ${t.name}</span><strong>${formatInt(inv.finished)}</strong>`;
     dom.giftsDropdown.appendChild(item);
   }
 
+  // Elf breakdown dropdown (per elf type, with idle/working summary)
+  dom.elvesDropdown.innerHTML = "";
+  const elvesHeader = document.createElement("div");
+  elvesHeader.className = "dropdown-header";
+  elvesHeader.textContent = "Elves by type";
+  dom.elvesDropdown.appendChild(elvesHeader);
+
+  const owned = ownedElfTypes(state);
+  if (owned.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "dropdown-item dropdown-empty";
+    empty.textContent = "No elves hired yet";
+    dom.elvesDropdown.appendChild(empty);
+  } else {
+    for (const t of owned) {
+      const item = document.createElement("div");
+      item.className = "dropdown-item";
+      item.innerHTML = `<span>${t.icon} ${t.name}</span><strong>${formatInt(countOfType(state, t.id))}</strong>`;
+      dom.elvesDropdown.appendChild(item);
+    }
+    const slot = currentShiftSlot(state.time.dayProgress);
+    const footer = document.createElement("div");
+    footer.className = "dropdown-footer";
+    footer.textContent = `${formatInt(onShiftCount(state, slot))} on shift now · ${formatInt(totalIdle(state))} idle`;
+    dom.elvesDropdown.appendChild(footer);
+  }
+
+  // Season clock
   dom.hudDay.textContent = String(views.time.day);
   dom.hudTimeOfDay.textContent = views.time.timeOfDayLabel;
+  dom.hudTimeIcon.textContent = TIME_OF_DAY_ICON[views.time.timeOfDayLabel] ?? "⏰";
+  dom.hudDaysLeft.textContent = String(Math.max(0, views.time.seasonDays - views.time.day));
   dom.timeBarFill.style.width = `${Math.floor(views.time.dayProgress * 100)}%`;
 
   dom.statusText.textContent = state.meta.statusText;
+
+  // Factory tab badge: number of broken stations needing attention
+  const broken = brokenStationCount(state);
+  dom.factoryBadge.hidden = broken === 0;
+  dom.factoryBadge.textContent = String(broken);
+
+  // Drain queued alerts into corner toasts (fires each event once)
+  if (state.pendingAlerts.length > 0) {
+    for (const msg of state.pendingAlerts) spawnToast(dom.toastLayer, msg, "warning");
+    state.pendingAlerts.length = 0;
+  }
 }

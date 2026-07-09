@@ -42,7 +42,7 @@ export const upgrades: UpgradeDef[] = [
     description: "Clicking power x1.5.",
     cost: 80,
     effect: { type: "gpc_mult", amount: 1.5 },
-    unlock: { type: "producer_owned", producerId: "elf_worker", count: 3 },
+    unlock: { type: "always" },
   },
   {
     id: "better_deals",
@@ -50,23 +50,23 @@ export const upgrades: UpgradeDef[] = [
     description: "Sell rate x1.25.",
     cost: 120,
     effect: { type: "sell_rate_mult", amount: 1.25 },
-    unlock: { type: "producer_owned", producerId: "elf_worker", count: 5 },
+    unlock: { type: "always" },
   },
   {
     id: "training_manuals",
     name: "Training Manuals",
-    description: "All producers output x1.2.",
+    description: "All elves output x1.2.",
     cost: 150,
     effect: { type: "producer_output_mult", amount: 1.2 },
-    unlock: { type: "producer_owned", producerId: "elf_worker", count: 8 },
+    unlock: { type: "always" },
   },
   {
     id: "overclock_bells",
     name: "Overclock Bells",
-    description: "All producers work faster (speed x1.15).",
+    description: "All elves work faster (speed x1.15).",
     cost: 220,
     effect: { type: "producer_speed_mult", amount: 1.15 },
-    unlock: { type: "producer_owned", producerId: "elf_worker", count: 10 },
+    unlock: { type: "always" },
   },
   {
     id: "contract_board",
@@ -74,7 +74,7 @@ export const upgrades: UpgradeDef[] = [
     description: "Sell rate x1.15 (stacks with Better Deals).",
     cost: 400,
     effect: { type: "sell_rate_mult", amount: 1.15 },
-    unlock: { type: "producer_owned", producerId: "elf_team", count: 1 },
+    unlock: { type: "always" },
   },
 ];
 

@@ -3,7 +3,7 @@
 How the code is organized and how to extend it. The guiding rules:
 
 1. **Config is data, systems are logic, pages are DOM.** Never mix them.
-2. **Names match across layers**: the Shop tab is `shopPage.html` + `shopPage.css` + `shopPage.ts`, powered by `ShopSystem.ts`, tuned by `producersConfig.ts`/`upgradesConfig.ts`.
+2. **Names match across layers**: the Upgrades tab (internal id "shop") is `shopPage.html` + `shopPage.css` + `shopPage.ts`, powered by `ShopSystem.ts`, tuned by `toyTypesConfig.ts`/`producersConfig.ts`/`upgradesConfig.ts`.
 3. **Shared formulas live in `helpers/`** — a calculation is written once and imported everywhere.
 
 ## Folder map
@@ -15,11 +15,11 @@ src/
 ├─ config/                     ⭐ ALL game tuning knobs (data only, no logic)
 │  ├─ timeConfig.ts            Season length, real seconds per game day
 │  ├─ productionConfig.ts      Base gifts per click
-│  ├─ toyTypesConfig.ts        Toy catalog (names, icons, sell values)
+│  ├─ toyTypesConfig.ts        Toy catalog (names, icons, sell values, unlock costs)
 │  ├─ pipelineConfig.ts        Pipeline steps + stage labels/icons
-│  ├─ producersConfig.ts       Hire packages (cost, elves, wages)
+│  ├─ producersConfig.ts       Hire packages (cost, elves)
 │  ├─ upgradesConfig.ts        Upgrades (cost, effect, description)
-│  ├─ wagesConfig.ts           What happens when payroll fails
+│  ├─ wagesConfig.ts           Per-elf daily wage + what happens when payroll fails
 │  ├─ saveConfig.ts            localStorage save key
 │  └─ unlockRules.ts           Shared unlock-rule type (not evaluated yet)
 ├─ core/
@@ -35,13 +35,14 @@ src/
 │  ├─ EconomySystem.ts         Selling + sell rates
 │  ├─ WageSystem.ts            End-of-day payroll + penalties
 │  ├─ ModifierSystem.ts        Folds owned upgrades into multipliers
-│  ├─ ShopSystem.ts            Purchase logic (hires, upgrades)
+│  ├─ ShopSystem.ts            Purchase logic (toy unlocks, hires, upgrades)
 │  ├─ SaveSystem.ts            localStorage save/load/clear + migrations
 │  └─ DailySummarySystem.ts    End-of-day recap (built, not wired in yet)
 ├─ helpers/                    Shared calculations & formatting (one source each)
 │  ├─ inventoryHelpers.ts      Stage counts, add/remove, sellable stock
-│  ├─ costHelpers.ts           Producer price formula
-│  ├─ formatHelpers.ts         formatInt / formatMoney / formatMoneyPrecise
+│  ├─ costHelpers.ts           Producer price formula (scales with CURRENT elves)
+│  ├─ unlockHelpers.ts         Which toy lines are unlocked
+│  ├─ formatHelpers.ts         formatInt / formatMoney / formatMoneyPrecise / formatCost
 │  ├─ mathHelpers.ts           clamp01
 │  └─ textHelpers.ts           Pluralization ("1 elf" / "2 elves")
 └─ ui/
@@ -80,9 +81,11 @@ imports its own `.css`, so adding a page never touches a global stylesheet.
 
 ## How to add things
 
-**A new toy type** — add one entry in `toyTypesConfig.ts`, plus its crafting
-step in `pipelineConfig.ts`. Inventory, selectors, selling and HUD all pick it
-up automatically.
+**A new toy type** — add one entry in `toyTypesConfig.ts` (`unlockCost: 0` for
+a starter toy, or a price to sell it in the New Toys section), plus its
+crafting step in `pipelineConfig.ts`. Inventory, selectors, selling, HUD and
+the New Toys shop section all pick it up automatically; locked toys stay
+hidden everywhere until bought.
 
 **A new upgrade** — add an entry in `upgradesConfig.ts`. If it needs a new
 effect type, extend `UpgradeEffect` there and follow the compiler errors

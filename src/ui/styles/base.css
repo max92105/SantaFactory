@@ -25,6 +25,8 @@
   --text: #e8ecff;
   --text-muted: rgba(232, 236, 255, 0.62);
   --text-dim: rgba(232, 236, 255, 0.4);
+  /* Labels on the dark HUD bar — kept high enough to read on dark blue. */
+  --hud-label: rgba(232, 236, 255, 0.72);
   --accent: #4a9eff;
   --accent-glow: rgba(74, 158, 255, 0.3);
   --success: #4ade80;
@@ -60,11 +62,38 @@ body {
   min-height: 100vh;
 }
 
+/* ── Scrollbars — subtle, theme-matched (Firefox + WebKit) ─────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.26);
+  background-clip: padding-box;
+}
+
 #app {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  max-width: 1280px;
+  height: 100vh;
+  max-width: 1600px;
   margin: 0 auto;
 }
 

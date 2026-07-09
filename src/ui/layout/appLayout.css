@@ -1,20 +1,37 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   APP LAYOUT — flat header bar (menu / brand / resources / time), underline
-   tab navigation, and status footer. Markup: appLayout.html
-   No nested boxes: the header is one bar, resources are plain groups.
+   APP LAYOUT — game HUD (brand + menu, resource chips, season clock),
+   underline tab navigation, status footer. Markup: appLayout.html
+
+   The HUD reads as a control panel: a festive accent line, colored resource
+   chips with icon badges, and a Christmas countdown — not a plain app bar.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.header {
+.hud {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: var(--space-xl);
-  padding: var(--space-md) var(--space-lg);
+  padding: 14px var(--space-xl);
+  background: linear-gradient(180deg, #151c30 0%, #0d1220 100%);
   border-bottom: 1px solid var(--border);
+  position: relative;
 }
 
-/* ── Header left: menu + brand ─────────────────────────────────────────── */
-.header-left {
+/* Festive ribbon accent across the very top */
+.hud::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #ef4444, #fbbf24, #4ade80, #4a9eff, #ef4444);
+  background-size: 200% 100%;
+  opacity: 0.85;
+}
+
+/* ── Brand + menu ──────────────────────────────────────────────────────── */
+.hud-brand {
   display: flex;
   align-items: center;
   gap: var(--space-md);
@@ -30,17 +47,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 18px;
   background: transparent;
   border: none;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
+  border-radius: var(--radius-md);
+  color: var(--hud-label);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .menu-btn:hover {
-  background: var(--bg-inset);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text);
 }
 
@@ -53,7 +70,7 @@
   background: var(--bg-panel-hover);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
   z-index: 100;
   display: flex;
   flex-direction: column;
@@ -83,111 +100,157 @@
   color: var(--danger);
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
 .brand-icon {
-  font-size: 24px;
+  font-size: 30px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
 }
 
 .brand-title {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 800;
   letter-spacing: -0.02em;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .brand-sub {
   font-size: 10px;
-  color: var(--text-dim);
+  color: var(--hud-label);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ── Resources: plain icon + label + value (no boxes) ──────────────────── */
+.hud-resources {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 44px;
+}
+
+/* Each resource = a main row + a foot row, so Gifts / Money / Elves line up
+   whether or not they carry the breakdown arrow. Children stretch to the
+   width of the main row so the arrow can span exactly icon-left → label-right. */
+.res {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-xs);
+  position: relative;
+}
+
+.res-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.res-foot {
+  min-height: 22px;
+  display: flex;
+  align-items: stretch;
+}
+
+.res-icon {
+  font-size: 30px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+}
+
+.res-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.res-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--hud-label);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
-/* ── Header center: resources (plain groups, no boxes) ─────────────────── */
-.header-center {
-  display: flex;
-  justify-content: center;
-}
-
-.resource-bar {
-  display: flex;
-  align-items: center;
-}
-
-.resource {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-xs) var(--space-lg);
-}
-
-.resource + .resource {
-  border-left: 1px solid var(--divider);
-}
-
-.resource-icon {
-  font-size: 18px;
-}
-
-.resource-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.resource-label {
-  font-size: 10px;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  line-height: 1.3;
-}
-
-.resource-value {
-  font-size: 15px;
-  font-weight: 600;
+.res-value {
+  font-size: 22px;
+  font-weight: 700;
   font-family: var(--font-mono);
-  line-height: 1.3;
+  color: var(--res-color);
 }
 
-/* Gift breakdown dropdown */
-.resource-expandable {
-  cursor: pointer;
-  position: relative;
-  user-select: none;
+/* Per-resource value tint (bright on dark = readable, no box needed) */
+.res-gifts {
+  --res-color: #ffd587;
+}
+.res-money {
+  --res-color: #86efac;
+}
+.res-elves {
+  --res-color: #bcd7ff;
+}
+
+/* ── Gifts breakdown arrow: the ONLY clickable bit, and obviously so ──────
+   Spans the full width of the row above it (icon-left → end of "Gifts"). */
+/* Tinted per resource via --res-color (amber for gifts, blue for elves) */
+.res-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 3px 0;
+  border: 1px solid color-mix(in srgb, var(--res-color) 50%, transparent);
+  background: color-mix(in srgb, var(--res-color) 14%, transparent);
   border-radius: var(--radius-sm);
+  color: var(--res-color);
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
 
-.resource-expandable:hover {
-  background: var(--bg-inset);
+.res-arrow:hover {
+  background: color-mix(in srgb, var(--res-color) 26%, transparent);
+  border-color: color-mix(in srgb, var(--res-color) 78%, transparent);
 }
 
-.expand-hint {
-  font-size: 9px;
-  opacity: 0.5;
-  transition: transform 0.2s ease;
+.res-arrow:active {
+  transform: scale(0.93);
 }
 
-.resource-expandable:has(.resource-dropdown.open) .expand-hint {
+/* Chevron gently bobs to invite a click; stops when open (and flips up) */
+.res-arrow-chev {
+  font-size: 12px;
+  display: inline-block;
+  animation: arrow-bob 1.5s ease-in-out infinite;
+}
+
+.res:has(.resource-dropdown.open) .res-arrow-chev {
   transform: rotate(180deg);
+  animation: none;
 }
 
+@keyframes arrow-bob {
+  0%, 100% { transform: translateY(-1px); }
+  50% { transform: translateY(2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .res-arrow-chev { animation: none; }
+}
+
+/* Squared panel that lists every gift type; click the arrow again to close */
 .resource-dropdown {
   display: none;
   position: absolute;
   top: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
-  min-width: 190px;
+  min-width: 230px;
   background: var(--bg-panel-hover);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  padding: var(--space-xs);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
   z-index: 100;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+  cursor: default;
 }
 
 .resource-dropdown.open {
@@ -195,12 +258,23 @@
   flex-direction: column;
 }
 
+.dropdown-header {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--hud-label);
+  padding: 2px var(--space-sm) var(--space-sm);
+  margin-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--divider);
+}
+
 .dropdown-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-lg);
-  padding: var(--space-xs) var(--space-sm);
+  padding: var(--space-sm);
   font-size: 13px;
   border-radius: var(--radius-sm);
 }
@@ -211,68 +285,106 @@
 
 .dropdown-item strong {
   font-family: var(--font-mono);
-  font-size: 13px;
-}
-
-/* ── Header right: time (plain group) ──────────────────────────────────── */
-.header-right {
-  display: flex;
-  align-items: center;
-}
-
-.time-display {
-  display: flex;
-  align-items: center;
-  gap: var(--space-lg);
-}
-
-.time-day {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.time-day strong {
-  font-family: var(--font-mono);
   font-size: 14px;
+  color: var(--res-color);
 }
 
-.time-label {
-  font-size: 10px;
+.dropdown-empty {
+  color: var(--text-muted);
+  justify-content: center;
+}
+
+.dropdown-footer {
+  margin-top: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm) 2px;
+  border-top: 1px solid var(--divider);
+  font-size: 11px;
   color: var(--text-dim);
-  text-transform: uppercase;
+  text-align: center;
 }
 
-.time-clock {
+/* ── Season clock (time-of-day / day / Christmas countdown) — no box ───── */
+.hud-season {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.season-icon {
+  font-size: 28px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+}
+
+.season-info {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-xs);
+  gap: 5px;
+  min-width: 150px;
 }
 
-.time-clock span {
-  font-size: 11px;
+.season-day {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hud-label);
+}
+
+.season-day strong {
+  font-family: var(--font-mono);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.season-total {
+  color: var(--hud-label);
+  font-weight: 500;
+}
+
+.season-tod {
   color: var(--text-muted);
 }
 
-.time-progress {
-  width: 90px;
+.season-countdown {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.05;
+  padding-left: var(--space-md);
+}
+
+.countdown-num {
+  font-size: 24px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: #ff9d9d;
+}
+
+.countdown-label {
+  font-size: 10px;
+  color: var(--hud-label);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.season-progress {
   height: 4px;
   background: var(--bg-inset);
   border-radius: 2px;
   overflow: hidden;
 }
 
-.time-progress-fill {
+.season-progress-fill {
   height: 100%;
   width: 0%;
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--accent), #8bd0ff);
   transition: width 0.3s ease;
 }
 
 /* ── Main content + underline tab navigation ───────────────────────────── */
+/* Only .tab-content scrolls; the HUD, tab nav and footer stay pinned. */
 .main-content {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -280,11 +392,13 @@
 .tab-nav {
   display: flex;
   gap: var(--space-xs);
-  padding: 0 var(--space-lg);
+  padding: 0 var(--space-xl);
   border-bottom: 1px solid var(--border);
 }
 
 .tab-btn {
+  flex: 1;
+  text-align: center;
   padding: var(--space-md) var(--space-lg);
   background: transparent;
   border: none;
@@ -306,9 +420,43 @@
   border-bottom-color: var(--accent);
 }
 
+/* Attention badge (e.g. broken stations on the Factory tab) */
+.tab-badge[hidden] {
+  display: none;
+}
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: #fff;
+  background: var(--danger);
+  border-radius: 999px;
+  vertical-align: middle;
+  animation: badge-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(248, 113, 113, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-badge { animation: none; }
+}
+
 .tab-content {
   flex: 1;
-  padding: var(--space-xl) var(--space-lg);
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-xl);
 }
 
 .tab-panel {
@@ -321,7 +469,7 @@
 
 /* ── Footer ─────────────────────────────────────────────────────────────── */
 .footer {
-  padding: var(--space-sm) var(--space-lg);
+  padding: var(--space-sm) var(--space-xl);
   border-top: 1px solid var(--border);
   font-size: 12px;
   color: var(--text-muted);
@@ -334,16 +482,19 @@
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
-@media (max-width: 900px) {
-  .header {
+@media (max-width: 1000px) {
+  .hud {
     grid-template-columns: 1fr;
     gap: var(--space-md);
   }
 
-  .header-left,
-  .header-center,
-  .header-right {
+  .hud-brand,
+  .hud-resources {
     justify-content: center;
+  }
+
+  .hud-season {
+    margin: 0 auto;
   }
 
   .tab-nav {

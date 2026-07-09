@@ -1,20 +1,12 @@
 /** Shared price formulas — keep every cost calculation here, never inline. */
 
-import type { ProducerDef } from "../config/producersConfig";
-import type { GameState } from "../state/GameState";
+import type { ElfTypeDef } from "../config/elfTypesConfig";
 
 /**
- * Price of the NEXT unit of a hire package, based on the CURRENT workforce
- * (not purchase history). Losing elves — e.g. after missing payroll — makes
- * hiring cheaper again. The workforce is measured in package-equivalents:
- * baseCost * costGrowth^(currentElves / elvesProvided).
+ * Price of the NEXT elf of a type, based on how many of that type you already
+ * have (pool + assigned): baseCost * costGrowth^currentCount. Losing elves of a
+ * type — e.g. after missing payroll — makes rehiring that type cheaper again.
  */
-export function getProducerCost(def: ProducerDef, currentElves: number): number {
-  const packageEquivalents = Math.max(0, currentElves) / def.elvesProvided;
-  return def.baseCost * Math.pow(def.costGrowth, packageEquivalents);
-}
-
-/** Convenience: producer cost for the state's current elf count. */
-export function getProducerCostForState(def: ProducerDef, state: GameState): number {
-  return getProducerCost(def, state.workforce.totalElves);
+export function getElfCost(def: ElfTypeDef, currentCountOfType: number): number {
+  return def.baseCost * Math.pow(def.costGrowth, Math.max(0, currentCountOfType));
 }

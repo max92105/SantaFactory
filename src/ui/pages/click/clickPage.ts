@@ -46,13 +46,15 @@ export function createClickPage(): Page {
       const selectedToy = getToyType(state.selectedClickToyType);
       if (selectedToy) {
         ctx.dom.makeGiftBtn.textContent = selectedToy.icon;
+        ctx.dom.clickToyName.textContent = selectedToy.name;
+        ctx.dom.clickToyValue.textContent = `${formatMoneyPrecise(selectedToy.baseSellValue)} each`;
         ctx.dom.clickStock.textContent = formatInt(ensureInventory(state, selectedToy.id).finished);
       }
     },
   };
 }
 
-/** One tile per unlocked toy; clicking selects what the big button produces. */
+/** One tray slot per unlocked toy; clicking selects what the big button crafts. */
 function buildToySelector(ctx: GameContext): void {
   const state = ctx.getState();
   const unlocked = getUnlockedToyTypes(ctx.getState());
@@ -64,18 +66,20 @@ function buildToySelector(ctx: GameContext): void {
   }
 
   for (const t of unlocked) {
-    const btn = document.createElement("button");
-    btn.className = "toy-tile" + (t.id === state.selectedClickToyType ? " active" : "");
-    btn.dataset.toyType = t.id;
-    btn.innerHTML = `
-      <span class="toy-tile-icon">${t.icon}</span>
-      <span class="toy-tile-name">${t.name}</span>
-      <span class="toy-tile-value">${formatMoneyPrecise(t.baseSellValue)}</span>
+    const isActive = t.id === state.selectedClickToyType;
+    const slot = document.createElement("button");
+    slot.className = "toy-slot" + (isActive ? " active" : "");
+    slot.dataset.toyType = t.id;
+    slot.title = `${t.name} — ${formatMoneyPrecise(t.baseSellValue)} each`;
+    slot.innerHTML = `
+      <span class="toy-slot-icon">${t.icon}</span>
+      <span class="toy-slot-name">${t.name}</span>
     `;
-    btn.onclick = () => {
+    slot.onclick = () => {
       ctx.getState().selectedClickToyType = t.id;
       ctx.rebuildUI();
+      slot.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
     };
-    ctx.dom.clickToySelector.appendChild(btn);
+    ctx.dom.clickToySelector.appendChild(slot);
   }
 }

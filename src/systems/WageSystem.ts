@@ -1,25 +1,27 @@
 /**
  * WageSystem — end-of-day payroll.
- * Wages are per elf (config/wagesConfig.ts) so the bill always matches the
- * elves you actually have; failure penalties live in the same config.
+ * Per-elf wages live on each elf type (config/elfTypesConfig.ts, dailyWage) so
+ * the bill scales with the workforce you actually have; failure penalties live
+ * in config/wagesConfig.ts.
  */
 
 import type { GameState } from "../state/GameState";
-import {
-  ELF_DAILY_WAGE,
-  WAGE_RULE_TEXT,
-  UNPAID_ELVES_LOST_PER_STEP,
-  UNPAID_ELVES_LOST_FROM_UNASSIGNED,
-} from "../config/wagesConfig";
+import { elfTypes } from "../config/elfTypesConfig";
+import { WAGE_RULE_TEXT } from "../config/wagesConfig";
+import { countOfType, removeOneOfType } from "../helpers/workforceHelpers";
 
 export function createWageSystem() {
   function getWageRuleText(): string {
     return WAGE_RULE_TEXT;
   }
 
-  /** Total wages owed at the end of the current day. */
+  /** Total wages owed at the end of the current day (sum of each elf's wage). */
   function calcDailyWages(state: GameState): number {
-    return state.workforce.totalElves * ELF_DAILY_WAGE;
+    let total = 0;
+    for (const def of elfTypes) {
+      total += countOfType(state, def.id) * def.dailyWage;
+    }
+    return total;
   }
 
   function payEndOfDayWages(state: GameState) {
@@ -48,28 +50,14 @@ export function createWageSystem() {
   }
 
   /**
-   * Can't pay: elves quit from each assigned step and from the unassigned
-   * pool. Hire prices follow the current elf count (helpers/costHelpers.ts),
-   * so losing elves automatically makes rehiring cheaper.
+   * Can't pay: one elf of each type quits (and its shifts are trimmed to fit).
+   * Hire prices follow the current per-type count (helpers/costHelpers.ts), so
+   * losing elves automatically makes rehiring that type cheaper.
    */
   function applyUnpaidWagePenalty(state: GameState, wagesOwed: number) {
     let totalLost = 0;
-
-    for (const stepId of Object.keys(state.workforce.assignments)) {
-      const assigned = state.workforce.assignments[stepId];
-      const lost = Math.min(assigned, UNPAID_ELVES_LOST_PER_STEP);
-      if (lost > 0) {
-        state.workforce.assignments[stepId] = assigned - lost;
-        state.workforce.totalElves -= lost;
-        totalLost += lost;
-      }
-    }
-
-    const lostUnassigned = Math.min(state.workforce.unassigned, UNPAID_ELVES_LOST_FROM_UNASSIGNED);
-    if (lostUnassigned > 0) {
-      state.workforce.unassigned -= lostUnassigned;
-      state.workforce.totalElves -= lostUnassigned;
-      totalLost += lostUnassigned;
+    for (const def of elfTypes) {
+      if (removeOneOfType(state, def.id)) totalLost += 1;
     }
 
     state.dayStats.wagesPaid = 0;

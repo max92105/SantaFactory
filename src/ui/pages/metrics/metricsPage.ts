@@ -11,7 +11,7 @@ import type { Page } from "../Page";
 import type { FrameViews } from "../../../core/GameContext";
 import { getPipelineStep } from "../../../config/pipelineConfig";
 import { getUnlockedToyTypes } from "../../../helpers/unlockHelpers";
-import { ensureInventory, getTotalFinished } from "../../../helpers/inventoryHelpers";
+import { ensureInventory, getTotalFinished, getTotalBroken } from "../../../helpers/inventoryHelpers";
 import { formatInt, formatMoney, formatMoneyPrecise } from "../../../helpers/formatHelpers";
 
 export function createMetricsPage(): Page {
@@ -38,6 +38,7 @@ export function createMetricsPage(): Page {
       dom.mDayMade.textContent = formatInt(state.dayStats.giftsMade);
       dom.mDaySold.textContent = formatInt(state.dayStats.giftsSold);
       dom.mDayEarned.textContent = formatMoneyPrecise(state.dayStats.moneyEarned);
+      dom.mDayRuined.textContent = formatInt(state.dayStats.ruined);
       dom.mWagesDue.textContent = formatMoney(views.wagesDue);
 
       // Production
@@ -63,6 +64,7 @@ export function createMetricsPage(): Page {
         netWorth += inv.finished * rate;
       }
       dom.mNetWorth.textContent = formatMoneyPrecise(netWorth);
+      dom.mBrokenHeld.textContent = formatInt(getTotalBroken(state));
 
       // Per-toy sell rates (only unlocked toys)
       dom.mSellRates.innerHTML = "";
@@ -77,6 +79,7 @@ export function createMetricsPage(): Page {
       // Lifetime
       dom.mLifetimeGifts.textContent = formatInt(state.resources.lifetimeGifts);
       dom.mLifetimeSold.textContent = formatInt(state.stats.lifetimeSoldGifts);
+      dom.mLifetimeRuined.textContent = formatInt(state.stats.lifetimeRuined);
 
       // Wages
       dom.mWageResult.textContent = state.meta.lastWageResult;

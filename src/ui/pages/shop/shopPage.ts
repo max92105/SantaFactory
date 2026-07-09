@@ -1,8 +1,11 @@
 /**
- * shopPage — the "Upgrades" tab: new toys, hiring, upgrades.
+ * shopPage — the "Upgrades" tab: a category rail (New Toys / Hiring / Upgrades)
+ * beside a searchable, scrolling list. Built to scale to many toys, elf types
+ * and upgrades — the rail stays put, the list scrolls, and a search box filters
+ * the active category.
  * Markup: shopPage.html · Styles: shopPage.css
  * Logic: ShopSystem (purchases); definitions in config/toyTypesConfig.ts,
- * config/producersConfig.ts and config/upgradesConfig.ts.
+ * config/elfTypesConfig.ts and config/upgradesConfig.ts.
  */
 
 import shopPageHtml from "./shopPage.html?raw";
@@ -11,38 +14,85 @@ import "./shopPage.css";
 import type { Page } from "../Page";
 import type { GameContext } from "../../../core/GameContext";
 import { toyTypes } from "../../../config/toyTypesConfig";
-import { producers } from "../../../config/producersConfig";
+import { elfTypes, elfCategories, type ElfTypeDef } from "../../../config/elfTypesConfig";
 import { upgrades, describeUpgradeEffect } from "../../../config/upgradesConfig";
-import { ELF_DAILY_WAGE } from "../../../config/wagesConfig";
-import { getProducerCostForState } from "../../../helpers/costHelpers";
+import { getElfCost } from "../../../helpers/costHelpers";
+import { hiredOf } from "../../../helpers/workforceHelpers";
 import { isToyUnlocked } from "../../../helpers/unlockHelpers";
-import { formatMoney, formatMoneyPrecise } from "../../../helpers/formatHelpers";
+import { formatCost, formatMoneyPrecise } from "../../../helpers/formatHelpers";
+
+type Category = "toys" | "hiring" | "upgrades";
+
+const CATEGORY_TITLE: Record<Category, string> = {
+  toys: "New Toys",
+  hiring: "Hiring",
+  upgrades: "Upgrades",
+};
+
+const CATEGORY_PLACEHOLDER: Record<Category, string> = {
+  toys: "Search toys…",
+  hiring: "Search elves…",
+  upgrades: "Search upgrades…",
+};
 
 export function createShopPage(): Page {
+  // View state persists across rebuilds (rebuild() recreates rows every action)
+  let activeCategory: Category = "toys";
+  let query = "";
+
+  function listFor(ctx: GameContext): HTMLElement {
+    if (activeCategory === "hiring") return ctx.dom.elvesList;
+    if (activeCategory === "upgrades") return ctx.dom.upgradesList;
+    return ctx.dom.toysList;
+  }
+
+  function applyView(ctx: GameContext): void {
+    ctx.dom.shopCats.forEach((b) => b.classList.toggle("active", b.dataset.shop === activeCategory));
+    ctx.dom.shopViews.forEach((v) => v.classList.toggle("active", v.dataset.shop === activeCategory));
+    ctx.dom.shopContentTitle.textContent = CATEGORY_TITLE[activeCategory];
+    ctx.dom.shopSearch.placeholder = CATEGORY_PLACEHOLDER[activeCategory];
+  }
+
+  /** Hide rows in the active list that don't match the search; toggle empty state. */
+  function applyFilter(ctx: GameContext): void {
+    const q = query.trim().toLowerCase();
+    let visible = 0;
+    listFor(ctx)
+      .querySelectorAll<HTMLElement>(".shop-row")
+      .forEach((row) => {
+        const match = q === "" || (row.dataset.name ?? "").includes(q);
+        row.hidden = !match;
+        if (match) visible += 1;
+      });
+    ctx.dom.shopEmpty.hidden = visible > 0;
+  }
+
   return {
     mount(container) {
       container.insertAdjacentHTML("beforeend", shopPageHtml);
     },
 
     bind(ctx) {
-      // Section sub-tabs (toys / hiring / upgrades)
-      ctx.dom.shopTabs.forEach((btn) => {
+      ctx.dom.shopCats.forEach((btn) => {
         btn.onclick = () => {
-          ctx.dom.shopTabs.forEach((b) => b.classList.remove("active"));
-          btn.classList.add("active");
-
-          const tab = btn.dataset.shop;
-          ctx.dom.shopToys.classList.toggle("active", tab === "toys");
-          ctx.dom.shopHiring.classList.toggle("active", tab === "hiring");
-          ctx.dom.shopUpgrades.classList.toggle("active", tab === "upgrades");
+          activeCategory = (btn.dataset.shop as Category) ?? "toys";
+          applyView(ctx);
+          applyFilter(ctx);
         };
       });
+
+      ctx.dom.shopSearch.oninput = () => {
+        query = ctx.dom.shopSearch.value;
+        applyFilter(ctx);
+      };
     },
 
     rebuild(ctx) {
       buildToysList(ctx);
-      buildProducersList(ctx);
+      buildElvesList(ctx);
       buildUpgradesList(ctx);
+      applyView(ctx);
+      applyFilter(ctx);
     },
 
     renderFrame() {
@@ -58,12 +108,14 @@ function buildShopRow(opts: {
   tag?: string;
   sub: string;
   meta: string;
+  searchKey: string;
   buttonLabel: string;
   disabled: boolean;
   onBuy?: () => void;
 }): HTMLDivElement {
   const row = document.createElement("div");
   row.className = "shop-row";
+  row.dataset.name = opts.searchKey.toLowerCase();
 
   const iconEl = document.createElement("div");
   iconEl.className = "shop-row-icon";
@@ -105,7 +157,8 @@ function buildToysList(ctx: GameContext): void {
         ? "In production — craft it by hand or assign elves to its line."
         : "Unlock this toy line to produce and sell it.",
       meta: `Sells for ${formatMoneyPrecise(def.baseSellValue)} each (base)`,
-      buttonLabel: unlocked ? "Unlocked" : `Unlock (${formatMoney(def.unlockCost)})`,
+      searchKey: def.name,
+      buttonLabel: unlocked ? "Unlocked" : `Unlock (${formatCost(def.unlockCost)})`,
       disabled: unlocked || state.resources.money < def.unlockCost,
       onBuy: unlocked
         ? undefined
@@ -119,31 +172,81 @@ function buildToysList(ctx: GameContext): void {
   }
 }
 
-/** One row per hire package with live cost (based on current elves). */
-function buildProducersList(ctx: GameContext): void {
-  const state = ctx.getState();
-  ctx.dom.producersList.innerHTML = "";
+/** Format a small probability as a percentage (keeps precision for tiny odds). */
+function formatPct(chance: number): string {
+  const pct = chance * 100;
+  const decimals = pct < 1 ? 2 : pct < 10 ? 1 : 0;
+  return `${pct.toFixed(decimals)}%`;
+}
 
-  for (const def of producers) {
-    const cost = getProducerCostForState(def, state);
-    const totalWage = def.elvesProvided * ELF_DAILY_WAGE;
+/** Elves grouped by category, each row showing wage / ruin / break separately. */
+function buildElvesList(ctx: GameContext): void {
+  ctx.dom.elvesList.innerHTML = "";
 
-    const row = buildShopRow({
-      icon: "🧝",
-      title: def.name,
-      sub: def.description,
-      meta: `+${def.elvesProvided} ${def.elvesProvided > 1 ? "elves" : "elf"} • Wages: $${totalWage}/day`,
-      buttonLabel: `Hire (${formatMoney(cost)})`,
-      disabled: state.resources.money < cost,
-      onBuy: () => {
-        ctx.systems.shop.buyProducer(ctx.getState(), def.id);
-        ctx.rebuildUI();
-      },
-    });
-    row.setAttribute("data-producer-id", def.id);
+  for (const cat of elfCategories) {
+    const inCategory = elfTypes.filter((e) => e.category === cat.id);
+    if (inCategory.length === 0) continue;
 
-    ctx.dom.producersList.appendChild(row);
+    const header = document.createElement("div");
+    header.className = "shop-group";
+    header.innerHTML = `
+      <span class="shop-group-name">${cat.name}</span>
+      <span class="shop-group-desc">${cat.description}</span>
+    `;
+    ctx.dom.elvesList.appendChild(header);
+
+    for (const def of inCategory) {
+      ctx.dom.elvesList.appendChild(buildElfRow(ctx, def));
+    }
   }
+}
+
+/** One elf row: icon + name + description, then separated stats + Hire button. */
+function buildElfRow(ctx: GameContext, def: ElfTypeDef): HTMLDivElement {
+  const state = ctx.getState();
+  const cost = getElfCost(def, hiredOf(state, def.id));
+
+  const row = document.createElement("div");
+  row.className = "shop-row elf-row";
+  row.dataset.name = `${def.name} ${def.description}`.toLowerCase();
+  row.dataset.elfType = def.id;
+
+  row.innerHTML = `
+    <div class="shop-row-icon">${def.icon}</div>
+    <div class="elf-main">
+      <div class="shop-row-title">${def.name}</div>
+      <div class="shop-row-sub">${def.description}</div>
+    </div>
+    <div class="elf-stat">
+      <span class="elf-stat-label">💰 Wage</span>
+      <span class="elf-stat-value wage">$${def.dailyWage}/day</span>
+    </div>
+    <div class="elf-stat">
+      <span class="elf-stat-label">🎁 Ruins gifts</span>
+      <span class="elf-stat-value ruin">${formatPct(def.mistakeChance)}</span>
+    </div>
+    <div class="elf-stat">
+      <span class="elf-stat-label">🔧 Breaks station</span>
+      <span class="elf-stat-value break">${formatPct(def.breakChance)}</span>
+    </div>
+    <div class="elf-stat">
+      <span class="elf-stat-label">⏰ Shifts</span>
+      <span class="elf-stat-value shifts">${def.maxShifts}/day</span>
+      <span class="elf-stat-sub ${def.canWorkNight ? "" : "warn"}">${def.canWorkNight ? "any slot" : "no nights"}</span>
+    </div>
+  `;
+
+  const btn = document.createElement("button");
+  btn.className = "shop-buy-btn";
+  btn.textContent = `Hire (${formatCost(cost)})`;
+  btn.disabled = state.resources.money < cost;
+  btn.onclick = () => {
+    ctx.systems.shop.buyElf(ctx.getState(), def.id);
+    ctx.rebuildUI();
+  };
+
+  row.appendChild(btn);
+  return row;
 }
 
 /** One row per upgrade; owned upgrades show as bought and stay disabled. */
@@ -160,7 +263,8 @@ function buildUpgradesList(ctx: GameContext): void {
       tag: owned ? "owned" : undefined,
       sub: def.description,
       meta: `Effect: ${describeUpgradeEffect(def.effect)}`,
-      buttonLabel: owned ? "Owned" : `Buy (${formatMoney(def.cost)})`,
+      searchKey: `${def.name} ${def.description}`,
+      buttonLabel: owned ? "Owned" : `Buy (${formatCost(def.cost)})`,
       disabled: owned || state.resources.money < def.cost,
       onBuy: owned
         ? undefined

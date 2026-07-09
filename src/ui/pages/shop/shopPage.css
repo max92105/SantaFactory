@@ -1,51 +1,132 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   UPGRADES PAGE (internal id "shop") — section nav + purchasable rows.
+   UPGRADES PAGE (internal id "shop") — category rail + searchable list.
    Markup: shopPage.html · Logic: shopPage.ts
-   Rows live in ONE flat list with dividers — no boxes inside boxes.
+
+   Layout: a sticky category rail on the left, a scrolling list on the right
+   with a sticky title + search header. Rows live in ONE flat card with
+   dividers — no boxes inside boxes.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.shop-layout {
+/* Full width like the HUD: rail on the left, content fills the rest, and the
+   page scrollbar sits at the far right. */
+.shop {
+  display: grid;
+  grid-template-columns: 232px 1fr;
+  gap: var(--space-xl);
+  align-items: start;
+}
+
+/* ── Category rail (sticky: stays while the list scrolls) ───────────────── */
+.shop-rail {
+  position: sticky;
+  top: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
-  max-width: 760px;
-  margin: 0 auto;
-}
-
-.shop-nav {
-  display: flex;
   gap: var(--space-xs);
-  border-bottom: 1px solid var(--border);
 }
 
-.shop-tab {
-  padding: var(--space-sm) var(--space-lg);
+.shop-cat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  padding: 10px var(--space-md);
   background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  border-radius: var(--radius-md);
   color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 500;
   cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.shop-tab:hover {
+.shop-cat:hover {
+  background: var(--bg-inset);
   color: var(--text);
 }
 
-.shop-tab.active {
+.shop-cat.active {
+  background: rgba(74, 158, 255, 0.12);
   color: var(--text);
-  border-bottom-color: var(--accent);
 }
 
-.shop-section {
+.shop-cat-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.shop-cat-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.shop-cat-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.shop-cat-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.shop-cat.active .shop-cat-sub {
+  color: var(--text-muted);
+}
+
+/* ── Content ────────────────────────────────────────────────────────────── */
+.shop-content {
+  min-width: 0;
+}
+
+.shop-content-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding-bottom: var(--space-md);
+}
+
+.shop-content-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.shop-search {
+  width: 240px;
+  max-width: 55%;
+  padding: 7px var(--space-md);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.shop-search:focus {
+  border-color: var(--accent);
+}
+
+.shop-search::placeholder {
+  color: var(--text-dim);
+}
+
+.shop-view {
   display: none;
 }
 
-.shop-section.active {
+.shop-view.active {
   display: block;
+}
+
+.shop-empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--text-muted);
 }
 
 /* ── Purchasable rows: one flat card, divider-separated ─────────────────── */
@@ -64,6 +145,11 @@
 
 .shop-row + .shop-row {
   border-top: 1px solid var(--divider);
+}
+
+/* Keep dividers tidy when rows are hidden by the search filter */
+.shop-row[hidden] {
+  display: none;
 }
 
 .shop-row-icon {
@@ -129,4 +215,117 @@
 .shop-buy-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+/* ── Elf category headers + richer elf rows ─────────────────────────────── */
+.shop-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-md) var(--space-lg) var(--space-sm);
+}
+
+.shop-group:not(:first-child) {
+  border-top: 1px solid var(--divider);
+}
+
+.shop-group-name {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.shop-group-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Elf row: icon · name/desc · Wage · Ruins · Breaks · Shifts · Hire */
+.elf-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 86px 94px 108px 84px auto;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.elf-row .shop-row-icon {
+  font-size: 30px;
+}
+
+.elf-main {
+  min-width: 0;
+}
+
+.elf-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.elf-stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.elf-stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.elf-stat-value.wage {
+  color: var(--success);
+}
+
+.elf-stat-value.ruin {
+  color: var(--warning);
+}
+
+.elf-stat-value.break {
+  color: var(--danger);
+}
+
+.elf-stat-value.shifts {
+  color: var(--accent);
+}
+
+.elf-stat-sub {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.elf-stat-sub.warn {
+  color: var(--danger);
+}
+
+/* Narrow: let the stat columns + button wrap instead of overflowing */
+@media (max-width: 860px) {
+  .elf-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-md) var(--space-lg);
+  }
+
+  .elf-main {
+    flex: 1 1 200px;
+  }
+
+  .elf-row .shop-buy-btn {
+    margin-left: auto;
+  }
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .shop {
+    grid-template-columns: 1fr;
+  }
+
+  .shop-rail {
+    position: static;
+    flex-direction: row;
+    overflow-x: auto;
+  }
 }
