@@ -32,6 +32,7 @@ export function createSaveSystem() {
         dayStats: { ...fresh.dayStats, ...(parsed.dayStats ?? {}) },
         time: { ...fresh.time, ...(parsed.time ?? {}) },
         workforce: migrateWorkforce(parsed.workforce),
+        orders: migrateOrders(parsed.orders, fresh),
         owned: {
           upgrades: { ...fresh.owned.upgrades, ...(parsed.owned?.upgrades ?? {}) },
           toys: { ...fresh.owned.toys, ...(parsed.owned?.toys ?? {}) },
@@ -143,6 +144,17 @@ export function createSaveSystem() {
     }
     addN("worker", worker);
     return { elves, nextId };
+  }
+
+  /** Carry orders through; older saves without them start empty (regenerated). */
+  function migrateOrders(o: any, fresh: GameState): GameState["orders"] {
+    if (!o || typeof o !== "object") return fresh.orders;
+    return {
+      offers: Array.isArray(o.offers) ? o.offers : [],
+      active: Array.isArray(o.active) ? o.active : [],
+      lastRefreshDay: typeof o.lastRefreshDay === "number" ? o.lastRefreshDay : 0,
+      seq: typeof o.seq === "number" ? o.seq : 1,
+    };
   }
 
   function clear() {

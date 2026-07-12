@@ -110,6 +110,22 @@ export function assignElf(state: GameState, typeId: string, stepId: string, slot
   return elf;
 }
 
+/** Assign up to `count` idle elves of a type to a step with the same slots. */
+export function assignElves(
+  state: GameState,
+  typeId: string,
+  stepId: string,
+  slots: string[],
+  count: number
+): number {
+  let done = 0;
+  for (let i = 0; i < count; i++) {
+    if (assignElf(state, typeId, stepId, slots)) done += 1;
+    else break;
+  }
+  return done;
+}
+
 /** Pull an elf off its shifts. It loses its whole schedule and is spent today. */
 export function removeElfById(state: GameState, id: number): ElfInstance | null {
   const elf = state.workforce.elves.find((e) => e.id === id);
@@ -118,6 +134,37 @@ export function removeElfById(state: GameState, id: number): ElfInstance | null 
   elf.slots = [];
   elf.spent = true;
   return elf;
+}
+
+/** Send a batch of elves home by id. Returns how many were removed. */
+export function removeElves(state: GameState, ids: number[]): number {
+  let done = 0;
+  for (const id of ids) if (removeElfById(state, id)) done += 1;
+  return done;
+}
+
+/** A set of elves on one line that share the exact same schedule (type + slots). */
+export type CrewGroup = { type: string; slots: string[]; ids: number[] };
+
+function slotOrder(slotId: string): number {
+  const i = shiftSlots.findIndex((s) => s.id === slotId);
+  return i < 0 ? 99 : i;
+}
+
+/** Crew on a step grouped by identical schedule (type + slot set) — for batch UI. */
+export function crewGroups(state: GameState, stepId: string): CrewGroup[] {
+  const map = new Map<string, CrewGroup>();
+  for (const e of elvesOnStep(state, stepId)) {
+    const slots = [...e.slots].sort((a, b) => slotOrder(a) - slotOrder(b));
+    const key = `${e.type}|${slots.join(",")}`;
+    let g = map.get(key);
+    if (!g) {
+      g = { type: e.type, slots, ids: [] };
+      map.set(key, g);
+    }
+    g.ids.push(e.id);
+  }
+  return [...map.values()];
 }
 
 /** A new day: spent elves are available again. */

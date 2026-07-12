@@ -36,6 +36,7 @@ export type DomRefs = {
   tabFactory: HTMLDivElement;
   tabShop: HTMLDivElement;
   tabStorage: HTMLDivElement;
+  tabOrders: HTMLDivElement;
   tabMetrics: HTMLDivElement;
   factoryBadge: HTMLElement;
 
@@ -79,6 +80,13 @@ export type DomRefs = {
   sellAllBtn: HTMLButtonElement;
   sellFloatLayer: HTMLDivElement;
 
+  // Orders page
+  ordersEvent: HTMLElement;
+  ordersActiveList: HTMLDivElement;
+  ordersOfferList: HTMLDivElement;
+  ordersActiveCount: HTMLElement;
+  ordersMax: HTMLElement;
+
   // Metrics page
   mGpc: HTMLElement;
   mGps: HTMLElement;
@@ -90,6 +98,7 @@ export type DomRefs = {
   mLifetimeGifts: HTMLElement;
   mLifetimeSold: HTMLElement;
   mLifetimeRuined: HTMLElement;
+  mOrdersFilled: HTMLElement;
   mDayMade: HTMLElement;
   mDaySold: HTMLElement;
   mDayEarned: HTMLElement;
@@ -141,6 +150,7 @@ export function getDomRefs(): DomRefs {
     tabFactory: mustGet("tab-factory"),
     tabShop: mustGet("tab-shop"),
     tabStorage: mustGet("tab-storage"),
+    tabOrders: mustGet("tab-orders"),
     tabMetrics: mustGet("tab-metrics"),
     factoryBadge: mustGet("factoryBadge"),
 
@@ -184,6 +194,13 @@ export function getDomRefs(): DomRefs {
     sellAllBtn: mustGet("sellAllBtn"),
     sellFloatLayer: mustGet("sellFloatLayer"),
 
+    // Orders page
+    ordersEvent: mustGet("ordersEvent"),
+    ordersActiveList: mustGet("ordersActiveList"),
+    ordersOfferList: mustGet("ordersOfferList"),
+    ordersActiveCount: mustGet("ordersActiveCount"),
+    ordersMax: mustGet("ordersMax"),
+
     // Metrics page
     mGpc: mustGet("mGpc"),
     mGps: mustGet("mGps"),
@@ -195,6 +212,7 @@ export function getDomRefs(): DomRefs {
     mLifetimeGifts: mustGet("mLifetimeGifts"),
     mLifetimeSold: mustGet("mLifetimeSold"),
     mLifetimeRuined: mustGet("mLifetimeRuined"),
+    mOrdersFilled: mustGet("mOrdersFilled"),
     mDayMade: mustGet("mDayMade"),
     mDaySold: mustGet("mDaySold"),
     mDayEarned: mustGet("mDayEarned"),

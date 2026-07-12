@@ -1,0 +1,205 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ORDERS PAGE — event banner, accepted orders, available offers.
+   Markup: ordersPage.html · Logic: ordersPage.ts
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.orders {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* ── Event banner ───────────────────────────────────────────────────────── */
+.orders-event[hidden] {
+  display: none;
+}
+
+.orders-event {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(239, 68, 68, 0.1));
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: var(--radius-lg);
+}
+
+.event-icon {
+  font-size: 30px;
+}
+
+.event-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.event-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Sections + lists ───────────────────────────────────────────────────── */
+.orders-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.orders-empty {
+  padding: var(--space-lg);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ── Order card ─────────────────────────────────────────────────────────── */
+.order-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+}
+
+.order-card + .order-card {
+  border-top: 1px solid var(--divider);
+}
+
+.order-card.rush {
+  background: rgba(248, 113, 113, 0.05);
+}
+
+.order-icon {
+  font-size: 30px;
+  width: 40px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.order-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.order-title {
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.order-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.order-reward {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--success);
+}
+
+.order-ready {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+}
+
+/* Badges */
+.rush-badge {
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: var(--danger);
+  border-radius: 999px;
+}
+
+.days-badge {
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-inset);
+  border-radius: 999px;
+}
+
+.days-badge.urgent {
+  color: #fff;
+  background: var(--warning);
+}
+
+/* Progress (active orders) */
+.order-progress {
+  height: 5px;
+  margin-top: 6px;
+  background: var(--bg-inset);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.order-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--success));
+  border-radius: 3px;
+  transition: width 0.2s ease;
+}
+
+/* Action buttons */
+.order-accept,
+.order-deliver {
+  flex-shrink: 0;
+  min-width: 96px;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.order-accept {
+  background: var(--accent);
+  color: #fff;
+}
+
+.order-deliver {
+  background: var(--success);
+  color: #06220f;
+}
+
+.order-accept:hover:not(:disabled),
+.order-deliver:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.order-accept:disabled,
+.order-deliver:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 620px) {
+  .order-meta {
+    flex-wrap: wrap;
+  }
+  .order-ready {
+    margin-left: 0;
+  }
+}

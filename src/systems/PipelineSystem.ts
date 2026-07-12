@@ -15,12 +15,13 @@ import { toyTypes } from "../config/toyTypesConfig";
 import { currentShiftSlot, getShiftSlot } from "../config/shiftsConfig";
 import { isToyUnlocked } from "../helpers/unlockHelpers";
 import {
-  assignElf as assignElfToStep,
-  removeElfById,
+  assignElves as assignElvesToStep,
+  removeElves as removeElvesFromState,
   activeOnStep,
   slotMistakeChance,
   slotBreakChance,
 } from "../helpers/workforceHelpers";
+import { pluralizeElves } from "../helpers/textHelpers";
 import { isStationBroken, setStationBroken } from "../helpers/stationHelpers";
 import { STATION_REPAIR_COST } from "../config/stationsConfig";
 import { getElfType } from "../config/elfTypesConfig";
@@ -140,25 +141,30 @@ export function createPipelineSystem() {
     return true;
   }
 
-  /** Schedule one idle elf of a type onto a step, covering the chosen slots. */
-  function assignElf(state: GameState, elfTypeId: string, stepId: string, slots: string[]): boolean {
+  /** Schedule up to `count` idle elves of a type onto a step with the same slots. */
+  function assignElves(
+    state: GameState,
+    elfTypeId: string,
+    stepId: string,
+    slots: string[],
+    count: number
+  ): number {
     const step = pipelineSteps.find((s) => s.id === stepId);
-    if (!step) return false;
-    const elf = assignElfToStep(state, elfTypeId, stepId, slots);
-    if (!elf) return false;
+    if (!step) return 0;
+    const n = assignElvesToStep(state, elfTypeId, stepId, slots, count);
+    if (n <= 0) return 0;
 
     const name = getElfType(elfTypeId)?.name ?? "elf";
-    const slotNames = elf.slots.map((s) => getShiftSlot(s)?.name ?? s).join(", ");
-    state.meta.statusText = `Scheduled a ${name} on ${step.name} (${slotNames}).`;
-    return true;
+    const slotNames = slots.map((s) => getShiftSlot(s)?.name ?? s).join(", ");
+    state.meta.statusText = `Scheduled ${n} ${pluralizeElves(n)} (${name}) on ${step.name} (${slotNames}).`;
+    return n;
   }
 
-  /** Pull a specific elf off its shifts (it's spent for the day). */
-  function removeElf(state: GameState, elfId: number): boolean {
-    const elf = removeElfById(state, elfId);
-    if (!elf) return false;
-    state.meta.statusText = `Sent a ${getElfType(elf.type)?.name ?? "elf"} home — idle until tomorrow.`;
-    return true;
+  /** Send a batch of elves home (spent until tomorrow). */
+  function removeElves(state: GameState, ids: number[]): number {
+    const n = removeElvesFromState(state, ids);
+    if (n > 0) state.meta.statusText = `Sent ${n} ${pluralizeElves(n)} home — idle until tomorrow.`;
+    return n;
   }
 
   function getView(state: GameState, mods: Modifiers): PipelineView {
@@ -184,8 +190,8 @@ export function createPipelineSystem() {
 
   return {
     update,
-    assignElf,
-    removeElf,
+    assignElves,
+    removeElves,
     repairStation,
     getView,
     getStepOutputPerSecond,

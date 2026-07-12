@@ -336,6 +336,11 @@
   font-weight: 600;
 }
 
+.elf-card-count {
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+
 .elf-card-slots {
   display: flex;
   gap: 3px;
@@ -500,6 +505,82 @@
 .assign-slot:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+/* Quantity stepper (assign panel + batch remove confirm) */
+.assign-qty,
+.confirm-qty {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.confirm-qty {
+  margin: var(--space-sm) 0;
+}
+
+.qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.qty-stepper button {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.qty-stepper button:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.qty-stepper button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.qty-val {
+  min-width: 28px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.qty-max {
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.qty-max:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.qty-note {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
 }
 
 .assign-footer {

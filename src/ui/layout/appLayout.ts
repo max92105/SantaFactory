@@ -45,6 +45,7 @@ export function bindAppLayout(ctx: GameContext): void {
       dom.tabFactory.classList.toggle("active", tab === "factory");
       dom.tabShop.classList.toggle("active", tab === "shop");
       dom.tabStorage.classList.toggle("active", tab === "storage");
+      dom.tabOrders.classList.toggle("active", tab === "orders");
       dom.tabMetrics.classList.toggle("active", tab === "metrics");
     };
   });

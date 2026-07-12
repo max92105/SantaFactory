@@ -33,6 +33,19 @@ export type ElfInstance = {
   spent: boolean;
 };
 
+/** A delivery order: fill it with `quantity` finished `toyType` before the deadline. */
+export type Order = {
+  id: number;
+  templateId: string;
+  toyType: string;
+  quantity: number;
+  delivered: number;
+  reward: number;
+  /** Days remaining to complete it (decrements each day; expires at 0). */
+  daysLeft: number;
+  rush: boolean;
+};
+
 /** End-of-day recap data (produced by DailySummarySystem — not wired into the loop yet). */
 export type DaySummary = {
   dayNumber: number;
@@ -77,6 +90,18 @@ export type GameState = {
     lifetimeSoldGifts: number;
     /** Items ruined by elf mistakes over the whole run. */
     lifetimeRuined: number;
+    /** Delivery orders completed over the whole run. */
+    ordersCompleted: number;
+  };
+
+  /** Daily delivery orders (offers refresh each day; active are in progress). */
+  orders: {
+    offers: Order[];
+    active: Order[];
+    /** Day the offers were last generated (drives the daily refresh). */
+    lastRefreshDay: number;
+    /** Id source for new orders. */
+    seq: number;
   };
 
   /** Stats that reset every day (debug + balancing). */
@@ -152,6 +177,14 @@ export function createInitialState(): GameState {
     stats: {
       lifetimeSoldGifts: 0,
       lifetimeRuined: 0,
+      ordersCompleted: 0,
+    },
+
+    orders: {
+      offers: [],
+      active: [],
+      lastRefreshDay: 0,
+      seq: 1,
     },
 
     dayStats: {

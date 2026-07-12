@@ -14,6 +14,8 @@ import type { WageSystem } from "../systems/WageSystem";
 import type { ShopSystem } from "../systems/ShopSystem";
 import type { SaveSystem } from "../systems/SaveSystem";
 import type { ModifierSystem } from "../systems/ModifierSystem";
+import type { OrdersSystem } from "../systems/OrdersSystem";
+import type { GameEvent } from "../config/eventsConfig";
 
 /** All game systems, wired once in core/Game.ts. */
 export type Systems = {
@@ -25,6 +27,7 @@ export type Systems = {
   shop: ShopSystem;
   save: SaveSystem;
   modifier: ModifierSystem;
+  orders: OrdersSystem;
 };
 
 /** Read-only snapshot of system views, computed once per frame and shared by all pages. */
@@ -35,6 +38,7 @@ export type FrameViews = {
   pipeline: PipelineView;
   wagesDue: number;
   wageRuleText: string;
+  activeEvent: GameEvent | null;
 };
 
 /** Everything a UI page needs to read state, trigger game actions, and refresh the screen. */

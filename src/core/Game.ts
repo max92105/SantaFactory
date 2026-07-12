@@ -21,6 +21,7 @@ import { createWageSystem } from "../systems/WageSystem";
 import { createShopSystem } from "../systems/ShopSystem";
 import { createSaveSystem } from "../systems/SaveSystem";
 import { createModifierSystem } from "../systems/ModifierSystem";
+import { createOrdersSystem } from "../systems/OrdersSystem";
 
 import { getDomRefs } from "../ui/domRegistry";
 import { mountAppLayout, bindAppLayout, renderAppLayout } from "../ui/layout/appLayout";
@@ -29,6 +30,7 @@ import { createClickPage } from "../ui/pages/click/clickPage";
 import { createFactoryPage } from "../ui/pages/factory/factoryPage";
 import { createShopPage } from "../ui/pages/shop/shopPage";
 import { createStoragePage } from "../ui/pages/storage/storagePage";
+import { createOrdersPage } from "../ui/pages/orders/ordersPage";
 import { createMetricsPage } from "../ui/pages/metrics/metricsPage";
 
 export type Game = { start(): void };
@@ -44,6 +46,7 @@ export function createGame(): Game {
     createFactoryPage(),
     createShopPage(),
     createStoragePage(),
+    createOrdersPage(),
     createMetricsPage(),
   ];
 
@@ -65,6 +68,7 @@ export function createGame(): Game {
     shop: createShopSystem(),
     save: createSaveSystem(),
     modifier: createModifierSystem(),
+    orders: createOrdersSystem(),
   };
 
   const ctx: GameContext = {
@@ -86,6 +90,7 @@ export function createGame(): Game {
       pipeline: systems.pipeline.getView(state, mods),
       wagesDue: systems.wage.calcDailyWages(state),
       wageRuleText: systems.wage.getWageRuleText(),
+      activeEvent: systems.orders.currentEvent(state) ?? null,
     };
   }
 
@@ -119,6 +124,11 @@ export function createGame(): Game {
     const timeResult = systems.time.update(state, dtSeconds);
     systems.pipeline.update(state, mods, dtSeconds);
 
+    // New day → refresh order offers / age active orders (rebuild lists if so)
+    if (systems.orders.ensureDay(state)) {
+      rebuildUI();
+    }
+
     if (brokenStationCount(state) !== brokenBefore) {
       rebuildUI();
     }
@@ -147,6 +157,7 @@ export function createGame(): Game {
 
   return {
     start() {
+      systems.orders.ensureDay(state); // day-1 offers before the first render
       rebuildUI();
       loop.start(() => state.meta.isRunOver);
     },

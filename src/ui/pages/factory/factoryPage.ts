@@ -19,7 +19,6 @@ import "./factoryPage.css";
 import type { Page } from "../Page";
 import type { FrameViews, GameContext } from "../../../core/GameContext";
 import type { StepProgress } from "../../../systems/PipelineSystem";
-import type { ElfInstance } from "../../../state/GameState";
 import {
   getOrderedSteps,
   getPipelineStep,
@@ -37,11 +36,12 @@ import {
   idleOfType,
   onShiftCount,
   ownedElfTypes,
-  elvesOnStep,
   scheduledOnStep,
   canWorkSlot,
   allowedSlots,
   requiredShifts,
+  crewGroups,
+  type CrewGroup,
 } from "../../../helpers/workforceHelpers";
 import { isStationBroken } from "../../../helpers/stationHelpers";
 import { STATION_REPAIR_COST } from "../../../config/stationsConfig";
@@ -290,11 +290,11 @@ function buildScheduler(ctx: GameContext, stepId: string): HTMLElement {
 
   const crew = document.createElement("div");
   crew.className = "crew-list";
-  const onStep = elvesOnStep(state, stepId);
-  if (onStep.length === 0) {
+  const groups = crewGroups(state, stepId);
+  if (groups.length === 0) {
     crew.innerHTML = `<span class="crew-empty">No elves on this line yet.</span>`;
   } else {
-    for (const elf of onStep) crew.appendChild(buildCrewCard(ctx, elf));
+    for (const g of groups) crew.appendChild(buildCrewGroupCard(ctx, g));
   }
   wrap.appendChild(crew);
 
@@ -316,15 +316,16 @@ function buildScheduler(ctx: GameContext, stepId: string): HTMLElement {
   return wrap;
 }
 
-/** One assigned elf: type + the slots it covers; ✕ sends it home (spent). */
-function buildCrewCard(ctx: GameContext, elf: ElfInstance): HTMLElement {
-  const def = getElfType(elf.type);
+/** A crew group (same type + same shifts): shows the count; ✕ opens batch remove. */
+function buildCrewGroupCard(ctx: GameContext, group: CrewGroup): HTMLElement {
+  const def = getElfType(group.type);
+  const count = group.ids.length;
   const card = document.createElement("div");
   card.className = "elf-card";
 
   const pips = shiftSlots
     .map((s) => {
-      const on = elf.slots.includes(s.id);
+      const on = group.slots.includes(s.id);
       return `<span class="slot-pip${on ? " on" : ""}" data-slot="${s.id}" title="${s.name}">${s.icon}</span>`;
     })
     .join("");
@@ -332,7 +333,7 @@ function buildCrewCard(ctx: GameContext, elf: ElfInstance): HTMLElement {
   card.innerHTML = `
     <span class="elf-card-icon">${def?.icon ?? "🧝"}</span>
     <div class="elf-card-info">
-      <span class="elf-card-name">${def?.name ?? "Elf"}</span>
+      <span class="elf-card-name">${def?.name ?? "Elf"}${count > 1 ? ` <span class="elf-card-count">×${count}</span>` : ""}</span>
       <span class="elf-card-slots">${pips}</span>
     </div>
   `;
@@ -340,8 +341,8 @@ function buildCrewCard(ctx: GameContext, elf: ElfInstance): HTMLElement {
   const remove = document.createElement("button");
   remove.className = "elf-remove";
   remove.textContent = "✕";
-  remove.title = "Send home (idle until tomorrow)";
-  remove.onclick = () => openRemoveConfirm(ctx, card, elf.id, def?.name ?? "elf");
+  remove.title = count > 1 ? "Send some / all home" : "Send home (idle until tomorrow)";
+  remove.onclick = () => openRemoveConfirm(ctx, card, group);
   card.appendChild(remove);
 
   return card;
@@ -357,6 +358,7 @@ function buildAssignPanel(ctx: GameContext, stepId: string, onClose: () => void)
 
   let selectedType: string | null = null;
   let selectedSlots: string[] = [];
+  let qty = 1;
 
   function render(): void {
     const state = ctx.getState();
@@ -365,7 +367,7 @@ function buildAssignPanel(ctx: GameContext, stepId: string, onClose: () => void)
 
     const head = document.createElement("div");
     head.className = "assign-title";
-    head.textContent = "Assign an elf — pick who, then choose their shifts";
+    head.textContent = "Assign elves — pick who, choose their shifts, set how many";
     panel.appendChild(head);
 
     if (options.length === 0) {
@@ -387,15 +389,19 @@ function buildAssignPanel(ctx: GameContext, stepId: string, onClose: () => void)
         btn.onclick = () => {
           selectedType = t.id;
           selectedSlots = allowedSlots(t.id).slice(0, requiredShifts(t.id)); // sensible default
+          qty = 1;
           render();
         };
         typeRow.appendChild(btn);
       }
       panel.appendChild(typeRow);
 
-      // Step 2: choose the elf's shifts
+      // Step 2: choose the shifts + how many
       if (selectedType) {
         const need = requiredShifts(selectedType);
+        const idle = idleOfType(state, selectedType);
+        qty = Math.max(1, Math.min(qty, idle));
+
         const shiftHead = document.createElement("div");
         shiftHead.className = "assign-shift-head";
         shiftHead.textContent = `Choose ${need} shift${need > 1 ? "s" : ""} (${selectedSlots.length}/${need})`;
@@ -412,30 +418,43 @@ function buildAssignPanel(ctx: GameContext, stepId: string, onClose: () => void)
           btn.innerHTML = `${slot.icon}<small>${slot.name}</small>`;
           if (!allowed) btn.title = "Won't work this slot";
           btn.onclick = () => {
-            if (on) {
-              selectedSlots = selectedSlots.filter((s) => s !== slot.id);
-            } else if (selectedSlots.length < need) {
-              selectedSlots = [...selectedSlots, slot.id];
-            }
+            if (on) selectedSlots = selectedSlots.filter((s) => s !== slot.id);
+            else if (selectedSlots.length < need) selectedSlots = [...selectedSlots, slot.id];
             render();
           };
           slotRow.appendChild(btn);
         }
         panel.appendChild(slotRow);
+
+        // Quantity stepper
+        const qtyRow = document.createElement("div");
+        qtyRow.className = "assign-qty";
+        qtyRow.append(
+          stepper(qty, 1, idle, (v) => {
+            qty = v;
+            render();
+          }),
+          maxBtn(() => {
+            qty = idle;
+            render();
+          }),
+          note(`of ${idle} idle`)
+        );
+        panel.appendChild(qtyRow);
       }
     }
 
     // Footer
+    const ready = !!selectedType && selectedSlots.length === (selectedType ? requiredShifts(selectedType) : 0);
     const footer = document.createElement("div");
     footer.className = "assign-footer";
     const assign = document.createElement("button");
     assign.className = "assign-confirm";
-    assign.textContent = "Assign";
-    assign.disabled =
-      !selectedType || selectedSlots.length !== requiredShifts(selectedType);
+    assign.textContent = ready ? `Assign ${qty}` : "Assign";
+    assign.disabled = !ready;
     assign.onclick = () => {
       if (!selectedType) return;
-      ctx.systems.pipeline.assignElf(ctx.getState(), selectedType, stepId, selectedSlots);
+      ctx.systems.pipeline.assignElves(ctx.getState(), selectedType, stepId, selectedSlots, qty);
       ctx.rebuildUI();
     };
     const cancel = document.createElement("button");
@@ -450,33 +469,94 @@ function buildAssignPanel(ctx: GameContext, stepId: string, onClose: () => void)
   return panel;
 }
 
-/** Confirm before sending an elf home — it loses its whole schedule for the day. */
-function openRemoveConfirm(ctx: GameContext, anchor: HTMLElement, elfId: number, name: string): void {
+/** A small − N + stepper. */
+function stepper(value: number, min: number, max: number, onChange: (v: number) => void): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.className = "qty-stepper";
+  const dec = document.createElement("button");
+  dec.textContent = "−";
+  dec.disabled = value <= min;
+  dec.onclick = () => onChange(Math.max(min, value - 1));
+  const val = document.createElement("span");
+  val.className = "qty-val";
+  val.textContent = String(value);
+  const inc = document.createElement("button");
+  inc.textContent = "+";
+  inc.disabled = value >= max;
+  inc.onclick = () => onChange(Math.min(max, value + 1));
+  wrap.append(dec, val, inc);
+  return wrap;
+}
+
+function maxBtn(onClick: () => void): HTMLElement {
+  const b = document.createElement("button");
+  b.className = "qty-max";
+  b.textContent = "Max";
+  b.onclick = onClick;
+  return b;
+}
+
+function note(text: string): HTMLElement {
+  const s = document.createElement("span");
+  s.className = "qty-note";
+  s.textContent = text;
+  return s;
+}
+
+/** Confirm before sending elves home (batch) — they're spent until tomorrow. */
+function openRemoveConfirm(ctx: GameContext, anchor: HTMLElement, group: CrewGroup): void {
   ctx.dom.factoryDetail.querySelectorAll(".confirm-pop").forEach((p) => p.remove());
+  const def = getElfType(group.type);
+  const total = group.ids.length;
+  let qty = total; // default: send the whole group home
 
   const pop = document.createElement("div");
   pop.className = "confirm-pop";
-  pop.innerHTML = `<div class="confirm-text">Send this ${name} home? They lose all their shifts and are <strong>idle until tomorrow</strong>.</div>`;
+  anchor.appendChild(pop);
 
-  const actions = document.createElement("div");
-  actions.className = "confirm-actions";
+  const render = () => {
+    qty = Math.max(1, Math.min(qty, total));
+    pop.innerHTML = "";
 
-  const yes = document.createElement("button");
-  yes.className = "confirm-yes";
-  yes.textContent = "Send home";
-  yes.onclick = () => {
-    ctx.systems.pipeline.removeElf(ctx.getState(), elfId);
-    ctx.rebuildUI();
+    const text = document.createElement("div");
+    text.className = "confirm-text";
+    text.innerHTML =
+      total > 1
+        ? `Send home how many ${def?.name ?? "elves"}? They're <strong>idle until tomorrow</strong>.`
+        : `Send this ${def?.name ?? "elf"} home? They're <strong>idle until tomorrow</strong>.`;
+    pop.appendChild(text);
+
+    if (total > 1) {
+      const qtyRow = document.createElement("div");
+      qtyRow.className = "confirm-qty";
+      qtyRow.append(
+        stepper(qty, 1, total, (v) => {
+          qty = v;
+          render();
+        }),
+        note(`of ${total}`)
+      );
+      pop.appendChild(qtyRow);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "confirm-actions";
+    const yes = document.createElement("button");
+    yes.className = "confirm-yes";
+    yes.textContent = total > 1 ? `Send ${qty} home` : "Send home";
+    yes.onclick = () => {
+      ctx.systems.pipeline.removeElves(ctx.getState(), group.ids.slice(0, qty));
+      ctx.rebuildUI();
+    };
+    const no = document.createElement("button");
+    no.className = "confirm-no";
+    no.textContent = "Cancel";
+    no.onclick = () => pop.remove();
+    actions.append(yes, no);
+    pop.appendChild(actions);
   };
 
-  const no = document.createElement("button");
-  no.className = "confirm-no";
-  no.textContent = "Cancel";
-  no.onclick = () => pop.remove();
-
-  actions.append(yes, no);
-  pop.appendChild(actions);
-  anchor.appendChild(pop);
+  render();
 }
 
 /** Input→output flow for the step, per unlocked toy. */

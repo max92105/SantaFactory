@@ -80,6 +80,7 @@ export function createMetricsPage(): Page {
       dom.mLifetimeGifts.textContent = formatInt(state.resources.lifetimeGifts);
       dom.mLifetimeSold.textContent = formatInt(state.stats.lifetimeSoldGifts);
       dom.mLifetimeRuined.textContent = formatInt(state.stats.lifetimeRuined);
+      dom.mOrdersFilled.textContent = formatInt(state.stats.ordersCompleted);
 
       // Wages
       dom.mWageResult.textContent = state.meta.lastWageResult;
