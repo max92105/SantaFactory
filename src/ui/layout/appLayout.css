@@ -482,22 +482,112 @@
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
-@media (max-width: 1000px) {
+/* Compact 2-row HUD on phones/tablets: brand + season on top, resources below.
+   Desktop layout (>900px) is unchanged. */
+@media (max-width: 900px) {
   .hud {
-    grid-template-columns: 1fr;
-    gap: var(--space-md);
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "brand   season"
+      "res     res";
+    align-items: center;
+    gap: var(--space-xs) var(--space-md);
+    padding: var(--space-sm) var(--space-md);
   }
 
-  .hud-brand,
+  .hud-brand {
+    grid-area: brand;
+    gap: var(--space-sm);
+  }
   .hud-resources {
-    justify-content: center;
+    grid-area: res;
+    justify-content: space-between;
+    gap: var(--space-sm);
+  }
+  .hud-season {
+    grid-area: season;
+    justify-self: end;
+    gap: var(--space-sm);
   }
 
-  .hud-season {
-    margin: 0 auto;
+  /* Trim the brand */
+  .brand-sub {
+    display: none;
+  }
+  .brand-title {
+    font-size: 14px;
+  }
+  .brand-icon {
+    font-size: 22px;
+  }
+  .menu-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Shrink resources so all three fit one row */
+  .res-icon {
+    font-size: 21px;
+  }
+  .res-value {
+    font-size: 15px;
+  }
+  .res-label {
+    font-size: 9px;
+  }
+  .res-main {
+    gap: var(--space-sm);
+  }
+  .res-foot {
+    min-height: 16px;
+  }
+  .res-arrow {
+    padding: 1px 0;
+  }
+
+  /* Compact season: drop the within-day bar, keep day + countdown */
+  .season-icon {
+    font-size: 22px;
+  }
+  .season-progress {
+    display: none;
+  }
+  .season-day {
+    font-size: 12px;
+  }
+  .season-total,
+  .season-tod {
+    font-size: 11px;
+  }
+  .countdown-num {
+    font-size: 17px;
+  }
+  .season-countdown {
+    padding-left: var(--space-sm);
   }
 
   .tab-nav {
     overflow-x: auto;
+    padding: 0 var(--space-sm);
+  }
+  .tab-btn {
+    padding: var(--space-sm) var(--space-md);
+    white-space: nowrap;
+  }
+  .tab-content {
+    padding: var(--space-md);
+  }
+}
+
+/* Extra-small phones: hide the brand text, just the Santa icon */
+@media (max-width: 480px) {
+  .brand-text {
+    display: none;
+  }
+  .res-label {
+    display: none;
+  }
+  .hud-resources {
+    gap: var(--space-md);
   }
 }

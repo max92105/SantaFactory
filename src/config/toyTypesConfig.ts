@@ -21,9 +21,14 @@ export type ToyTypeDef = {
   unlockCost: number;
 };
 
+// Progression curve — each toy is worth ~2.3× the previous and unlocks for
+// roughly 4–5× more, while taking longer to craft (see pipelineConfig baseTime).
+// Higher toys pay more per craft-second, so unlocking them is an upgrade.
 export const toyTypes: ToyTypeDef[] = [
   { id: "plushy", name: "Plushy", icon: "🧸", baseSellValue: 3.0, unlockCost: 0 },
   { id: "rubik", name: "Rubik's Cube", icon: "🟩", baseSellValue: 8.0, unlockCost: 150 },
+  { id: "train", name: "Wooden Train", icon: "🚂", baseSellValue: 18.0, unlockCost: 750 },
+  { id: "robot", name: "Tin Robot", icon: "🤖", baseSellValue: 42.0, unlockCost: 4000 },
 ];
 
 export function getToyType(id: string): ToyTypeDef | undefined {
