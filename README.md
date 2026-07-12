@@ -23,3 +23,5 @@ Plain TypeScript + Vite. No framework, no runtime dependencies.
 Every tuning knob lives in [`src/config/`](src/config/) — one file per
 mechanic (toys, pipeline steps, hiring costs, upgrades, wages, day length).
 Change a number there and the whole game picks it up.
+
+test
