@@ -206,21 +206,32 @@ function buildElfRow(ctx: GameContext, def: ElfTypeDef): HTMLDivElement {
   const state = ctx.getState();
   const cost = getElfCost(def, countOfType(state, def.id));
 
+  const isMech = def.role === "mechanic";
   const row = document.createElement("div");
-  row.className = "shop-row elf-row";
+  row.className = "shop-row elf-row" + (isMech ? " mechanic" : "");
   row.dataset.name = `${def.name} ${def.description}`.toLowerCase();
   row.dataset.elfType = def.id;
 
-  row.innerHTML = `
-    <div class="shop-row-icon">${def.icon}</div>
-    <div class="elf-main">
-      <div class="shop-row-title">${def.name}</div>
-      <div class="shop-row-sub">${def.description}</div>
-    </div>
+  const wageStat = `
     <div class="elf-stat">
       <span class="elf-stat-label">💰 Wage</span>
       <span class="elf-stat-value wage">$${def.dailyWage}/day</span>
-    </div>
+    </div>`;
+  const shiftStat = `
+    <div class="elf-stat">
+      <span class="elf-stat-label">⏰ Shifts</span>
+      <span class="elf-stat-value shifts">${def.maxShifts}/day</span>
+      <span class="elf-stat-sub ${def.canWorkNight ? "" : "warn"}">${def.canWorkNight ? "any slot" : "no nights"}</span>
+    </div>`;
+
+  // Mechanics show their repair speed; workers show ruin + break chances.
+  const midStats = isMech
+    ? `
+    <div class="elf-stat">
+      <span class="elf-stat-label">🛠️ Repairs in</span>
+      <span class="elf-stat-value repair">${def.repairTime}s</span>
+    </div>`
+    : `
     <div class="elf-stat">
       <span class="elf-stat-label">🎁 Ruins gifts</span>
       <span class="elf-stat-value ruin">${formatPct(def.mistakeChance)}</span>
@@ -228,12 +239,17 @@ function buildElfRow(ctx: GameContext, def: ElfTypeDef): HTMLDivElement {
     <div class="elf-stat">
       <span class="elf-stat-label">🔧 Breaks station</span>
       <span class="elf-stat-value break">${formatPct(def.breakChance)}</span>
+    </div>`;
+
+  row.innerHTML = `
+    <div class="shop-row-icon">${def.icon}</div>
+    <div class="elf-main">
+      <div class="shop-row-title">${def.name}</div>
+      <div class="shop-row-sub">${def.description}</div>
     </div>
-    <div class="elf-stat">
-      <span class="elf-stat-label">⏰ Shifts</span>
-      <span class="elf-stat-value shifts">${def.maxShifts}/day</span>
-      <span class="elf-stat-sub ${def.canWorkNight ? "" : "warn"}">${def.canWorkNight ? "any slot" : "no nights"}</span>
-    </div>
+    ${wageStat}
+    ${midStats}
+    ${shiftStat}
   `;
 
   const btn = document.createElement("button");

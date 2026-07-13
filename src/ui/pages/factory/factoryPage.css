@@ -288,6 +288,59 @@
 .repair-btn:hover:not(:disabled) { filter: brightness(1.1); }
 .repair-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+.repair-btn.small {
+  padding: 5px var(--space-md);
+  font-size: 12px;
+}
+
+/* ── Maintenance line: broken-station repair list ───────────────────────── */
+.detail-repairs {
+  margin-bottom: var(--space-lg);
+}
+
+.repair-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+}
+
+.repair-row + .repair-row {
+  border-top: 1px solid var(--divider);
+}
+
+.repair-icon {
+  font-size: 24px;
+  width: 32px;
+  text-align: center;
+}
+
+.repair-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.repair-name {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.repair-track {
+  height: 6px;
+  background: var(--bg-inset);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.repair-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--warning), var(--success));
+  border-radius: 3px;
+  transition: width 0.15s linear;
+}
+
 /* ── Shift scheduler ────────────────────────────────────────────────────── */
 .sched-title {
   font-size: 11px;

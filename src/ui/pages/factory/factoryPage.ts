@@ -26,7 +26,7 @@ import {
   type PipelineStepDef,
 } from "../../../config/pipelineConfig";
 import { getToyType } from "../../../config/toyTypesConfig";
-import { getElfType } from "../../../config/elfTypesConfig";
+import { getElfType, type ElfRole } from "../../../config/elfTypesConfig";
 import { shiftSlots } from "../../../config/shiftsConfig";
 import { getUnlockedToyTypes, isToyUnlocked } from "../../../helpers/unlockHelpers";
 import { ensureInventory } from "../../../helpers/inventoryHelpers";
@@ -37,14 +37,15 @@ import {
   onShiftCount,
   ownedElfTypes,
   scheduledOnStep,
+  activeMechanics,
   canWorkSlot,
   allowedSlots,
   requiredShifts,
   crewGroups,
   type CrewGroup,
 } from "../../../helpers/workforceHelpers";
-import { isStationBroken } from "../../../helpers/stationHelpers";
-import { STATION_REPAIR_COST } from "../../../config/stationsConfig";
+import { isStationBroken, brokenStationCount, brokenStepIds } from "../../../helpers/stationHelpers";
+import { STATION_REPAIR_COST, MAINTENANCE_STEP } from "../../../config/stationsConfig";
 import { formatInt, formatCost } from "../../../helpers/formatHelpers";
 
 type Status = { cls: string; label: string };
@@ -63,6 +64,18 @@ function visibleSteps(ctx: GameContext): PipelineStepDef[] {
   return getOrderedSteps().filter((s) => !s.toyType || isToyUnlocked(state, s.toyType));
 }
 
+/** Rail status for the virtual Maintenance line. */
+function maintenanceStatus(state: ReturnType<GameContext["getState"]>, slot: string): Status {
+  const broken = brokenStationCount(state);
+  const onShift = activeMechanics(state, slot).length;
+  const scheduled = scheduledOnStep(state, MAINTENANCE_STEP);
+  if (broken > 0 && onShift > 0) return { cls: "working", label: `Repairing ${broken}` };
+  if (broken > 0) return { cls: "broken", label: `${broken} down` };
+  if (onShift > 0) return { cls: "working", label: "On call" };
+  if (scheduled > 0) return { cls: "scheduled", label: "Off shift" };
+  return { cls: "idle", label: "No mechanics" };
+}
+
 export function createFactoryPage(): Page {
   let selectedStepId: string | null = null;
 
@@ -76,9 +89,9 @@ export function createFactoryPage(): Page {
     },
 
     rebuild(ctx) {
-      const steps = visibleSteps(ctx);
-      if (!selectedStepId || !steps.some((s) => s.id === selectedStepId)) {
-        selectedStepId = steps[0]?.id ?? null;
+      const validIds = [...visibleSteps(ctx).map((s) => s.id), MAINTENANCE_STEP];
+      if (!selectedStepId || !validIds.includes(selectedStepId)) {
+        selectedStepId = validIds[0] ?? null;
       }
 
       buildIdleChips(ctx);
@@ -102,7 +115,10 @@ export function createFactoryPage(): Page {
       // Rail status dots
       ctx.dom.factoryRail.querySelectorAll<HTMLElement>(".rail-item").forEach((item) => {
         const id = item.dataset.stepId!;
-        const st = statusOf(viewById.get(id), scheduledOnStep(state, id));
+        const st =
+          id === MAINTENANCE_STEP
+            ? maintenanceStatus(state, slot)
+            : statusOf(viewById.get(id), scheduledOnStep(state, id));
         const dot = item.querySelector<HTMLElement>(".rail-status")!;
         dot.className = `rail-status status-${st.cls}`;
         dot.title = st.label;
@@ -116,6 +132,25 @@ export function createFactoryPage(): Page {
       // Detail live values for the shown step
       const shownId = ctx.dom.factoryDetail.querySelector<HTMLElement>("[data-step-id]")?.dataset.stepId;
       if (!shownId) return;
+
+      // Maintenance line has its own live values
+      if (shownId === MAINTENANCE_STEP) {
+        const st = maintenanceStatus(state, slot);
+        const mBadge = ctx.dom.factoryDetail.querySelector<HTMLElement>(".detail-status");
+        if (mBadge) {
+          mBadge.className = `detail-status status-${st.cls}`;
+          mBadge.textContent = st.label;
+        }
+        const onShiftEl = ctx.dom.factoryDetail.querySelector<HTMLElement>('[data-detail="onshift"]');
+        if (onShiftEl) onShiftEl.textContent = formatInt(activeMechanics(state, slot).length);
+        const brokenEl = ctx.dom.factoryDetail.querySelector<HTMLElement>('[data-detail="brokencount"]');
+        if (brokenEl) brokenEl.textContent = formatInt(brokenStationCount(state));
+        ctx.dom.factoryDetail.querySelectorAll<HTMLElement>("[data-repair]").forEach((bar) => {
+          const pct = ctx.systems.pipeline.repairProgressOf(bar.dataset.repair!) * 100;
+          bar.style.width = `${Math.floor(pct)}%`;
+        });
+        return;
+      }
 
       const view = viewById.get(shownId);
       const badge = ctx.dom.factoryDetail.querySelector<HTMLElement>(".detail-status");
@@ -174,6 +209,23 @@ function buildRail(ctx: GameContext, selectedId: string | null, onSelect: (id: s
 
   appendRailGroup(rail, "Crafting", craft, selectedId, onSelect);
   appendRailGroup(rail, "Processing", shared, selectedId, onSelect);
+
+  // Virtual Maintenance line (mechanics auto-repair broken stations)
+  const maintHead = document.createElement("div");
+  maintHead.className = "rail-group-label";
+  maintHead.textContent = "Upkeep";
+  rail.appendChild(maintHead);
+
+  const maint = document.createElement("button");
+  maint.className = "rail-item" + (selectedId === MAINTENANCE_STEP ? " active" : "");
+  maint.dataset.stepId = MAINTENANCE_STEP;
+  maint.innerHTML = `
+    <span class="rail-status status-idle"></span>
+    <span class="rail-icon">🔧</span>
+    <span class="rail-name">Maintenance</span>
+  `;
+  maint.onclick = () => onSelect(MAINTENANCE_STEP);
+  rail.appendChild(maint);
 }
 
 function appendRailGroup(
@@ -209,6 +261,11 @@ function appendRailGroup(
 function buildDetail(ctx: GameContext, stepId: string | null): void {
   const detail = ctx.dom.factoryDetail;
   detail.innerHTML = "";
+
+  if (stepId === MAINTENANCE_STEP) {
+    buildMaintenanceDetail(ctx);
+    return;
+  }
 
   const step = stepId ? getPipelineStep(stepId) : null;
   if (!step) {
@@ -247,43 +304,120 @@ function buildDetail(ctx: GameContext, stepId: string | null): void {
   root.appendChild(meta);
 
   if (broken) {
-    const banner = document.createElement("div");
-    banner.className = "detail-broken";
-    banner.innerHTML = `<span>⚠️ This station broke down and is halted.</span>`;
-    const repair = document.createElement("button");
-    repair.className = "repair-btn";
-    repair.textContent = `🔧 Repair (${formatCost(STATION_REPAIR_COST)})`;
-    repair.disabled = state.resources.money < STATION_REPAIR_COST;
-    repair.onclick = () => {
-      ctx.systems.pipeline.repairStation(ctx.getState(), step.id);
-      ctx.rebuildUI();
-    };
-    banner.appendChild(repair);
-    root.appendChild(banner);
+    root.appendChild(brokenBanner(ctx, step.id, "This station broke down and is halted."));
   } else {
-    root.appendChild(buildScheduler(ctx, step.id));
+    root.appendChild(buildScheduler(ctx, step.id, "worker"));
   }
 
   root.appendChild(buildFlow(ctx, step));
   detail.appendChild(root);
 }
 
-/** Crew of the line (one card per assigned elf) + an "+ Assign elf" flow. */
-function buildScheduler(ctx: GameContext, stepId: string): HTMLElement {
+/** A red banner with a manual-repair button for a broken station. */
+function brokenBanner(ctx: GameContext, stepId: string, text: string): HTMLElement {
   const state = ctx.getState();
+  const banner = document.createElement("div");
+  banner.className = "detail-broken";
+  banner.innerHTML = `<span>⚠️ ${text}</span>`;
+  const repair = document.createElement("button");
+  repair.className = "repair-btn";
+  repair.textContent = `🔧 Repair (${formatCost(STATION_REPAIR_COST)})`;
+  repair.disabled = state.resources.money < STATION_REPAIR_COST;
+  repair.onclick = () => {
+    ctx.systems.pipeline.repairStation(ctx.getState(), stepId);
+    ctx.rebuildUI();
+  };
+  banner.appendChild(repair);
+  return banner;
+}
+
+// ── Maintenance line ──────────────────────────────────────────────────────
+/** Detail for the virtual Maintenance line: schedule mechanics + repair status. */
+function buildMaintenanceDetail(ctx: GameContext): void {
+  const state = ctx.getState();
+  const detail = ctx.dom.factoryDetail;
+
+  const root = document.createElement("div");
+  root.className = "detail-root";
+  root.dataset.stepId = MAINTENANCE_STEP;
+
+  root.innerHTML = `
+    <div class="detail-header">
+      <span class="detail-icon">🔧</span>
+      <div class="detail-title-wrap">
+        <div class="detail-title">Maintenance <span class="detail-status status-idle">…</span></div>
+        <div class="detail-sub">Mechanics on shift auto-repair broken stations — no repair fee.</div>
+      </div>
+    </div>
+    <div class="detail-meta">
+      <div class="detail-stat"><span>Mechanics on shift</span><strong data-detail="onshift">0</strong></div>
+      <div class="detail-stat"><span>Stations down</span><strong data-detail="brokencount">0</strong></div>
+    </div>
+  `;
+
+  // Broken-station repair list
+  const repairs = document.createElement("div");
+  repairs.className = "detail-repairs";
+  repairs.innerHTML = `<div class="sched-title">Broken stations</div>`;
+  const broken = brokenStepIds(state);
+  if (broken.length === 0) {
+    const ok = document.createElement("div");
+    ok.className = "crew-empty";
+    ok.textContent = "All stations running. 🟢";
+    repairs.appendChild(ok);
+  } else {
+    for (const stepId of broken) {
+      const step = getPipelineStep(stepId);
+      const toy = step?.toyType ? getToyType(step.toyType) : null;
+      const row = document.createElement("div");
+      row.className = "repair-row";
+      row.innerHTML = `
+        <span class="repair-icon">${toy ? toy.icon : "⚙️"}</span>
+        <div class="repair-info">
+          <div class="repair-name">${step?.name ?? stepId}</div>
+          <div class="repair-track"><div class="repair-fill" data-repair="${stepId}"></div></div>
+        </div>
+      `;
+      const btn = document.createElement("button");
+      btn.className = "repair-btn small";
+      btn.textContent = `Repair ${formatCost(STATION_REPAIR_COST)}`;
+      btn.disabled = state.resources.money < STATION_REPAIR_COST;
+      btn.onclick = () => {
+        ctx.systems.pipeline.repairStation(ctx.getState(), stepId);
+        ctx.rebuildUI();
+      };
+      row.appendChild(btn);
+      repairs.appendChild(row);
+    }
+  }
+  root.appendChild(repairs);
+
+  // Mechanic scheduler (reuses the crew UI, filtered to mechanics)
+  root.appendChild(buildScheduler(ctx, MAINTENANCE_STEP, "mechanic"));
+
+  detail.appendChild(root);
+}
+
+/** Crew of the line (one card per assigned elf) + an "+ Assign elf" flow. */
+function buildScheduler(ctx: GameContext, stepId: string, role: ElfRole): HTMLElement {
+  const state = ctx.getState();
+  const isMech = role === "mechanic";
 
   const wrap = document.createElement("div");
   wrap.className = "sched";
 
   const title = document.createElement("div");
   title.className = "sched-title";
-  title.textContent = "Crew on this line";
+  title.textContent = isMech ? "Mechanics on maintenance" : "Crew on this line";
   wrap.appendChild(title);
 
-  if (ownedElfTypes(state).length === 0) {
+  const ownedOfRole = ownedElfTypes(state).filter((t) => t.role === role);
+  if (ownedOfRole.length === 0) {
     const hint = document.createElement("div");
     hint.className = "detail-empty";
-    hint.textContent = "No elves yet — hire some in the Upgrades tab.";
+    hint.textContent = isMech
+      ? "No mechanics yet — hire some under Maintenance Crew in the Upgrades tab."
+      : "No workers yet — hire some in the Upgrades tab.";
     wrap.appendChild(hint);
     return wrap;
   }
@@ -292,7 +426,9 @@ function buildScheduler(ctx: GameContext, stepId: string): HTMLElement {
   crew.className = "crew-list";
   const groups = crewGroups(state, stepId);
   if (groups.length === 0) {
-    crew.innerHTML = `<span class="crew-empty">No elves on this line yet.</span>`;
+    crew.innerHTML = `<span class="crew-empty">${
+      isMech ? "No mechanics scheduled yet." : "No elves on this line yet."
+    }</span>`;
   } else {
     for (const g of groups) crew.appendChild(buildCrewGroupCard(ctx, g));
   }
@@ -300,12 +436,12 @@ function buildScheduler(ctx: GameContext, stepId: string): HTMLElement {
 
   const addBtn = document.createElement("button");
   addBtn.className = "assign-open";
-  addBtn.textContent = "+ Assign elf";
+  addBtn.textContent = isMech ? "+ Assign mechanic" : "+ Assign elf";
   addBtn.onclick = () => {
     if (wrap.querySelector(".assign-panel")) return; // one panel at a time
     addBtn.disabled = true;
     wrap.appendChild(
-      buildAssignPanel(ctx, stepId, () => {
+      buildAssignPanel(ctx, stepId, role, () => {
         wrap.querySelector(".assign-panel")?.remove();
         addBtn.disabled = false;
       })
@@ -352,7 +488,12 @@ function buildCrewGroupCard(ctx: GameContext, group: CrewGroup): HTMLElement {
  * Assign flow: pick an idle elf type, then choose ALL of its shift slots, then
  * confirm. The elf works exactly its type's shift count (drunken skips night).
  */
-function buildAssignPanel(ctx: GameContext, stepId: string, onClose: () => void): HTMLElement {
+function buildAssignPanel(
+  ctx: GameContext,
+  stepId: string,
+  role: ElfRole,
+  onClose: () => void
+): HTMLElement {
   const panel = document.createElement("div");
   panel.className = "assign-panel";
 
@@ -362,18 +503,24 @@ function buildAssignPanel(ctx: GameContext, stepId: string, onClose: () => void)
 
   function render(): void {
     const state = ctx.getState();
-    const options = ownedElfTypes(state).filter((t) => idleOfType(state, t.id) > 0);
+    const options = ownedElfTypes(state).filter((t) => t.role === role && idleOfType(state, t.id) > 0);
     panel.innerHTML = "";
 
     const head = document.createElement("div");
     head.className = "assign-title";
-    head.textContent = "Assign elves — pick who, choose their shifts, set how many";
+    head.textContent =
+      role === "mechanic"
+        ? "Assign mechanics — pick who, choose their shifts, set how many"
+        : "Assign elves — pick who, choose their shifts, set how many";
     panel.appendChild(head);
 
     if (options.length === 0) {
       const empty = document.createElement("div");
       empty.className = "picker-empty";
-      empty.textContent = "No idle elves — hire more or wait until tomorrow.";
+      empty.textContent =
+        role === "mechanic"
+          ? "No idle mechanics — hire more or wait until tomorrow."
+          : "No idle workers — hire more or wait until tomorrow.";
       panel.appendChild(empty);
     } else {
       // Step 1: pick elf type

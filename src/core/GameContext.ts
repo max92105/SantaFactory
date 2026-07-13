@@ -52,4 +52,9 @@ export type GameContext = {
    * and refresh every on-screen value. Call after any user action.
    */
   rebuildUI(): void;
+
+  /** Manually save the current game to its slot (menu "Save now"). */
+  saveGame(): void;
+  /** Save, stop the loop, and return to the main menu / slot select. */
+  exitToMenu(): void;
 };

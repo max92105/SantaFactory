@@ -77,6 +77,12 @@
   background: rgba(248, 113, 113, 0.05);
 }
 
+/* Rush offers stand out from the calm daily board with a red edge. */
+.order-card.rush.offer {
+  background: rgba(248, 113, 113, 0.1);
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+
 .order-icon {
   font-size: 30px;
   width: 40px;
@@ -141,6 +147,32 @@
 .days-badge.urgent {
   color: #fff;
   background: var(--warning);
+}
+
+/* Rush real-time countdown chip */
+.secs-badge {
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: var(--danger);
+  border-radius: 999px;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+.secs-badge.ending {
+  animation: secs-pulse 0.7s ease-in-out infinite;
+}
+
+@keyframes secs-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .secs-badge.ending { animation: none; }
 }
 
 /* Progress (active orders) */

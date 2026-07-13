@@ -247,6 +247,15 @@
   gap: var(--space-md);
 }
 
+/* Mechanics have one fewer stat (Repairs in) instead of Ruins + Breaks */
+.elf-row.mechanic {
+  grid-template-columns: 40px minmax(0, 1fr) 86px 110px 84px auto;
+}
+
+.elf-stat-value.repair {
+  color: var(--accent);
+}
+
 .elf-row .shop-row-icon {
   font-size: 30px;
 }

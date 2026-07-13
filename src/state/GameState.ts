@@ -41,9 +41,13 @@ export type Order = {
   quantity: number;
   delivered: number;
   reward: number;
-  /** Days remaining to complete it (decrements each day; expires at 0). */
+  /** Days remaining to complete it (decrements each day; expires at 0).
+   *  Ignored for rush orders, which use `secondsLeft` instead. */
   daysLeft: number;
   rush: boolean;
+  /** Rush orders only: real-time seconds left before it expires (ticks each
+   *  frame in OrdersSystem.update). Undefined for normal day-based orders. */
+  secondsLeft?: number;
 };
 
 /** End-of-day recap data (produced by DailySummarySystem — not wired into the loop yet). */

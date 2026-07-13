@@ -74,19 +74,38 @@ export const orderTemplates: OrderTemplate[] = [
     payMult: 1.8,
     rush: false,
   },
-  {
-    id: "rush",
-    name: "Rush Order",
-    weight: 1,
-    minQty: 25,
-    maxQty: 50,
-    minDays: 1,
-    maxDays: 1,
-    payMult: 2.4,
-    rush: true,
-  },
 ];
 
 export function getOrderTemplate(id: string): OrderTemplate | undefined {
   return orderTemplates.find((t) => t.id === id);
 }
+
+/**
+ * RUSH ORDERS — dynamic, time-pressured pop-ups. Unlike the daily board above,
+ * these appear at random *during* the day (see OrdersSystem.update): a toast
+ * fires, the Orders tab flashes a badge, and a live countdown ticks in real
+ * seconds. Rules that keep them fair:
+ *   • only spawn while there's at least a quarter-day of daylight left, so the
+ *     player always gets ≥ `minSeconds` to react and deliver;
+ *   • they must be filled before night (`nightStartsAt`);
+ *   • it's fine if you can't always fill them — that's the tension.
+ * Everything here is tunable; timings are in REAL seconds (day = SECONDS_PER_GAME_DAY).
+ */
+export const RUSH_ORDER = {
+  /** Per-second chance a rush pops up while eligible (~1 per day at 300s/day). */
+  chancePerSecond: 0.008,
+  /** Never leave more than this many rush offers waiting at once. */
+  maxPending: 2,
+  /** Quantity requested (inclusive random range). */
+  minQty: 20,
+  maxQty: 55,
+  /** Reward multiplier — rush pays a premium for the pressure. */
+  payMult: 2.6,
+  /** Guaranteed minimum lifetime in real seconds (a "quarter day" at 300s/day).
+   *  Also the eligibility gate: no rush spawns unless this much daylight remains. */
+  minSeconds: 75,
+  /** Longest lifetime in real seconds — a snappy ~1.5 min. */
+  maxSeconds: 90,
+  /** Day-progress (0..1) at which night begins; rush must be done before it. */
+  nightStartsAt: 0.75,
+};

@@ -38,7 +38,8 @@ export function createOrdersPage(): Page {
 
     renderFrame(ctx) {
       const state = ctx.getState();
-      // Live: deliverable amount + deliver-button state as stock changes
+      // Live: deliverable amount + deliver-button state as stock changes,
+      // plus the rush countdown on any accepted rush order.
       for (const order of state.orders.active) {
         const card = ctx.dom.ordersActiveList.querySelector<HTMLElement>(`[data-order-id="${order.id}"]`);
         if (!card) continue;
@@ -47,9 +48,26 @@ export function createOrdersPage(): Page {
         if (readyEl) readyEl.textContent = `${formatInt(ready)} ready to ship`;
         const btn = card.querySelector<HTMLButtonElement>(".order-deliver");
         if (btn) btn.disabled = ready <= 0;
+        updateSecs(card, order);
+      }
+      // Live: rush countdown on available offers
+      for (const order of state.orders.offers) {
+        if (order.secondsLeft == null) continue;
+        const card = ctx.dom.ordersOfferList.querySelector<HTMLElement>(`[data-order-id="${order.id}"]`);
+        if (card) updateSecs(card, order);
       }
     },
   };
+}
+
+/** Refresh a rush order's live "⚡ Ns" countdown chip (flashes near expiry). */
+function updateSecs(card: HTMLElement, order: Order): void {
+  if (order.secondsLeft == null) return;
+  const el = card.querySelector<HTMLElement>("[data-secs]");
+  if (!el) return;
+  const s = Math.max(0, Math.ceil(order.secondsLeft));
+  el.textContent = `⚡ ${s}s`;
+  el.classList.toggle("ending", s <= 15);
 }
 
 function toyLabel(order: Order): { icon: string; name: string } {
@@ -57,7 +75,12 @@ function toyLabel(order: Order): { icon: string; name: string } {
   return { icon: t?.icon ?? "🎁", name: t?.name ?? "Toy" };
 }
 
-function daysBadge(order: Order): string {
+/** Deadline chip: a real-time countdown for rush orders, days for the rest. */
+function deadlineBadge(order: Order): string {
+  if (order.secondsLeft != null) {
+    const s = Math.max(0, Math.ceil(order.secondsLeft));
+    return `<span class="secs-badge${s <= 15 ? " ending" : ""}" data-secs>⚡ ${s}s</span>`;
+  }
   const d = order.daysLeft;
   const cls = d <= 1 ? "days-badge urgent" : "days-badge";
   return `<span class="${cls}">${d} day${d === 1 ? "" : "s"} left</span>`;
@@ -103,7 +126,7 @@ function buildActiveList(ctx: GameContext): void {
     card.innerHTML = `
       <span class="order-icon">${icon}</span>
       <div class="order-info">
-        <div class="order-title">${name}${order.rush ? ` <span class="rush-badge">RUSH</span>` : ""} ${daysBadge(order)}</div>
+        <div class="order-title">${name}${order.rush ? ` <span class="rush-badge">RUSH</span>` : ""} ${deadlineBadge(order)}</div>
         <div class="order-progress"><div class="order-progress-fill" style="width:${Math.floor(
           progressOf(order) * 100
         )}%"></div></div>
@@ -140,7 +163,10 @@ function buildOfferList(ctx: GameContext): void {
 
   const atCap = state.orders.active.length >= MAX_ACTIVE_ORDERS;
 
-  for (const order of state.orders.offers) {
+  // Rush offers (time-pressured) float to the top of the board.
+  const offers = [...state.orders.offers].sort((a, b) => Number(b.rush) - Number(a.rush));
+
+  for (const order of offers) {
     const { icon, name } = toyLabel(order);
     const card = document.createElement("div");
     card.className = "order-card offer" + (order.rush ? " rush" : "");
@@ -154,7 +180,7 @@ function buildOfferList(ctx: GameContext): void {
         <div class="order-meta">
           <span class="order-reward">${formatMoney(order.reward)}</span>
           <span>·</span>
-          ${daysBadge(order)}
+          ${deadlineBadge(order)}
         </div>
       </div>
     `;

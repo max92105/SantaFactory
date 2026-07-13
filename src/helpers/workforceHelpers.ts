@@ -11,6 +11,7 @@
 import type { GameState, ElfInstance } from "../state/GameState";
 import { elfTypes, getElfType, type ElfTypeDef } from "../config/elfTypesConfig";
 import { shiftSlots, NIGHT_SLOT } from "../config/shiftsConfig";
+import { MAINTENANCE_STEP } from "../config/stationsConfig";
 
 // ── Reads ────────────────────────────────────────────────────────────────
 export function allElves(state: GameState): ElfInstance[] {
@@ -68,6 +69,16 @@ export function onShiftCount(state: GameState, slotId: string): number {
   return state.workforce.elves.reduce(
     (n, e) => n + (e.step !== null && e.slots.includes(slotId) ? 1 : 0),
     0
+  );
+}
+
+/** Mechanics scheduled to Maintenance and working this slot (auto-repair crew). */
+export function activeMechanics(state: GameState, slotId: string): ElfInstance[] {
+  return state.workforce.elves.filter(
+    (e) =>
+      e.step === MAINTENANCE_STEP &&
+      e.slots.includes(slotId) &&
+      getElfType(e.type)?.role === "mechanic"
   );
 }
 

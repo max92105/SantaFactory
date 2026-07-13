@@ -27,8 +27,7 @@ export type DomRefs = {
   menuBtn: HTMLButtonElement;
   menuPanel: HTMLDivElement;
   saveBtn: HTMLButtonElement;
-  loadBtn: HTMLButtonElement;
-  resetBtn: HTMLButtonElement;
+  mainMenuBtn: HTMLButtonElement;
 
   // Main tab navigation
   tabButtons: NodeListOf<HTMLButtonElement>;
@@ -39,6 +38,7 @@ export type DomRefs = {
   tabOrders: HTMLDivElement;
   tabMetrics: HTMLDivElement;
   factoryBadge: HTMLElement;
+  ordersBadge: HTMLElement;
 
   // Toasts
   toastLayer: HTMLDivElement;
@@ -141,8 +141,7 @@ export function getDomRefs(): DomRefs {
     menuBtn: mustGet("menuBtn"),
     menuPanel: mustGet("menuPanel"),
     saveBtn: mustGet("saveBtn"),
-    loadBtn: mustGet("loadBtn"),
-    resetBtn: mustGet("resetBtn"),
+    mainMenuBtn: mustGet("mainMenuBtn"),
 
     // Main tab navigation
     tabButtons: document.querySelectorAll<HTMLButtonElement>(".tab-nav .tab-btn"),
@@ -153,6 +152,7 @@ export function getDomRefs(): DomRefs {
     tabOrders: mustGet("tab-orders"),
     tabMetrics: mustGet("tab-metrics"),
     factoryBadge: mustGet("factoryBadge"),
+    ordersBadge: mustGet("ordersBadge"),
 
     // Toasts
     toastLayer: mustGet("toastLayer"),

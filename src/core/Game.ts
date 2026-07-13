@@ -8,7 +8,7 @@
 
 import { createGameLoop } from "./GameLoop";
 import type { FrameViews, GameContext, Systems } from "./GameContext";
-import { createInitialState, type GameState } from "../state/GameState";
+import type { GameState } from "../state/GameState";
 import { SEASON_DAYS } from "../config/timeConfig";
 import { brokenStationCount } from "../helpers/stationHelpers";
 import { resetSpentShifts } from "../helpers/workforceHelpers";
@@ -35,10 +35,23 @@ import { createMetricsPage } from "../ui/pages/metrics/metricsPage";
 
 export type Game = { start(): void };
 
-export function createGame(): Game {
-  // 1. Mount all markup (layout shell first, then each page into the tab area)
+export type CreateGameOptions = {
+  /** State to play — a loaded save, or a fresh createInitialState(). */
+  state: GameState;
+  /** Save slot this session writes to (autosave + manual save). */
+  slot: number;
+  /** Called when the player returns to the main menu (after a final save). */
+  onExit: () => void;
+};
+
+/** How often the game autosaves while playing. */
+const AUTOSAVE_INTERVAL_MS = 20000;
+
+export function createGame(opts: CreateGameOptions): Game {
+  // 1. Mount all markup (clear the menu / previous session first)
   const root = document.getElementById("app");
   if (!root) throw new Error("Missing #app root element");
+  root.innerHTML = "";
   mountAppLayout(root);
 
   const pages: Page[] = [
@@ -57,7 +70,11 @@ export function createGame(): Game {
   // 2. Collect DOM references and create systems
   const dom = getDomRefs();
 
-  let state: GameState = createInitialState();
+  let state: GameState = opts.state;
+
+  // Session lifecycle (autosave + return-to-menu)
+  let stopped = false;
+  let autosaveTimer: number | undefined;
 
   const systems: Systems = {
     time: createTimeSystem(),
@@ -79,6 +96,8 @@ export function createGame(): Game {
       state = next;
     },
     rebuildUI,
+    saveGame,
+    exitToMenu,
   };
 
   function buildFrameViews(): FrameViews {
@@ -124,6 +143,12 @@ export function createGame(): Game {
     const timeResult = systems.time.update(state, dtSeconds);
     systems.pipeline.update(state, mods, dtSeconds);
 
+    // Rush orders live in real time: they pop up mid-day and expire fast.
+    // Rebuild only when one spawns or lapses (the list changed).
+    if (systems.orders.update(state, dtSeconds)) {
+      rebuildUI();
+    }
+
     // New day → refresh order offers / age active orders (rebuild lists if so)
     if (systems.orders.ensureDay(state)) {
       rebuildUI();
@@ -155,11 +180,40 @@ export function createGame(): Game {
     renderFrame();
   });
 
+  // 5. Save / exit lifecycle
+  function autoSave() {
+    systems.save.save(state, opts.slot);
+  }
+  function saveGame() {
+    const ok = systems.save.save(state, opts.slot);
+    state.meta.statusText = ok ? "Game saved." : "Couldn't save — storage may be full.";
+  }
+  function onVisibility() {
+    if (document.hidden) autoSave(); // save when the tab/app is backgrounded
+  }
+  function teardown() {
+    stopped = true;
+    if (autosaveTimer !== undefined) window.clearInterval(autosaveTimer);
+    window.removeEventListener("beforeunload", autoSave);
+    document.removeEventListener("visibilitychange", onVisibility);
+  }
+  function exitToMenu() {
+    autoSave(); // never lose progress on the way out
+    teardown();
+    opts.onExit();
+  }
+
   return {
     start() {
       systems.orders.ensureDay(state); // day-1 offers before the first render
       rebuildUI();
-      loop.start(() => state.meta.isRunOver);
+
+      // Autosave: on an interval, when backgrounded, and on refresh/close.
+      autosaveTimer = window.setInterval(autoSave, AUTOSAVE_INTERVAL_MS);
+      window.addEventListener("beforeunload", autoSave);
+      document.addEventListener("visibilitychange", onVisibility);
+
+      loop.start(() => stopped || state.meta.isRunOver);
     },
   };
 }

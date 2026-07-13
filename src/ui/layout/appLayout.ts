@@ -8,7 +8,6 @@ import appLayoutHtml from "./appLayout.html?raw";
 import "./appLayout.css";
 
 import type { FrameViews, GameContext } from "../../core/GameContext";
-import { createInitialState } from "../../state/GameState";
 import { ensureInventory, getTotalFinished } from "../../helpers/inventoryHelpers";
 import { getUnlockedToyTypes } from "../../helpers/unlockHelpers";
 import { totalElves, countOfType, onShiftCount, totalIdle, ownedElfTypes } from "../../helpers/workforceHelpers";
@@ -32,7 +31,7 @@ export function mountAppLayout(root: HTMLElement): void {
 
 /** Wire menu, tab switching, gifts dropdown and save/load/reset. */
 export function bindAppLayout(ctx: GameContext): void {
-  const { dom, systems } = ctx;
+  const { dom } = ctx;
 
   // Main tabs
   dom.tabButtons.forEach((btn) => {
@@ -92,29 +91,13 @@ export function bindAppLayout(ctx: GameContext): void {
   // Menu actions
   dom.saveBtn.onclick = () => {
     closeMenu();
-    systems.save.save(ctx.getState());
+    ctx.saveGame();
     ctx.rebuildUI();
   };
 
-  dom.loadBtn.onclick = () => {
+  dom.mainMenuBtn.onclick = () => {
     closeMenu();
-    const loaded = systems.save.load();
-    if (!loaded) {
-      ctx.getState().meta.statusText = "No save found.";
-      ctx.rebuildUI();
-      return;
-    }
-    ctx.setState(loaded);
-    ctx.rebuildUI();
-  };
-
-  dom.resetBtn.onclick = () => {
-    closeMenu();
-    systems.save.clear();
-    const fresh = createInitialState();
-    fresh.meta.statusText = "Reset complete.";
-    ctx.setState(fresh);
-    ctx.rebuildUI();
+    ctx.exitToMenu();
   };
 }
 
@@ -181,6 +164,11 @@ export function renderAppLayout(ctx: GameContext, views: FrameViews): void {
   const broken = brokenStationCount(state);
   dom.factoryBadge.hidden = broken === 0;
   dom.factoryBadge.textContent = String(broken);
+
+  // Orders tab badge: rush orders waiting to be grabbed (time-pressured)
+  const rushWaiting = state.orders.offers.reduce((n, o) => n + (o.rush ? 1 : 0), 0);
+  dom.ordersBadge.hidden = rushWaiting === 0;
+  dom.ordersBadge.textContent = String(rushWaiting);
 
   // Drain queued alerts into corner toasts (fires each event once)
   if (state.pendingAlerts.length > 0) {

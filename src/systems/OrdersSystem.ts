@@ -13,9 +13,11 @@ import type { GameState, Order } from "../state/GameState";
 import {
   ORDER_OFFERS_PER_DAY,
   MAX_ACTIVE_ORDERS,
+  RUSH_ORDER,
   orderTemplates,
   type OrderTemplate,
 } from "../config/ordersConfig";
+import { SECONDS_PER_GAME_DAY } from "../config/timeConfig";
 import { getActiveEvent, type GameEvent } from "../config/eventsConfig";
 import { getToyType, type ToyTypeDef } from "../config/toyTypesConfig";
 import { getUnlockedToyTypes } from "../helpers/unlockHelpers";
@@ -82,6 +84,86 @@ export function createOrdersSystem() {
     return offers;
   }
 
+  /** Build a one-off rush order (real-time deadline set by the caller). */
+  function makeRushOrder(state: GameState, unlocked: ToyTypeDef[], event: GameEvent | undefined): Order {
+    const toy = pickToy(unlocked, event);
+    const quantity = randInt(RUSH_ORDER.minQty, RUSH_ORDER.maxQty);
+    const eventMult = event ? event.orderPayMult : 1;
+    const reward = Math.max(1, Math.round(quantity * toy.baseSellValue * RUSH_ORDER.payMult * eventMult));
+    return {
+      id: state.orders.seq++,
+      templateId: "rush",
+      toyType: toy.id,
+      quantity,
+      delivered: 0,
+      reward,
+      daysLeft: 0, // unused for rush — secondsLeft drives the deadline
+      rush: true,
+      secondsLeft: RUSH_ORDER.minSeconds, // overwritten by the caller
+    };
+  }
+
+  /**
+   * Real-time tick (call every frame): counts down rush orders and expires the
+   * lapsed ones, and rolls the chance to spawn a fresh rush pop-up. Returns true
+   * if the offer/active lists changed (so the caller can rebuild the UI).
+   */
+  function update(state: GameState, dt: number): boolean {
+    let changed = false;
+
+    const tick = (list: Order[], kind: "offer" | "active"): Order[] => {
+      const survivors: Order[] = [];
+      for (const o of list) {
+        if (o.secondsLeft == null) {
+          survivors.push(o);
+          continue;
+        }
+        o.secondsLeft -= dt;
+        if (o.secondsLeft <= 0 && o.delivered < o.quantity) {
+          changed = true;
+          if (kind === "active") {
+            const name = getToyType(o.toyType)?.name ?? "toy";
+            const short = Math.max(0, o.quantity - o.delivered);
+            state.meta.statusText = `⚡ Rush order expired — ${short} ${pluralize(short, name)} short.`;
+          }
+          continue; // expired → drop it
+        }
+        survivors.push(o);
+      }
+      return survivors;
+    };
+
+    state.orders.offers = tick(state.orders.offers, "offer");
+    state.orders.active = tick(state.orders.active, "active");
+
+    // Maybe spawn a new rush offer — only while there's ≥ a quarter-day of
+    // daylight left (guarantees the player ≥ minSeconds and finishes by night).
+    const timeToNight = (RUSH_ORDER.nightStartsAt - state.time.dayProgress) * SECONDS_PER_GAME_DAY;
+    const rushWaiting = state.orders.offers.reduce((n, o) => n + (o.rush ? 1 : 0), 0);
+    if (
+      timeToNight >= RUSH_ORDER.minSeconds &&
+      rushWaiting < RUSH_ORDER.maxPending &&
+      Math.random() < RUSH_ORDER.chancePerSecond * dt
+    ) {
+      const unlocked = getUnlockedToyTypes(state);
+      if (unlocked.length > 0) {
+        const event = currentEvent(state);
+        const order = makeRushOrder(state, unlocked, event);
+        order.secondsLeft = Math.min(RUSH_ORDER.maxSeconds, timeToNight);
+        state.orders.offers.push(order);
+
+        const name = getToyType(order.toyType)?.name ?? "toy";
+        state.pendingAlerts.push(
+          `⚡ Rush order! ${order.quantity} × ${name} — ${Math.round(order.secondsLeft)}s, pays $${order.reward}`
+        );
+        state.meta.statusText = `⚡ Rush order in! ${order.quantity} × ${name} — deliver fast.`;
+        changed = true;
+      }
+    }
+
+    return changed;
+  }
+
   /**
    * Make sure offers exist for the current day; on a day change, age active
    * orders (expire overdue ones) and roll fresh offers. Returns true if it
@@ -94,6 +176,7 @@ export function createOrdersSystem() {
     if (!firstInit) {
       let expired = 0;
       state.orders.active = state.orders.active.filter((o) => {
+        if (o.secondsLeft != null) return true; // rush orders age in real time, not days
         o.daysLeft -= 1;
         if (o.daysLeft <= 0 && o.delivered < o.quantity) {
           expired += 1;
@@ -158,7 +241,7 @@ export function createOrdersSystem() {
     return true;
   }
 
-  return { ensureDay, acceptOrder, deliverToOrder, currentEvent, generateOffers };
+  return { ensureDay, update, acceptOrder, deliverToOrder, currentEvent, generateOffers };
 }
 
 export type OrdersSystem = ReturnType<typeof createOrdersSystem>;

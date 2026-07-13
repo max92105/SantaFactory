@@ -18,12 +18,13 @@ import {
   assignElves as assignElvesToStep,
   removeElves as removeElvesFromState,
   activeOnStep,
+  activeMechanics,
   slotMistakeChance,
   slotBreakChance,
 } from "../helpers/workforceHelpers";
 import { pluralizeElves } from "../helpers/textHelpers";
-import { isStationBroken, setStationBroken } from "../helpers/stationHelpers";
-import { STATION_REPAIR_COST } from "../config/stationsConfig";
+import { isStationBroken, setStationBroken, brokenStepIds } from "../helpers/stationHelpers";
+import { STATION_REPAIR_COST, MAINTENANCE_STEP } from "../config/stationsConfig";
 import { getElfType } from "../config/elfTypesConfig";
 import type { Modifiers } from "./ModifierSystem";
 
@@ -45,6 +46,8 @@ export type PipelineView = {
 export function createPipelineSystem() {
   /** Fractional work-in-progress per step (not saved — resets on reload). */
   const progressAccum: Record<string, number> = {};
+  /** Auto-repair progress per broken station, 0..1 (not saved). */
+  const repairProgress: Record<string, number> = {};
 
   function hasInput(state: GameState, step: PipelineStepDef): boolean {
     if (!step.inputStage) return true; // creates from nothing
@@ -95,7 +98,8 @@ export function createPipelineSystem() {
         if (Math.random() < breakChance) {
           setStationBroken(state, step.id, true);
           progressAccum[step.id] = 0;
-          state.pendingAlerts.push(`🔧 ${step.name} broke down! Repair it in the Factory.`);
+          repairProgress[step.id] = 0;
+          state.pendingAlerts.push(`🔧 ${step.name} broke down! Repair it or let a mechanic fix it.`);
           break;
         }
 
@@ -125,9 +129,41 @@ export function createPipelineSystem() {
         progressAccum[step.id] -= 1;
       }
     }
+
+    autoRepair(state, slot, dtSeconds);
   }
 
-  /** Pay to repair a broken station. Returns false if not broken or unaffordable. */
+  /**
+   * Mechanics on the Maintenance shift auto-repair broken stations over time.
+   * They spread across broken stations (round-robin); each contributes
+   * 1/repairTime per second. A station is fixed when its progress reaches 1.
+   */
+  function autoRepair(state: GameState, slot: string, dtSeconds: number): void {
+    const broken = brokenStepIds(state);
+    if (broken.length === 0) return;
+
+    const mechanics = activeMechanics(state, slot);
+    for (let i = 0; i < mechanics.length; i++) {
+      const target = broken[i % broken.length];
+      const rt = getElfType(mechanics[i].type)?.repairTime ?? 0;
+      if (rt > 0) repairProgress[target] = (repairProgress[target] ?? 0) + dtSeconds / rt;
+    }
+
+    for (const stepId of broken) {
+      if ((repairProgress[stepId] ?? 0) >= 1) {
+        setStationBroken(state, stepId, false);
+        repairProgress[stepId] = 0;
+        state.meta.statusText = `${getPipelineStep(stepId)?.name ?? "Station"} repaired by your mechanics.`;
+      }
+    }
+  }
+
+  /** Auto-repair progress (0..1) for a broken station — for the Maintenance UI. */
+  function repairProgressOf(stepId: string): number {
+    return Math.min(1, repairProgress[stepId] ?? 0);
+  }
+
+  /** Pay to repair a broken station instantly. Returns false if not broken/unaffordable. */
   function repairStation(state: GameState, stepId: string): boolean {
     if (!isStationBroken(state, stepId)) return false;
     if (state.resources.money < STATION_REPAIR_COST) {
@@ -136,6 +172,7 @@ export function createPipelineSystem() {
     }
     state.resources.money -= STATION_REPAIR_COST;
     setStationBroken(state, stepId, false);
+    repairProgress[stepId] = 0;
     const name = getPipelineStep(stepId)?.name ?? "Station";
     state.meta.statusText = `${name} repaired for $${STATION_REPAIR_COST}.`;
     return true;
@@ -150,13 +187,14 @@ export function createPipelineSystem() {
     count: number
   ): number {
     const step = pipelineSteps.find((s) => s.id === stepId);
-    if (!step) return 0;
+    if (!step && stepId !== MAINTENANCE_STEP) return 0;
     const n = assignElvesToStep(state, elfTypeId, stepId, slots, count);
     if (n <= 0) return 0;
 
     const name = getElfType(elfTypeId)?.name ?? "elf";
+    const where = step?.name ?? "Maintenance";
     const slotNames = slots.map((s) => getShiftSlot(s)?.name ?? s).join(", ");
-    state.meta.statusText = `Scheduled ${n} ${pluralizeElves(n)} (${name}) on ${step.name} (${slotNames}).`;
+    state.meta.statusText = `Scheduled ${n} ${pluralizeElves(n)} (${name}) on ${where} (${slotNames}).`;
     return n;
   }
 
@@ -193,6 +231,7 @@ export function createPipelineSystem() {
     assignElves,
     removeElves,
     repairStation,
+    repairProgressOf,
     getView,
     getStepOutputPerSecond,
   };

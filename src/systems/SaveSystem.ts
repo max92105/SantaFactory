@@ -1,30 +1,82 @@
 /**
- * SaveSystem — persistence to localStorage.
- * Storage key: config/saveConfig.ts. Loading merges the save over a fresh
+ * SaveSystem — slot-based persistence to localStorage.
+ * Storage keys: config/saveConfig.ts. Loading merges the save over a fresh
  * state so old saves keep working when new fields are added.
  */
 
 import type { GameState } from "../state/GameState";
-import { SAVE_KEY } from "../config/saveConfig";
+import { slotKey, LEGACY_SAVE_KEY, SLOT_COUNT } from "../config/saveConfig";
 import { createInitialState } from "../state/GameState";
 
+/** Lightweight summary shown on the main-menu slot cards (no full load). */
+export type SlotSummary = {
+  exists: boolean;
+  corrupt?: boolean;
+  day?: number;
+  money?: number;
+  elves?: number;
+  savedAt?: number | null;
+};
+
 export function createSaveSystem() {
-  function save(state: GameState) {
-    const payload = JSON.stringify(state);
-    localStorage.setItem(SAVE_KEY, payload);
-    state.meta.lastSavedAt = Date.now();
-    state.meta.statusText = "Saved.";
+  /** Write the state to a slot. Silent (no status text) — used by autosave too. */
+  function save(state: GameState, slot: number): boolean {
+    try {
+      state.meta.lastSavedAt = Date.now();
+      localStorage.setItem(slotKey(slot), JSON.stringify(state));
+      return true;
+    } catch {
+      return false; // storage full / blocked (private mode, etc.)
+    }
   }
 
-  function load(): GameState | null {
-    const raw = localStorage.getItem(SAVE_KEY);
+  function load(slot: number): GameState | null {
+    const raw = localStorage.getItem(slotKey(slot));
     if (!raw) return null;
-
     try {
-      const parsed = JSON.parse(raw) as any;
-      const fresh = createInitialState();
+      return hydrate(JSON.parse(raw));
+    } catch {
+      return null;
+    }
+  }
 
-      const state: GameState = {
+  /** Read just enough from a slot to show a menu card, without a full load. */
+  function peek(slot: number): SlotSummary {
+    const raw = localStorage.getItem(slotKey(slot));
+    if (!raw) return { exists: false };
+    try {
+      const p = JSON.parse(raw) as any;
+      return {
+        exists: true,
+        day: typeof p?.time?.day === "number" ? p.time.day : 1,
+        money: typeof p?.resources?.money === "number" ? p.resources.money : 0,
+        elves: Array.isArray(p?.workforce?.elves) ? p.workforce.elves.length : 0,
+        savedAt: typeof p?.meta?.lastSavedAt === "number" ? p.meta.lastSavedAt : null,
+      };
+    } catch {
+      return { exists: true, corrupt: true };
+    }
+  }
+
+  function clear(slot: number): void {
+    localStorage.removeItem(slotKey(slot));
+  }
+
+  /** Move a pre-slots single save into slot 1 (once), so players keep progress. */
+  function migrateLegacy(): void {
+    const legacy = localStorage.getItem(LEGACY_SAVE_KEY);
+    if (!legacy) return;
+    if (!localStorage.getItem(slotKey(1))) {
+      localStorage.setItem(slotKey(1), legacy);
+    }
+    localStorage.removeItem(LEGACY_SAVE_KEY);
+  }
+
+  /** Merge a parsed save over a fresh state, running all field migrations. */
+  function hydrate(parsed: any): GameState {
+    const fresh = createInitialState();
+
+    const state: GameState = {
         ...fresh,
         ...parsed,
         resources: { ...fresh.resources, ...(parsed.resources ?? {}) },
@@ -75,10 +127,7 @@ export function createSaveSystem() {
         }
       }
 
-      return state;
-    } catch {
-      return null;
-    }
+    return state;
   }
 
   /**
@@ -157,11 +206,7 @@ export function createSaveSystem() {
     };
   }
 
-  function clear() {
-    localStorage.removeItem(SAVE_KEY);
-  }
-
-  return { save, load, clear };
+  return { save, load, peek, clear, migrateLegacy, SLOT_COUNT };
 }
 
 export type SaveSystem = ReturnType<typeof createSaveSystem>;
