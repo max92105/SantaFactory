@@ -14,6 +14,7 @@ import { totalElves, countOfType, onShiftCount, totalIdle, ownedElfTypes } from 
 import { currentShiftSlot } from "../../config/shiftsConfig";
 import { brokenStationCount } from "../../helpers/stationHelpers";
 import { spawnToast } from "../components/toast";
+import { isMuted, toggleMute } from "../audio";
 import { formatInt, formatMoney } from "../../helpers/formatHelpers";
 
 /** Emoji for each time-of-day label (single source for the HUD clock). */
@@ -95,10 +96,22 @@ export function bindAppLayout(ctx: GameContext): void {
     ctx.rebuildUI();
   };
 
+  // Music mute toggle (stays open so the state change is visible)
+  dom.muteBtn.textContent = muteLabel();
+  dom.muteBtn.onclick = (e) => {
+    e.stopPropagation();
+    toggleMute();
+    dom.muteBtn.textContent = muteLabel();
+  };
+
   dom.mainMenuBtn.onclick = () => {
     closeMenu();
     ctx.exitToMenu();
   };
+}
+
+function muteLabel(): string {
+  return isMuted() ? "🔇 Music: off" : "🔊 Music: on";
 }
 
 /** Per-frame refresh of the HUD (resources, gift breakdown, time) and status bar. */

@@ -19,6 +19,7 @@ import "./factoryPage.css";
 import type { Page } from "../Page";
 import type { FrameViews, GameContext } from "../../../core/GameContext";
 import type { StepProgress } from "../../../systems/PipelineSystem";
+import type { QueueMode } from "../../../state/GameState";
 import {
   getOrderedSteps,
   getPipelineStep,
@@ -166,6 +167,22 @@ export function createFactoryPage(): Page {
       const bar = ctx.dom.factoryDetail.querySelector<HTMLElement>('[data-detail="progress"]');
       if (bar) bar.style.width = `${Math.floor((view?.progress ?? 0) * 100)}%`;
 
+      // If this station is broken, show mechanic auto-repair progress right here.
+      const repairFill = ctx.dom.factoryDetail.querySelector<HTMLElement>("[data-repair]");
+      if (repairFill) {
+        const pct = Math.floor(ctx.systems.pipeline.repairProgressOf(shownId) * 100);
+        repairFill.style.width = `${pct}%`;
+        const hint = ctx.dom.factoryDetail.querySelector<HTMLElement>("[data-repair-hint]");
+        if (hint) {
+          const mechs = activeMechanics(state, slot).length;
+          hint.classList.toggle("working", mechs > 0);
+          hint.textContent =
+            mechs > 0
+              ? `🔧 ${formatInt(mechs)} mechanic${mechs > 1 ? "s" : ""} on the job — repairing… ${pct}%`
+              : "No mechanic on shift — repair manually, or assign mechanics under Upkeep.";
+        }
+      }
+
       for (const t of getUnlockedToyTypes(state)) {
         const inv = ensureInventory(state, t.id);
         for (const stage of PRODUCTION_STAGES) {
@@ -309,16 +326,94 @@ function buildDetail(ctx: GameContext, stepId: string | null): void {
     root.appendChild(buildScheduler(ctx, step.id, "worker"));
   }
 
+  // Shared steps (Assembly/Packaging) juggle every toy — let the player pick how.
+  if (!step.toyType && step.inputStage && getUnlockedToyTypes(state).length > 1) {
+    root.appendChild(buildQueueMode(ctx, step));
+  }
+
   root.appendChild(buildFlow(ctx, step));
   detail.appendChild(root);
 }
 
-/** A red banner with a manual-repair button for a broken station. */
+/** Queue-mode picker for a shared step: how it chooses which toy to work next. */
+function buildQueueMode(ctx: GameContext, step: PipelineStepDef): HTMLElement {
+  const state = ctx.getState();
+  const setting = ctx.systems.pipeline.getQueueMode(state, step.id);
+  const unlocked = getUnlockedToyTypes(state);
+
+  const wrap = document.createElement("div");
+  wrap.className = "queue-mode";
+
+  const title = document.createElement("div");
+  title.className = "sched-title";
+  title.textContent = "Queue mode — which toy to work next";
+  wrap.appendChild(title);
+
+  const modes: { id: QueueMode; label: string; desc: string }[] = [
+    { id: "order", label: "In order", desc: "Finishes the top toy's queue before starting the next." },
+    { id: "balanced", label: "Balanced", desc: "Takes one of each toy in turn — every queue advances together." },
+    { id: "focus", label: "Focus a toy", desc: "Always works the chosen toy first; the rest in order when it's empty." },
+  ];
+
+  const seg = document.createElement("div");
+  seg.className = "queue-seg";
+  for (const m of modes) {
+    const btn = document.createElement("button");
+    btn.className = "queue-seg-btn" + (setting.mode === m.id ? " active" : "");
+    btn.textContent = m.label;
+    btn.onclick = () => {
+      const focus = m.id === "focus" ? setting.focus ?? unlocked[0]?.id : undefined;
+      ctx.systems.pipeline.setQueueMode(ctx.getState(), step.id, m.id, focus);
+      ctx.rebuildUI();
+    };
+    seg.appendChild(btn);
+  }
+  wrap.appendChild(seg);
+
+  if (setting.mode === "focus") {
+    const toys = document.createElement("div");
+    toys.className = "queue-toys";
+    for (const t of unlocked) {
+      const chip = document.createElement("button");
+      chip.className = "queue-toy" + (setting.focus === t.id ? " active" : "");
+      chip.innerHTML = `${t.icon} <span>${t.name}</span>`;
+      chip.onclick = () => {
+        ctx.systems.pipeline.setQueueMode(ctx.getState(), step.id, "focus", t.id);
+        ctx.rebuildUI();
+      };
+      toys.appendChild(chip);
+    }
+    wrap.appendChild(toys);
+  }
+
+  const desc = document.createElement("div");
+  desc.className = "queue-desc";
+  if (setting.mode === "focus") {
+    const ft = unlocked.find((t) => t.id === setting.focus);
+    desc.textContent = ft
+      ? `Always works ${ft.icon} ${ft.name} first; the rest in order when it's empty.`
+      : modes[2].desc;
+  } else {
+    desc.textContent = modes.find((m) => m.id === setting.mode)!.desc;
+  }
+  wrap.appendChild(desc);
+
+  return wrap;
+}
+
+/**
+ * A red banner for a broken station: manual-repair button plus a live
+ * mechanic auto-repair progress bar (fills as mechanics on shift work it).
+ * The bar + hint are refreshed each frame in renderFrame.
+ */
 function brokenBanner(ctx: GameContext, stepId: string, text: string): HTMLElement {
   const state = ctx.getState();
   const banner = document.createElement("div");
   banner.className = "detail-broken";
-  banner.innerHTML = `<span>⚠️ ${text}</span>`;
+
+  const top = document.createElement("div");
+  top.className = "detail-broken-top";
+  top.innerHTML = `<span>⚠️ ${text}</span>`;
   const repair = document.createElement("button");
   repair.className = "repair-btn";
   repair.textContent = `🔧 Repair (${formatCost(STATION_REPAIR_COST)})`;
@@ -327,7 +422,17 @@ function brokenBanner(ctx: GameContext, stepId: string, text: string): HTMLEleme
     ctx.systems.pipeline.repairStation(ctx.getState(), stepId);
     ctx.rebuildUI();
   };
-  banner.appendChild(repair);
+  top.appendChild(repair);
+  banner.appendChild(top);
+
+  const auto = document.createElement("div");
+  auto.className = "repair-auto";
+  auto.innerHTML = `
+    <div class="repair-track"><div class="repair-fill" data-repair="${stepId}"></div></div>
+    <span class="repair-hint" data-repair-hint>…</span>
+  `;
+  banner.appendChild(auto);
+
   return banner;
 }
 

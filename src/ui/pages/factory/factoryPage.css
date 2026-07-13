@@ -261,15 +261,37 @@
 /* ── Broken banner ──────────────────────────────────────────────────────── */
 .detail-broken {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
+  flex-direction: column;
+  gap: var(--space-sm);
   padding: var(--space-md);
   background: rgba(248, 113, 113, 0.08);
   border: 1px solid rgba(248, 113, 113, 0.25);
   border-radius: var(--radius-md);
   color: var(--danger);
   font-size: 13px;
+}
+
+.detail-broken-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+/* Live mechanic auto-repair progress, shown on the broken station itself */
+.repair-auto {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.repair-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.repair-hint.working {
+  color: var(--success);
 }
 
 .repair-btn {
@@ -751,6 +773,78 @@
 }
 
 .flow-arrow {
+  color: var(--text-dim);
+}
+
+/* ── Queue mode (shared steps) ──────────────────────────────────────────── */
+.queue-mode {
+  margin-top: var(--space-lg);
+}
+
+.queue-seg {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.queue-seg-btn {
+  flex: 1 1 auto;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+.queue-seg-btn:hover {
+  color: var(--text);
+}
+
+.queue-seg-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.queue-toys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.queue-toy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px var(--space-md);
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.queue-toy:hover {
+  color: var(--text);
+}
+
+.queue-toy.active {
+  border-color: var(--accent);
+  color: var(--text);
+  background: rgba(74, 158, 255, 0.12);
+}
+
+.queue-desc {
+  margin-top: var(--space-sm);
+  font-size: 12px;
   color: var(--text-dim);
 }
 

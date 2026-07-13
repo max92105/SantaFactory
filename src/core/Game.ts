@@ -75,6 +75,9 @@ export function createGame(opts: CreateGameOptions): Game {
   // Session lifecycle (autosave + return-to-menu)
   let stopped = false;
   let autosaveTimer: number | undefined;
+  // A background event wanted to rebuild while the player was mid-interaction;
+  // held until they finish so open panels/modals aren't yanked away.
+  let pendingRebuild = false;
 
   const systems: Systems = {
     time: createTimeSystem(),
@@ -122,8 +125,29 @@ export function createGame(opts: CreateGameOptions): Game {
 
   /** Full refresh: rebuild interactive lists, then refresh values — runs on user actions. */
   function rebuildUI() {
+    pendingRebuild = false;
     for (const page of pages) page.rebuild(ctx);
     renderFrame();
+  }
+
+  /**
+   * Is the player mid-interaction with a transient widget (an open assign
+   * panel, a confirm popup, or the deliver modal)? While one is open we must
+   * not rebuild the lists out from under them.
+   */
+  function isUserBusy(): boolean {
+    return document.querySelector(".assign-panel, .confirm-pop, .deliver-overlay") !== null;
+  }
+
+  /**
+   * Rebuild requested by a BACKGROUND event (day rollover, rush pop-up, a
+   * breakdown). If the player is busy, defer it; the loop flushes it the moment
+   * they close the widget. Their own actions call rebuildUI() directly and are
+   * never deferred.
+   */
+  function scheduleRebuild() {
+    if (isUserBusy()) pendingRebuild = true;
+    else rebuildUI();
   }
 
   // 3. Wire event handlers
@@ -146,16 +170,16 @@ export function createGame(opts: CreateGameOptions): Game {
     // Rush orders live in real time: they pop up mid-day and expire fast.
     // Rebuild only when one spawns or lapses (the list changed).
     if (systems.orders.update(state, dtSeconds)) {
-      rebuildUI();
+      scheduleRebuild();
     }
 
     // New day → refresh order offers / age active orders (rebuild lists if so)
     if (systems.orders.ensureDay(state)) {
-      rebuildUI();
+      scheduleRebuild();
     }
 
     if (brokenStationCount(state) !== brokenBefore) {
-      rebuildUI();
+      scheduleRebuild();
     }
 
     if (timeResult.dayEnded) {
@@ -172,12 +196,15 @@ export function createGame(opts: CreateGameOptions): Game {
       resetSpentShifts(state);
 
       // Wages change money/elves, so shop buttons etc. must refresh
-      rebuildUI();
+      scheduleRebuild();
     }
 
     if (state.time.day > SEASON_DAYS) state.meta.isRunOver = true;
 
-    renderFrame();
+    // Flush a deferred rebuild once the player has closed their open widget;
+    // otherwise just refresh live values (non-destructive) this frame.
+    if (pendingRebuild && !isUserBusy()) rebuildUI();
+    else renderFrame();
   });
 
   // 5. Save / exit lifecycle

@@ -8,7 +8,7 @@
  * break the station (weighted breakChance). Broken stations halt until repaired.
  */
 
-import type { GameState } from "../state/GameState";
+import type { GameState, QueueMode, QueueSetting } from "../state/GameState";
 import { addToStage, getStageCount, removeFromStage, addBroken } from "../helpers/inventoryHelpers";
 import { pipelineSteps, getPipelineStep, type PipelineStepDef, type ProductionStage } from "../config/pipelineConfig";
 import { toyTypes } from "../config/toyTypesConfig";
@@ -48,6 +48,8 @@ export function createPipelineSystem() {
   const progressAccum: Record<string, number> = {};
   /** Auto-repair progress per broken station, 0..1 (not saved). */
   const repairProgress: Record<string, number> = {};
+  /** Round-robin cursor per shared step for "balanced" mode (not saved). */
+  const rrCursor: Record<string, number> = {};
 
   function hasInput(state: GameState, step: PipelineStepDef): boolean {
     if (!step.inputStage) return true; // creates from nothing
@@ -55,11 +57,37 @@ export function createPipelineSystem() {
     return toyTypes.some((t) => getStageCount(state, t.id, step.inputStage!) >= 1);
   }
 
-  function findAvailableType(state: GameState, inputStage: ProductionStage): string | null {
+  /** "order" mode: first toy (config order) with input available. */
+  function pickInOrder(state: GameState, inputStage: ProductionStage): string | null {
     for (const t of toyTypes) {
       if (getStageCount(state, t.id, inputStage) >= 1) return t.id;
     }
     return null;
+  }
+
+  /** "balanced" mode: next toy with input, rotating so all queues advance. */
+  function pickBalanced(state: GameState, stepId: string, inputStage: ProductionStage): string | null {
+    const n = toyTypes.length;
+    const start = rrCursor[stepId] ?? 0;
+    for (let i = 0; i < n; i++) {
+      const idx = (start + i) % n;
+      const t = toyTypes[idx];
+      if (getStageCount(state, t.id, inputStage) >= 1) {
+        rrCursor[stepId] = (idx + 1) % n; // resume after this toy next time
+        return t.id;
+      }
+    }
+    return null;
+  }
+
+  /** Pick which toy a SHARED step works next, per its queue mode. */
+  function pickTargetType(state: GameState, step: PipelineStepDef, inputStage: ProductionStage): string | null {
+    const setting = getQueueMode(state, step.id);
+    if (setting.mode === "balanced") return pickBalanced(state, step.id, inputStage);
+    if (setting.mode === "focus" && setting.focus && getStageCount(state, setting.focus, inputStage) >= 1) {
+      return setting.focus; // focused toy first; falls through to order when empty
+    }
+    return pickInOrder(state, inputStage);
   }
 
   function getStepOutputPerSecond(state: GameState, step: PipelineStepDef, mods: Modifiers): number {
@@ -109,7 +137,7 @@ export function createPipelineSystem() {
           targetType = step.toyType;
         } else {
           if (!step.inputStage) break;
-          targetType = findAvailableType(state, step.inputStage);
+          targetType = pickTargetType(state, step, step.inputStage);
           if (!targetType) break;
         }
 
@@ -161,6 +189,19 @@ export function createPipelineSystem() {
   /** Auto-repair progress (0..1) for a broken station — for the Maintenance UI. */
   function repairProgressOf(stepId: string): number {
     return Math.min(1, repairProgress[stepId] ?? 0);
+  }
+
+  /** Read a shared step's queue mode (defaults to "order"). */
+  function getQueueMode(state: GameState, stepId: string): QueueSetting {
+    return state.pipeline?.queueModes?.[stepId] ?? { mode: "order" };
+  }
+
+  /** Set a shared step's queue mode (and focused toy for "focus"). */
+  function setQueueMode(state: GameState, stepId: string, mode: QueueMode, focus?: string): void {
+    if (!state.pipeline) state.pipeline = { queueModes: {} };
+    state.pipeline.queueModes[stepId] = mode === "focus" ? { mode, focus } : { mode };
+    const label = mode === "focus" ? `focus ${focus ?? ""}`.trim() : mode;
+    state.meta.statusText = `${getPipelineStep(stepId)?.name ?? "Station"} queue set to ${label}.`;
   }
 
   /** Pay to repair a broken station instantly. Returns false if not broken/unaffordable. */
@@ -232,6 +273,8 @@ export function createPipelineSystem() {
     removeElves,
     repairStation,
     repairProgressOf,
+    getQueueMode,
+    setQueueMode,
     getView,
     getStepOutputPerSecond,
   };

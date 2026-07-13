@@ -1,17 +1,42 @@
 /** Shared order calculations — keep derived order math here, not in the UI. */
 
-import type { GameState, Order } from "../state/GameState";
+import type { GameState, Order, OrderLine } from "../state/GameState";
 import { getSellableStock } from "./inventoryHelpers";
 
-export function remainingOf(order: Order): number {
-  return Math.max(0, order.quantity - order.delivered);
+export function remainingOfLine(line: OrderLine): number {
+  return Math.max(0, line.quantity - line.delivered);
 }
 
-/** How many units can be delivered to an order right now (stock vs remaining). */
+/** Units still owed across every line of the order. */
+export function orderRemaining(order: Order): number {
+  return order.lines.reduce((s, l) => s + remainingOfLine(l), 0);
+}
+
+/** Total units the order asks for (all lines). */
+export function orderQuantity(order: Order): number {
+  return order.lines.reduce((s, l) => s + l.quantity, 0);
+}
+
+/** Total units delivered so far (all lines). */
+export function orderDelivered(order: Order): number {
+  return order.lines.reduce((s, l) => s + l.delivered, 0);
+}
+
+/** How many units of one line can ship right now (stock vs remaining). */
+export function deliverableToLine(state: GameState, line: OrderLine): number {
+  return Math.min(remainingOfLine(line), getSellableStock(state, line.toyType));
+}
+
+/** How many units can be delivered to the whole order right now (all lines). */
 export function deliverableTo(state: GameState, order: Order): number {
-  return Math.min(remainingOf(order), getSellableStock(state, order.toyType));
+  return order.lines.reduce((s, l) => s + deliverableToLine(state, l), 0);
+}
+
+export function isOrderComplete(order: Order): boolean {
+  return order.lines.every((l) => l.delivered >= l.quantity);
 }
 
 export function progressOf(order: Order): number {
-  return order.quantity > 0 ? order.delivered / order.quantity : 0;
+  const q = orderQuantity(order);
+  return q > 0 ? orderDelivered(order) / q : 0;
 }

@@ -33,13 +33,22 @@ export type ElfInstance = {
   spent: boolean;
 };
 
-/** A delivery order: fill it with `quantity` finished `toyType` before the deadline. */
-export type Order = {
-  id: number;
-  templateId: string;
+/** One toy line within an order: deliver `quantity` finished `toyType`. */
+export type OrderLine = {
   toyType: string;
   quantity: number;
   delivered: number;
+};
+
+/**
+ * A delivery order — fill every line with finished toys before the deadline for
+ * the whole reward. Orders can request several different toys at once (see
+ * OrdersSystem), so the difficulty is having varied stock ready, not just volume.
+ */
+export type Order = {
+  id: number;
+  templateId: string;
+  lines: OrderLine[];
   reward: number;
   /** Days remaining to complete it (decrements each day; expires at 0).
    *  Ignored for rush orders, which use `secondsLeft` instead. */
@@ -49,6 +58,16 @@ export type Order = {
    *  frame in OrdersSystem.update). Undefined for normal day-based orders. */
   secondsLeft?: number;
 };
+
+/**
+ * How a SHARED step (Assembly/Packaging, which handle every toy) chooses which
+ * toy to work next:
+ *  - order:    top-to-bottom — finish the first toy's queue before the next.
+ *  - balanced: one of each toy in rotation, so all queues advance together.
+ *  - focus:    always work `focus` toy first; others in order when it's empty.
+ */
+export type QueueMode = "order" | "balanced" | "focus";
+export type QueueSetting = { mode: QueueMode; focus?: string };
 
 /** End-of-day recap data (produced by DailySummarySystem — not wired into the loop yet). */
 export type DaySummary = {
@@ -86,6 +105,11 @@ export type GameState = {
 
   /** Per-step (station) runtime state — currently just breakdowns. */
   stations: Record<string, { broken: boolean }>;
+
+  /** Per shared-step (Assembly/Packaging) queue strategy. Empty = "order". */
+  pipeline: {
+    queueModes: Record<string, QueueSetting>;
+  };
 
   /** Transient notification queue drained by the UI each frame (toasts). */
   pendingAlerts: string[];
@@ -176,6 +200,7 @@ export function createInitialState(): GameState {
     },
 
     stations: {},
+    pipeline: { queueModes: {} },
     pendingAlerts: [],
 
     stats: {

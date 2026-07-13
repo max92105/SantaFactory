@@ -19,7 +19,12 @@ export type OrderTemplate = {
   /** Relative spawn weight among templates. */
   weight: number;
 
-  /** Quantity requested (inclusive random range). */
+  /** How many DIFFERENT toys the order asks for (inclusive range, capped by how
+   *  many toys are unlocked). >1 means you need varied stock, not just volume. */
+  minLines: number;
+  maxLines: number;
+
+  /** Quantity requested PER toy line (inclusive random range). */
   minQty: number;
   maxQty: number;
 
@@ -40,13 +45,18 @@ export const ORDER_OFFERS_PER_DAY = 4;
 /** Most orders you can have accepted (in progress) at once. */
 export const MAX_ACTIVE_ORDERS = 6;
 
+// Quantities are deliberately steep: casual clicking shouldn't clear a day's
+// orders. Real fulfilment means running production lines and stockpiling — and
+// multi-toy orders force you to keep several toys in stock at once.
 export const orderTemplates: OrderTemplate[] = [
   {
     id: "small",
     name: "Small Order",
     weight: 4,
-    minQty: 5,
-    maxQty: 15,
+    minLines: 1,
+    maxLines: 2,
+    minQty: 25,
+    maxQty: 50,
     minDays: 2,
     maxDays: 3,
     payMult: 1.3,
@@ -56,22 +66,26 @@ export const orderTemplates: OrderTemplate[] = [
     id: "standard",
     name: "Standard Order",
     weight: 3,
-    minQty: 20,
-    maxQty: 45,
+    minLines: 2,
+    maxLines: 3,
+    minQty: 60,
+    maxQty: 130,
     minDays: 3,
     maxDays: 5,
-    payMult: 1.5,
+    payMult: 1.55,
     rush: false,
   },
   {
     id: "bulk",
     name: "Bulk Order",
     weight: 2,
-    minQty: 70,
-    maxQty: 150,
-    minDays: 5,
-    maxDays: 7,
-    payMult: 1.8,
+    minLines: 3,
+    maxLines: 4,
+    minQty: 150,
+    maxQty: 320,
+    minDays: 6,
+    maxDays: 8,
+    payMult: 1.85,
     rush: false,
   },
 ];
@@ -96,9 +110,14 @@ export const RUSH_ORDER = {
   chancePerSecond: 0.008,
   /** Never leave more than this many rush offers waiting at once. */
   maxPending: 2,
-  /** Quantity requested (inclusive random range). */
-  minQty: 20,
-  maxQty: 55,
+  /** How many different toys a rush asks for (capped by unlocked count). A
+   *  2-toy rush can't be click-farmed in the window — you need stock ready. */
+  minLines: 1,
+  maxLines: 2,
+  /** Quantity requested PER toy line (inclusive random range). Big enough that
+   *  filling from clicks alone in the short window is often impossible. */
+  minQty: 50,
+  maxQty: 140,
   /** Reward multiplier — rush pays a premium for the pressure. */
   payMult: 2.6,
   /** Guaranteed minimum lifetime in real seconds (a "quarter day" at 300s/day).

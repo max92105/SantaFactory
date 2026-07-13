@@ -1,15 +1,17 @@
 /**
- * OrdersSystem — daily delivery orders.
+ * OrdersSystem — delivery orders.
  *
  * Each new day a fresh set of offers is generated (only for UNLOCKED toys,
- * favouring the day's event's featured toy). Accept an offer to start filling
- * it with finished toys; complete it before the deadline for a reward that
- * scales with the toys' value, the amount, the template and any active event.
+ * favouring the day's event's featured toy). Orders can request several
+ * different toys at once, so fulfilment means keeping varied stock — not just
+ * volume. Accept an offer to start filling it; complete every line before the
+ * deadline for a reward that scales with the toys' value, amounts, template and
+ * any active event. Rush orders (see update) pop up in real time.
  *
  * Tuning: config/ordersConfig.ts · Calendar: config/eventsConfig.ts
  */
 
-import type { GameState, Order } from "../state/GameState";
+import type { GameState, Order, OrderLine } from "../state/GameState";
 import {
   ORDER_OFFERS_PER_DAY,
   MAX_ACTIVE_ORDERS,
@@ -22,8 +24,7 @@ import { getActiveEvent, type GameEvent } from "../config/eventsConfig";
 import { getToyType, type ToyTypeDef } from "../config/toyTypesConfig";
 import { getUnlockedToyTypes } from "../helpers/unlockHelpers";
 import { removeFromStage } from "../helpers/inventoryHelpers";
-import { deliverableTo, remainingOf } from "../helpers/orderHelpers";
-import { pluralize } from "../helpers/textHelpers";
+import { deliverableToLine, orderRemaining, isOrderComplete } from "../helpers/orderHelpers";
 
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -44,27 +45,47 @@ export function createOrdersSystem() {
     return getActiveEvent(state.time.day);
   }
 
-  function pickToy(unlocked: ToyTypeDef[], event: GameEvent | undefined): ToyTypeDef {
+  /** Pick `count` DISTINCT unlocked toys, favouring the event's featured one. */
+  function pickDistinctToys(unlocked: ToyTypeDef[], event: GameEvent | undefined, count: number): ToyTypeDef[] {
+    const want = Math.max(1, Math.min(count, unlocked.length));
+    const pool = [...unlocked];
+    const chosen: ToyTypeDef[] = [];
+
     if (event?.featuredToy) {
-      const featured = unlocked.find((t) => t.id === event.featuredToy);
-      if (featured && Math.random() < 0.5) return featured;
+      const fi = pool.findIndex((t) => t.id === event.featuredToy);
+      if (fi >= 0 && Math.random() < 0.6) chosen.push(pool.splice(fi, 1)[0]);
     }
-    return unlocked[randInt(0, unlocked.length - 1)];
+    while (chosen.length < want && pool.length > 0) {
+      chosen.push(pool.splice(randInt(0, pool.length - 1), 1)[0]);
+    }
+    return chosen;
   }
 
-  function makeOrder(state: GameState, tpl: OrderTemplate, toy: ToyTypeDef, event: GameEvent | undefined): Order {
-    const quantity = randInt(tpl.minQty, tpl.maxQty);
-    const daysLeft = randInt(tpl.minDays, tpl.maxDays);
-    const eventMult = event ? event.orderPayMult : 1;
-    const reward = Math.max(1, Math.round(quantity * toy.baseSellValue * tpl.payMult * eventMult));
+  /** Build the toy lines for an order from a per-line quantity range. */
+  function buildLines(toys: ToyTypeDef[], minQty: number, maxQty: number): OrderLine[] {
+    return toys.map((toy) => ({ toyType: toy.id, quantity: randInt(minQty, maxQty), delivered: 0 }));
+  }
+
+  /** Reward for a set of lines: their total sell value, marked up. */
+  function rewardFor(lines: OrderLine[], payMult: number, eventMult: number): number {
+    const base = lines.reduce((s, l) => s + l.quantity * (getToyType(l.toyType)?.baseSellValue ?? 1), 0);
+    return Math.max(1, Math.round(base * payMult * eventMult));
+  }
+
+  /** "20× Plushy, 15× Rubik's Cube" — for status text and alerts. */
+  function linesText(order: Order): string {
+    return order.lines.map((l) => `${l.quantity}× ${getToyType(l.toyType)?.name ?? "toy"}`).join(", ");
+  }
+
+  function makeOrder(state: GameState, tpl: OrderTemplate, unlocked: ToyTypeDef[], event: GameEvent | undefined): Order {
+    const toys = pickDistinctToys(unlocked, event, randInt(tpl.minLines, tpl.maxLines));
+    const lines = buildLines(toys, tpl.minQty, tpl.maxQty);
     return {
       id: state.orders.seq++,
       templateId: tpl.id,
-      toyType: toy.id,
-      quantity,
-      delivered: 0,
-      reward,
-      daysLeft,
+      lines,
+      reward: rewardFor(lines, tpl.payMult, event ? event.orderPayMult : 1),
+      daysLeft: randInt(tpl.minDays, tpl.maxDays),
       rush: tpl.rush,
     };
   }
@@ -78,25 +99,20 @@ export function createOrdersSystem() {
 
     const offers: Order[] = [];
     for (let i = 0; i < count; i++) {
-      const tpl = pickWeighted(orderTemplates);
-      offers.push(makeOrder(state, tpl, pickToy(unlocked, event), event));
+      offers.push(makeOrder(state, pickWeighted(orderTemplates), unlocked, event));
     }
     return offers;
   }
 
   /** Build a one-off rush order (real-time deadline set by the caller). */
   function makeRushOrder(state: GameState, unlocked: ToyTypeDef[], event: GameEvent | undefined): Order {
-    const toy = pickToy(unlocked, event);
-    const quantity = randInt(RUSH_ORDER.minQty, RUSH_ORDER.maxQty);
-    const eventMult = event ? event.orderPayMult : 1;
-    const reward = Math.max(1, Math.round(quantity * toy.baseSellValue * RUSH_ORDER.payMult * eventMult));
+    const toys = pickDistinctToys(unlocked, event, randInt(RUSH_ORDER.minLines, RUSH_ORDER.maxLines));
+    const lines = buildLines(toys, RUSH_ORDER.minQty, RUSH_ORDER.maxQty);
     return {
       id: state.orders.seq++,
       templateId: "rush",
-      toyType: toy.id,
-      quantity,
-      delivered: 0,
-      reward,
+      lines,
+      reward: rewardFor(lines, RUSH_ORDER.payMult, event ? event.orderPayMult : 1),
       daysLeft: 0, // unused for rush — secondsLeft drives the deadline
       rush: true,
       secondsLeft: RUSH_ORDER.minSeconds, // overwritten by the caller
@@ -119,12 +135,10 @@ export function createOrdersSystem() {
           continue;
         }
         o.secondsLeft -= dt;
-        if (o.secondsLeft <= 0 && o.delivered < o.quantity) {
+        if (o.secondsLeft <= 0 && !isOrderComplete(o)) {
           changed = true;
           if (kind === "active") {
-            const name = getToyType(o.toyType)?.name ?? "toy";
-            const short = Math.max(0, o.quantity - o.delivered);
-            state.meta.statusText = `⚡ Rush order expired — ${short} ${pluralize(short, name)} short.`;
+            state.meta.statusText = `⚡ Rush order expired — ${orderRemaining(o)} undelivered.`;
           }
           continue; // expired → drop it
         }
@@ -152,11 +166,11 @@ export function createOrdersSystem() {
         order.secondsLeft = Math.min(RUSH_ORDER.maxSeconds, timeToNight);
         state.orders.offers.push(order);
 
-        const name = getToyType(order.toyType)?.name ?? "toy";
+        const summary = linesText(order);
         state.pendingAlerts.push(
-          `⚡ Rush order! ${order.quantity} × ${name} — ${Math.round(order.secondsLeft)}s, pays $${order.reward}`
+          `⚡ Rush order! ${summary} — ${Math.round(order.secondsLeft)}s, pays $${order.reward}`
         );
-        state.meta.statusText = `⚡ Rush order in! ${order.quantity} × ${name} — deliver fast.`;
+        state.meta.statusText = `⚡ Rush order in! ${summary} — deliver fast.`;
         changed = true;
       }
     }
@@ -178,7 +192,7 @@ export function createOrdersSystem() {
       state.orders.active = state.orders.active.filter((o) => {
         if (o.secondsLeft != null) return true; // rush orders age in real time, not days
         o.daysLeft -= 1;
-        if (o.daysLeft <= 0 && o.delivered < o.quantity) {
+        if (o.daysLeft <= 0 && !isOrderComplete(o)) {
           expired += 1;
           return false;
         }
@@ -206,42 +220,70 @@ export function createOrdersSystem() {
     const [order] = state.orders.offers.splice(idx, 1);
     state.orders.active.push(order);
 
-    const name = getToyType(order.toyType)?.name ?? "toy";
-    state.meta.statusText = `Accepted order: ${order.quantity} ${pluralize(order.quantity, name)} for $${order.reward}.`;
+    state.meta.statusText = `Accepted order: ${linesText(order)} for $${order.reward}.`;
     return true;
   }
 
-  /** Ship as many finished toys as possible toward an order; pay on completion. */
-  function deliverToOrder(state: GameState, orderId: number): boolean {
-    const order = state.orders.active.find((o) => o.id === orderId);
-    if (!order) return false;
-
-    const give = deliverableTo(state, order);
-    const name = getToyType(order.toyType)?.name ?? "toy";
-    if (give <= 0) {
-      state.meta.statusText = `No finished ${name} in stock to deliver.`;
+  /** Common tail for a delivery: pay + clear if complete, else report progress. */
+  function settleDelivery(state: GameState, order: Order, gave: number): boolean {
+    if (gave <= 0) {
+      state.meta.statusText = `Nothing delivered — pick an amount you have in stock.`;
       return false;
     }
-
-    removeFromStage(state, order.toyType, "finished", give);
-    order.delivered += give;
-
-    if (order.delivered >= order.quantity) {
+    if (isOrderComplete(order)) {
       state.resources.money += order.reward;
       state.dayStats.moneyEarned += order.reward;
       state.stats.ordersCompleted += 1;
       state.orders.active = state.orders.active.filter((o) => o.id !== order.id);
-      state.meta.statusText = `Order complete! Delivered ${order.quantity} ${pluralize(
-        order.quantity,
-        name
-      )} for +$${order.reward}.`;
+      state.meta.statusText = `Order complete! ${linesText(order)} for +$${order.reward}.`;
     } else {
-      state.meta.statusText = `Delivered ${give} ${name}. ${remainingOf(order)} to go.`;
+      const linesLeft = order.lines.filter((l) => l.delivered < l.quantity).length;
+      state.meta.statusText = `Delivered ${gave} — ${orderRemaining(order)} to go across ${linesLeft} toy${
+        linesLeft === 1 ? "" : "s"
+      }.`;
     }
     return true;
   }
 
-  return { ensureDay, update, acceptOrder, deliverToOrder, currentEvent, generateOffers };
+  /** Ship as many finished toys as possible toward every line; pay on completion. */
+  function deliverToOrder(state: GameState, orderId: number): boolean {
+    const order = state.orders.active.find((o) => o.id === orderId);
+    if (!order) return false;
+
+    let gave = 0;
+    for (const line of order.lines) {
+      const give = deliverableToLine(state, line);
+      if (give > 0) {
+        removeFromStage(state, line.toyType, "finished", give);
+        line.delivered += give;
+        gave += give;
+      }
+    }
+    return settleDelivery(state, order, gave);
+  }
+
+  /**
+   * Ship the player-chosen amount of each toy (keyed by toyType). Each is capped
+   * to what's owed and what's in stock, so bad numbers can't over-deliver.
+   */
+  function deliverAmounts(state: GameState, orderId: number, amounts: Record<string, number>): boolean {
+    const order = state.orders.active.find((o) => o.id === orderId);
+    if (!order) return false;
+
+    let gave = 0;
+    for (const line of order.lines) {
+      const want = Math.max(0, Math.floor(amounts[line.toyType] ?? 0));
+      const give = Math.min(want, deliverableToLine(state, line));
+      if (give > 0) {
+        removeFromStage(state, line.toyType, "finished", give);
+        line.delivered += give;
+        gave += give;
+      }
+    }
+    return settleDelivery(state, order, gave);
+  }
+
+  return { ensureDay, update, acceptOrder, deliverToOrder, deliverAmounts, currentEvent, generateOffers };
 }
 
 export type OrdersSystem = ReturnType<typeof createOrdersSystem>;

@@ -85,6 +85,7 @@ export function createSaveSystem() {
         time: { ...fresh.time, ...(parsed.time ?? {}) },
         workforce: migrateWorkforce(parsed.workforce),
         orders: migrateOrders(parsed.orders, fresh),
+        pipeline: { queueModes: { ...(parsed.pipeline?.queueModes ?? {}) } },
         owned: {
           upgrades: { ...fresh.owned.upgrades, ...(parsed.owned?.upgrades ?? {}) },
           toys: { ...fresh.owned.toys, ...(parsed.owned?.toys ?? {}) },
@@ -198,11 +199,35 @@ export function createSaveSystem() {
   /** Carry orders through; older saves without them start empty (regenerated). */
   function migrateOrders(o: any, fresh: GameState): GameState["orders"] {
     if (!o || typeof o !== "object") return fresh.orders;
+    const list = (arr: any): GameState["orders"]["offers"] =>
+      (Array.isArray(arr) ? arr : []).map(migrateOrder);
     return {
-      offers: Array.isArray(o.offers) ? o.offers : [],
-      active: Array.isArray(o.active) ? o.active : [],
+      offers: list(o.offers),
+      active: list(o.active),
       lastRefreshDay: typeof o.lastRefreshDay === "number" ? o.lastRefreshDay : 0,
       seq: typeof o.seq === "number" ? o.seq : 1,
+    };
+  }
+
+  /** Normalize one saved order into the multi-line shape (old orders had a
+   *  single toyType/quantity/delivered — wrap those into one line). */
+  function migrateOrder(o: any): GameState["orders"]["offers"][number] {
+    const num = (v: any) => (typeof v === "number" ? v : 0);
+    const lines = Array.isArray(o?.lines)
+      ? o.lines.map((l: any) => ({
+          toyType: String(l?.toyType ?? "plushy"),
+          quantity: num(l?.quantity),
+          delivered: num(l?.delivered),
+        }))
+      : [{ toyType: String(o?.toyType ?? "plushy"), quantity: num(o?.quantity), delivered: num(o?.delivered) }];
+    return {
+      id: num(o?.id),
+      templateId: String(o?.templateId ?? "small"),
+      lines,
+      reward: num(o?.reward),
+      daysLeft: num(o?.daysLeft),
+      rush: !!o?.rush,
+      ...(typeof o?.secondsLeft === "number" ? { secondsLeft: o.secondsLeft } : {}),
     };
   }
 
