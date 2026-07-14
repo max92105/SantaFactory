@@ -6,7 +6,7 @@
  */
 
 import type { GameState } from "../state/GameState";
-import { getElfType } from "../config/elfTypesConfig";
+import { getElfType, elfCategories } from "../config/elfTypesConfig";
 import { getUpgrade } from "../config/upgradesConfig";
 import { getToyType } from "../config/toyTypesConfig";
 import { getElfCost } from "../helpers/costHelpers";
@@ -18,6 +18,13 @@ export function createShopSystem() {
   function buyElf(state: GameState, elfTypeId: string): boolean {
     const def = getElfType(elfTypeId);
     if (!def) return false;
+
+    // Some crews (Maintenance, Repair) are locked behind an upgrade.
+    const gate = elfCategories.find((c) => c.id === def.category)?.unlockUpgrade;
+    if (gate && !state.owned.upgrades[gate]) {
+      state.meta.statusText = `Unlock this crew first — buy the upgrade in the Upgrades tab.`;
+      return false;
+    }
 
     const cost = getElfCost(def, countOfType(state, elfTypeId));
     if (state.resources.money < cost) {

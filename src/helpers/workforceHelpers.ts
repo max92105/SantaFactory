@@ -11,7 +11,7 @@
 import type { GameState, ElfInstance } from "../state/GameState";
 import { elfTypes, getElfType, type ElfTypeDef } from "../config/elfTypesConfig";
 import { shiftSlots, NIGHT_SLOT } from "../config/shiftsConfig";
-import { MAINTENANCE_STEP } from "../config/stationsConfig";
+import { MAINTENANCE_STEP, REPAIR_STEP } from "../config/stationsConfig";
 
 // ── Reads ────────────────────────────────────────────────────────────────
 export function allElves(state: GameState): ElfInstance[] {
@@ -79,6 +79,16 @@ export function activeMechanics(state: GameState, slotId: string): ElfInstance[]
       e.step === MAINTENANCE_STEP &&
       e.slots.includes(slotId) &&
       getElfType(e.type)?.role === "mechanic"
+  );
+}
+
+/** Menders scheduled to the Repair Bench and working this slot (refurbish crew). */
+export function activeMenders(state: GameState, slotId: string): ElfInstance[] {
+  return state.workforce.elves.filter(
+    (e) =>
+      e.step === REPAIR_STEP &&
+      e.slots.includes(slotId) &&
+      getElfType(e.type)?.role === "mender"
   );
 }
 

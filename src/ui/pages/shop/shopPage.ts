@@ -16,6 +16,7 @@ import type { GameContext } from "../../../core/GameContext";
 import { toyTypes } from "../../../config/toyTypesConfig";
 import { elfTypes, elfCategories, type ElfTypeDef } from "../../../config/elfTypesConfig";
 import { upgrades, describeUpgradeEffect } from "../../../config/upgradesConfig";
+import { isUnlockRuleMet } from "../../../config/unlockRules";
 import { getElfCost } from "../../../helpers/costHelpers";
 import { countOfType } from "../../../helpers/workforceHelpers";
 import { isToyUnlocked } from "../../../helpers/unlockHelpers";
@@ -181,9 +182,13 @@ function formatPct(chance: number): string {
 
 /** Elves grouped by category, each row showing wage / ruin / break separately. */
 function buildElvesList(ctx: GameContext): void {
+  const state = ctx.getState();
   ctx.dom.elvesList.innerHTML = "";
 
   for (const cat of elfCategories) {
+    // Locked crews (Maintenance / Repair) stay hidden until their upgrade is bought.
+    if (cat.unlockUpgrade && !state.owned.upgrades[cat.unlockUpgrade]) continue;
+
     const inCategory = elfTypes.filter((e) => e.category === cat.id);
     if (inCategory.length === 0) continue;
 
@@ -206,9 +211,10 @@ function buildElfRow(ctx: GameContext, def: ElfTypeDef): HTMLDivElement {
   const state = ctx.getState();
   const cost = getElfCost(def, countOfType(state, def.id));
 
-  const isMech = def.role === "mechanic";
+  // Mechanics and menders are "specialists": one speed stat, not ruin/break.
+  const isSpecialist = def.role === "mechanic" || def.role === "mender";
   const row = document.createElement("div");
-  row.className = "shop-row elf-row" + (isMech ? " mechanic" : "");
+  row.className = "shop-row elf-row" + (isSpecialist ? " mechanic" : "");
   row.dataset.name = `${def.name} ${def.description}`.toLowerCase();
   row.dataset.elfType = def.id;
 
@@ -224,14 +230,21 @@ function buildElfRow(ctx: GameContext, def: ElfTypeDef): HTMLDivElement {
       <span class="elf-stat-sub ${def.canWorkNight ? "" : "warn"}">${def.canWorkNight ? "any slot" : "no nights"}</span>
     </div>`;
 
-  // Mechanics show their repair speed; workers show ruin + break chances.
-  const midStats = isMech
-    ? `
+  // Specialists show their speed; workers show ruin + break chances.
+  const midStats =
+    def.role === "mechanic"
+      ? `
     <div class="elf-stat">
       <span class="elf-stat-label">🛠️ Repairs in</span>
       <span class="elf-stat-value repair">${def.repairTime}s</span>
     </div>`
-    : `
+      : def.role === "mender"
+      ? `
+    <div class="elf-stat">
+      <span class="elf-stat-label">🪡 Mends toy in</span>
+      <span class="elf-stat-value repair">${def.refurbishTime}s</span>
+    </div>`
+      : `
     <div class="elf-stat">
       <span class="elf-stat-label">🎁 Ruins gifts</span>
       <span class="elf-stat-value ruin">${formatPct(def.mistakeChance)}</span>
@@ -271,6 +284,9 @@ function buildUpgradesList(ctx: GameContext): void {
   ctx.dom.upgradesList.innerHTML = "";
 
   for (const def of upgrades) {
+    // Hide upgrades whose prerequisite isn't met yet (e.g. bike hand-building).
+    if (!isUnlockRuleMet(state, def.unlock)) continue;
+
     const owned = !!state.owned.upgrades[def.id];
 
     const row = buildShopRow({

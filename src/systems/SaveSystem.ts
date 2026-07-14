@@ -85,6 +85,10 @@ export function createSaveSystem() {
         time: { ...fresh.time, ...(parsed.time ?? {}) },
         workforce: migrateWorkforce(parsed.workforce),
         orders: migrateOrders(parsed.orders, fresh),
+        grand: {
+          current: parsed.grand?.current ?? null,
+          seen: Array.isArray(parsed.grand?.seen) ? parsed.grand.seen : [],
+        },
         pipeline: { queueModes: { ...(parsed.pipeline?.queueModes ?? {}) } },
         owned: {
           upgrades: { ...fresh.owned.upgrades, ...(parsed.owned?.upgrades ?? {}) },

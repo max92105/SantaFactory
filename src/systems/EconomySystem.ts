@@ -4,8 +4,9 @@
  */
 
 import type { GameState } from "../state/GameState";
-import { ensureInventory, getSellableStock } from "../helpers/inventoryHelpers";
+import { ensureInventory, getSellableStock, getBrokenStock, removeBroken } from "../helpers/inventoryHelpers";
 import { toyTypes, getToyType } from "../config/toyTypesConfig";
+import { BROKEN_SALVAGE_RATE } from "../config/stationsConfig";
 import { pluralize } from "../helpers/textHelpers";
 import type { Modifiers } from "./ModifierSystem";
 
@@ -53,11 +54,31 @@ export function createEconomySystem() {
     return earned;
   }
 
+  /** Salvage value for one broken unit (a fraction of the normal sell price). */
+  function getSalvageRate(toyTypeId: string, mods: Modifiers): number {
+    return getSellRate(toyTypeId, mods) * BROKEN_SALVAGE_RATE;
+  }
+
+  /** Sell up to `amount` broken units for salvage. Returns money earned. */
+  function salvageBroken(state: GameState, mods: Modifiers, toyTypeId: string, amount: number): number {
+    const n = Math.max(0, Math.min(Math.floor(amount), getBrokenStock(state, toyTypeId)));
+    if (n <= 0) return 0;
+
+    const earned = n * getSalvageRate(toyTypeId, mods);
+    removeBroken(state, toyTypeId, n);
+    state.resources.money += earned;
+    state.dayStats.moneyEarned += earned;
+
+    const label = getToyType(toyTypeId)?.name ?? toyTypeId;
+    state.meta.statusText = `Salvaged ${n} broken ${pluralize(n, label)} for $${earned.toFixed(2)}.`;
+    return earned;
+  }
+
   function getView(_state: GameState, mods: Modifiers): EconomyView {
     return { sellRates: getSellRates(mods) };
   }
 
-  return { sellItems, getView, getSellRate, getSellRates };
+  return { sellItems, salvageBroken, getSalvageRate, getView, getSellRate, getSellRates };
 }
 
 export type EconomySystem = ReturnType<typeof createEconomySystem>;

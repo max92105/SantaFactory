@@ -9,17 +9,31 @@ import type { ProductionStage } from "../config/pipelineConfig";
 /** Get a toy's inventory, creating an empty one if the toy is new. */
 export function ensureInventory(state: GameState, toyType: string): ToyInventory {
   if (!state.inventory[toyType]) {
-    state.inventory[toyType] = { raw: 0, assembled: 0, finished: 0, broken: 0 };
+    state.inventory[toyType] = { parts: 0, raw: 0, assembled: 0, finished: 0, broken: 0 };
   }
-  // Backfill fields added after a save was written (e.g. `broken`)
+  // Backfill fields added after a save was written (e.g. `broken`, `parts`)
   const inv = state.inventory[toyType];
   if (typeof inv.broken !== "number") inv.broken = 0;
+  if (typeof inv.parts !== "number") inv.parts = 0;
   return inv;
 }
 
 /** Record a ruined item for a toy type (kept in the broken tally). */
 export function addBroken(state: GameState, toyType: string, amount: number): void {
   ensureInventory(state, toyType).broken += amount;
+}
+
+/** Whole broken items of a toy type available to salvage or refurbish. */
+export function getBrokenStock(state: GameState, toyType: string): number {
+  return Math.max(0, Math.floor(ensureInventory(state, toyType).broken));
+}
+
+/** Remove broken items of a toy type. Returns false if there aren't enough. */
+export function removeBroken(state: GameState, toyType: string, amount: number): boolean {
+  const inv = ensureInventory(state, toyType);
+  if (inv.broken < amount) return false;
+  inv.broken -= amount;
+  return true;
 }
 
 /** Total broken items held across all toy types. */

@@ -176,6 +176,39 @@
   color: var(--text-muted);
 }
 
+/* Toy-line header (above the per-step controls) */
+.detail-toyhead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding-bottom: var(--space-md);
+  margin-bottom: var(--space-md);
+  border-bottom: 1px solid var(--divider);
+}
+
+.detail-toyhead-icon {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.detail-toyhead-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.detail-toyhead-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Each production step is its own control; separate stacked steps clearly */
+.detail-step + .detail-step {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px dashed var(--divider);
+}
+
 .detail-header {
   display: flex;
   align-items: center;
@@ -329,6 +362,11 @@
 
 .repair-row + .repair-row {
   border-top: 1px solid var(--divider);
+}
+
+/* A toy with nothing broken stays listed, just dimmed */
+.repair-row.mended {
+  opacity: 0.45;
 }
 
 .repair-icon {

@@ -14,7 +14,7 @@ import { toyTypes } from "../config/toyTypesConfig";
  * stages; `broken` holds items ruined by elf mistakes (kept, not a stage —
  * may be sellable-for-less or repairable later).
  */
-export type ToyInventory = { raw: number; assembled: number; finished: number; broken: number };
+export type ToyInventory = { parts: number; raw: number; assembled: number; finished: number; broken: number };
 
 /**
  * One physical elf. The elf is the unit of assignment: when scheduled it works
@@ -60,7 +60,7 @@ export type Order = {
 };
 
 /**
- * How a SHARED step (Assembly/Packaging, which handle every toy) chooses which
+ * How a SHARED step (Quality Control/Packaging, which handle every toy) chooses which
  * toy to work next:
  *  - order:    top-to-bottom — finish the first toy's queue before the next.
  *  - balanced: one of each toy in rotation, so all queues advance together.
@@ -68,6 +68,24 @@ export type Order = {
  */
 export type QueueMode = "order" | "balanced" | "focus";
 export type QueueSetting = { mode: QueueMode; focus?: string };
+
+/**
+ * A GRAND ORDER — a rare, giant holiday order (config/grandOrdersConfig.ts).
+ * Announced days ahead, pinned in the Orders tab, all-or-nothing: deliver every
+ * line by `deadlineDay` for `reward`, or it lapses for nothing.
+ */
+export type GrandOrder = {
+  id: number;
+  defId: string;
+  name: string;
+  icon: string;
+  flavor: string;
+  lines: OrderLine[];
+  reward: number;
+  /** Deliver by the END of this day-of-run or it's lost. */
+  deadlineDay: number;
+  announcedDay: number;
+};
 
 /** End-of-day recap data (produced by DailySummarySystem — not wired into the loop yet). */
 export type DaySummary = {
@@ -106,7 +124,7 @@ export type GameState = {
   /** Per-step (station) runtime state — currently just breakdowns. */
   stations: Record<string, { broken: boolean }>;
 
-  /** Per shared-step (Assembly/Packaging) queue strategy. Empty = "order". */
+  /** Per shared-step (Quality Control/Packaging) queue strategy. Empty = "order". */
   pipeline: {
     queueModes: Record<string, QueueSetting>;
   };
@@ -130,6 +148,14 @@ export type GameState = {
     lastRefreshDay: number;
     /** Id source for new orders. */
     seq: number;
+  };
+
+  /** Rare holiday "grand orders" (config/grandOrdersConfig.ts). */
+  grand: {
+    /** The currently announced grand order, or null. */
+    current: GrandOrder | null;
+    /** defIds already announced this run (so each holiday fires once). */
+    seen: string[];
   };
 
   /** Stats that reset every day (debug + balancing). */
@@ -182,7 +208,7 @@ export function createInitialState(): GameState {
   const inventory: Record<string, ToyInventory> = {};
   const toys: Record<string, boolean> = {};
   for (const t of toyTypes) {
-    inventory[t.id] = { raw: 0, assembled: 0, finished: 0, broken: 0 };
+    inventory[t.id] = { parts: 0, raw: 0, assembled: 0, finished: 0, broken: 0 };
     toys[t.id] = t.unlockCost <= 0; // free toys start unlocked
   }
 
@@ -214,6 +240,11 @@ export function createInitialState(): GameState {
       active: [],
       lastRefreshDay: 0,
       seq: 1,
+    },
+
+    grand: {
+      current: null,
+      seen: [],
     },
 
     dayStats: {

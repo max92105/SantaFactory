@@ -6,6 +6,8 @@
 
 import type { GameState } from "../state/GameState";
 import { addToStage } from "../helpers/inventoryHelpers";
+import { isToyClickable } from "../helpers/unlockHelpers";
+import { getToyType } from "../config/toyTypesConfig";
 import { pluralize } from "../helpers/textHelpers";
 import type { Modifiers } from "./ModifierSystem";
 
@@ -21,8 +23,13 @@ export function createProductionSystem() {
 
   /** Click produces finished items of the selected toy type (bootstrap mechanism). */
   function makeClick(state: GameState, mods: Modifiers): number {
-    const amount = getGiftsPerClick(state, mods);
     const toyType = state.selectedClickToyType || "plushy";
+    if (!isToyClickable(state, toyType)) {
+      const name = getToyType(toyType)?.name ?? "That toy";
+      state.meta.statusText = `${name} can't be hand-made — build it on the line (or buy its hand-build upgrade).`;
+      return 0;
+    }
+    const amount = getGiftsPerClick(state, mods);
     // addToStage with "finished" auto-increments lifetimeGifts + dayStats.giftsMade
     addToStage(state, toyType, "finished", amount);
     state.meta.statusText = `Made ${amount} ${pluralize(amount, "gift")} by hand.`;

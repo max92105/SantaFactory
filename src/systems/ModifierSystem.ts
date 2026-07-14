@@ -59,6 +59,9 @@ export function createModifierSystem() {
           mods.sellRateMult *= e.amount;
           break;
 
+        case "unlock":
+          break; // pure gate — checked elsewhere, no modifier effect
+
         default: {
           // Exhaustiveness guard (fails to compile when a new effect type is unhandled)
           const _never: never = e;

@@ -11,7 +11,7 @@ import "./clickPage.css";
 
 import type { Page } from "../Page";
 import type { FrameViews, GameContext } from "../../../core/GameContext";
-import { getUnlockedToyTypes } from "../../../helpers/unlockHelpers";
+import { getClickableToyTypes } from "../../../helpers/unlockHelpers";
 import { getToyType } from "../../../config/toyTypesConfig";
 import { ensureInventory } from "../../../helpers/inventoryHelpers";
 import { formatInt, formatMoneyPrecise } from "../../../helpers/formatHelpers";
@@ -54,18 +54,18 @@ export function createClickPage(): Page {
   };
 }
 
-/** One tray slot per unlocked toy; clicking selects what the big button crafts. */
+/** One tray slot per hand-craftable toy; clicking selects what the big button crafts. */
 function buildToySelector(ctx: GameContext): void {
   const state = ctx.getState();
-  const unlocked = getUnlockedToyTypes(ctx.getState());
+  const clickable = getClickableToyTypes(ctx.getState());
   ctx.dom.clickToySelector.innerHTML = "";
 
-  // If the selected toy is somehow not unlocked, fall back to the first one
-  if (!unlocked.some((t) => t.id === state.selectedClickToyType) && unlocked[0]) {
-    state.selectedClickToyType = unlocked[0].id;
+  // If the selected toy isn't hand-craftable, fall back to the first one that is
+  if (!clickable.some((t) => t.id === state.selectedClickToyType) && clickable[0]) {
+    state.selectedClickToyType = clickable[0].id;
   }
 
-  for (const t of unlocked) {
+  for (const t of clickable) {
     const isActive = t.id === state.selectedClickToyType;
     const slot = document.createElement("button");
     slot.className = "toy-slot" + (isActive ? " active" : "");

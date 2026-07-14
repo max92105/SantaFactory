@@ -96,20 +96,18 @@ export function getOrderTemplate(id: string): OrderTemplate | undefined {
 
 /**
  * RUSH ORDERS — dynamic, time-pressured pop-ups. Unlike the daily board above,
- * these appear at random *during* the day (see OrdersSystem.update): a toast
+ * these appear at random *any time* of day (see OrdersSystem.update): a toast
  * fires, the Orders tab flashes a badge, and a live countdown ticks in real
- * seconds. Rules that keep them fair:
- *   • only spawn while there's at least a quarter-day of daylight left, so the
- *     player always gets ≥ `minSeconds` to react and deliver;
- *   • they must be filled before night (`nightStartsAt`);
- *   • it's fine if you can't always fill them — that's the tension.
+ * seconds. They run on their own real-time clock, so one can land at the very
+ * end of a day and be finished early the next — the day rollover leaves them
+ * alone. It's fine if you can't always fill them — that's the tension.
  * Everything here is tunable; timings are in REAL seconds (day = SECONDS_PER_GAME_DAY).
  */
 export const RUSH_ORDER = {
-  /** Per-second chance a rush pops up while eligible (~1 per day at 300s/day). */
-  chancePerSecond: 0.008,
+  /** Per-second chance a rush pops up (rolled every frame, any time of day). */
+  chancePerSecond: 0.013,
   /** Never leave more than this many rush offers waiting at once. */
-  maxPending: 2,
+  maxPending: 3,
   /** How many different toys a rush asks for (capped by unlocked count). A
    *  2-toy rush can't be click-farmed in the window — you need stock ready. */
   minLines: 1,
@@ -120,11 +118,8 @@ export const RUSH_ORDER = {
   maxQty: 140,
   /** Reward multiplier — rush pays a premium for the pressure. */
   payMult: 2.6,
-  /** Guaranteed minimum lifetime in real seconds (a "quarter day" at 300s/day).
-   *  Also the eligibility gate: no rush spawns unless this much daylight remains. */
+  /** Lifetime in real seconds (inclusive random range) — a snappy ~1–1.5 min,
+   *  independent of the day clock, so it may span the midnight boundary. */
   minSeconds: 75,
-  /** Longest lifetime in real seconds — a snappy ~1.5 min. */
   maxSeconds: 90,
-  /** Day-progress (0..1) at which night begins; rush must be done before it. */
-  nightStartsAt: 0.75,
 };

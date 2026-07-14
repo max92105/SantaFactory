@@ -10,7 +10,7 @@ import "./ordersPage.css";
 
 import type { Page } from "../Page";
 import type { GameContext } from "../../../core/GameContext";
-import type { Order } from "../../../state/GameState";
+import type { Order, OrderLine } from "../../../state/GameState";
 import { MAX_ACTIVE_ORDERS } from "../../../config/ordersConfig";
 import { getToyType } from "../../../config/toyTypesConfig";
 import { deliverableTo, deliverableToLine, orderRemaining, progressOf } from "../../../helpers/orderHelpers";
@@ -33,6 +33,7 @@ export function createOrdersPage(): Page {
       ctx.dom.ordersMax.textContent = String(MAX_ACTIVE_ORDERS);
       ctx.dom.ordersActiveCount.textContent = String(state.orders.active.length);
 
+      buildGrandSection(ctx);
       buildEventBanner(ctx);
       buildActiveList(ctx);
       buildOfferList(ctx);
@@ -57,6 +58,15 @@ export function createOrdersPage(): Page {
         if (order.secondsLeft == null) continue;
         const card = ctx.dom.ordersOfferList.querySelector<HTMLElement>(`[data-order-id="${order.id}"]`);
         if (card) updateSecs(card, order);
+      }
+
+      // Live: grand order's progress + ready-to-ship as stock changes
+      const g = state.grand.current;
+      if (g) {
+        const readyEl = ctx.dom.ordersGrand.querySelector<HTMLElement>("[data-grand-ready]");
+        if (readyEl) readyEl.textContent = `${formatInt(deliverableTo(state, g))} ready to ship`;
+        const fill = ctx.dom.ordersGrand.querySelector<HTMLElement>(".grand-progress-fill");
+        if (fill) fill.style.width = `${Math.floor(progressOf(g) * 100)}%`;
       }
     },
   };
@@ -98,7 +108,7 @@ function linesHtml(order: Order): string {
 }
 
 /** Per-line delivery progress chips for an active order ("🧸 8/50"). */
-function linesProgressHtml(order: Order): string {
+function linesProgressHtml(order: { lines: OrderLine[] }): string {
   return order.lines
     .map((l) => {
       const t = getToyType(l.toyType);
@@ -119,6 +129,55 @@ function deadlineBadge(order: Order): string {
   const d = order.daysLeft;
   const cls = d <= 1 ? "days-badge urgent" : "days-badge";
   return `<span class="${cls}">${d} day${d === 1 ? "" : "s"} left</span>`;
+}
+
+/** The pinned holiday "grand order": banner, progress, and a Deliver button. */
+function buildGrandSection(ctx: GameContext): void {
+  const state = ctx.getState();
+  const host = ctx.dom.ordersGrand;
+  const g = state.grand.current;
+
+  if (!g) {
+    host.hidden = true;
+    host.innerHTML = "";
+    return;
+  }
+
+  host.hidden = false;
+  const daysLeft = Math.max(0, g.deadlineDay - state.time.day);
+  host.innerHTML = `
+    <div class="grand-head">
+      <span class="grand-icon">${g.icon}</span>
+      <div class="grand-head-text">
+        <div class="grand-tag">🌟 GRAND ORDER</div>
+        <div class="grand-name">${g.name}</div>
+        <div class="grand-flavor">${g.flavor}</div>
+      </div>
+      <div class="grand-deadline">
+        <span class="grand-days">${formatInt(daysLeft)}</span>
+        <span class="grand-days-label">day${daysLeft === 1 ? "" : "s"} left</span>
+      </div>
+    </div>
+    <div class="grand-progress"><div class="grand-progress-fill" style="width:${Math.floor(
+      progressOf(g) * 100
+    )}%"></div></div>
+    <div class="order-lines grand-lines">${linesProgressHtml(g)}</div>
+    <div class="grand-foot">
+      <span class="grand-reward">${formatMoney(g.reward)}</span>
+      <span class="grand-ready" data-grand-ready>0 ready to ship</span>
+    </div>
+  `;
+
+  const deliver = document.createElement("button");
+  deliver.className = "grand-deliver";
+  deliver.textContent = "Deliver…";
+  deliver.onclick = () =>
+    openDeliverModal(ctx, {
+      title: `Deliver to ${g.name}`,
+      getOrder: () => ctx.getState().grand.current,
+      deliver: (amounts) => ctx.systems.orders.deliverToGrand(ctx.getState(), amounts),
+    });
+  host.querySelector(".grand-foot")!.appendChild(deliver);
 }
 
 function buildEventBanner(ctx: GameContext): void {
@@ -175,7 +234,12 @@ function buildActiveList(ctx: GameContext): void {
     const deliver = document.createElement("button");
     deliver.className = "order-deliver";
     deliver.textContent = "Deliver…";
-    deliver.onclick = () => openDeliverModal(ctx, order.id);
+    deliver.onclick = () =>
+      openDeliverModal(ctx, {
+        title: "Deliver to order",
+        getOrder: () => ctx.getState().orders.active.find((o) => o.id === order.id) ?? null,
+        deliver: (amounts) => ctx.systems.orders.deliverAmounts(ctx.getState(), order.id, amounts),
+      });
     card.appendChild(deliver);
     host.appendChild(card);
   }
@@ -230,16 +294,23 @@ function buildOfferList(ctx: GameContext): void {
 }
 
 // ── Deliver modal ─────────────────────────────────────────────────────────
+/** What the deliver modal needs — works for a daily Order or a GrandOrder. */
+type DeliverSource = {
+  title: string;
+  getOrder: () => { id: number; lines: OrderLine[]; reward: number } | null;
+  deliver: (amounts: Record<string, number>) => void;
+};
+
 /**
  * A focused picker for filling an order: one typeable number field per toy
  * (capped to what's owed and in stock), with Max/Clear shortcuts and a live
  * summary. Centered dialog on desktop, bottom sheet on mobile.
  */
-function openDeliverModal(ctx: GameContext, orderId: number): void {
+function openDeliverModal(ctx: GameContext, source: DeliverSource): void {
   document.querySelector(".deliver-overlay")?.remove();
 
   const state = ctx.getState();
-  const order = state.orders.active.find((o) => o.id === orderId);
+  const order = source.getOrder();
   if (!order) return;
 
   // Chosen amount per toy — default to the most we can ship right now.
@@ -277,7 +348,7 @@ function openDeliverModal(ctx: GameContext, orderId: number): void {
   sheet.querySelector<HTMLInputElement>(".stepper-input")?.focus();
 
   function render(): void {
-    const ord = ctx.getState().orders.active.find((o) => o.id === orderId);
+    const ord = source.getOrder();
     if (!ord) {
       close();
       return;
@@ -287,7 +358,7 @@ function openDeliverModal(ctx: GameContext, orderId: number): void {
     // Header
     const head = document.createElement("div");
     head.className = "deliver-head";
-    head.innerHTML = `<span class="deliver-title">Deliver to order</span>`;
+    head.innerHTML = `<span class="deliver-title">${source.title}</span>`;
     const x = document.createElement("button");
     x.className = "deliver-close";
     x.setAttribute("aria-label", "Close");
@@ -383,7 +454,7 @@ function openDeliverModal(ctx: GameContext, orderId: number): void {
     confirm.className = "deliver-confirm";
     confirm.textContent = "Deliver";
     confirm.onclick = () => {
-      ctx.systems.orders.deliverAmounts(ctx.getState(), orderId, amounts);
+      source.deliver(amounts);
       close();
       ctx.rebuildUI();
     };

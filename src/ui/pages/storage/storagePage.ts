@@ -14,9 +14,11 @@ import type { Page } from "../Page";
 import type { FrameViews, GameContext } from "../../../core/GameContext";
 import type { ToyTypeDef } from "../../../config/toyTypesConfig";
 import { getUnlockedToyTypes } from "../../../helpers/unlockHelpers";
-import { getSellableStock, ensureInventory, getTotalBroken } from "../../../helpers/inventoryHelpers";
+import { getSellableStock, getBrokenStock, ensureInventory, getTotalBroken } from "../../../helpers/inventoryHelpers";
+import { BROKEN_SALVAGE_RATE } from "../../../config/stationsConfig";
 import { formatInt, formatMoneyPrecise } from "../../../helpers/formatHelpers";
 import { spawnSellFloat } from "../../components/floatingText";
+import { createStepper } from "../../components/stepper";
 
 export function createStoragePage(): Page {
   // Search text persists across rebuilds (rebuild() recreates rows each action)
@@ -43,9 +45,110 @@ export function createStoragePage(): Page {
     return ctx.systems.economy.sellItems(state, mods, toyId, amount);
   }
 
+  function salvage(ctx: GameContext, toyId: string, amount: number): number {
+    if (amount <= 0) return 0;
+    const state = ctx.getState();
+    const mods = ctx.systems.modifier.getModifiers(state);
+    return ctx.systems.economy.salvageBroken(state, mods, toyId, amount);
+  }
+
   function flash(ctx: GameContext, earned: number): void {
     if (earned > 0) spawnSellFloat(ctx.dom.sellFloatLayer, `+${formatMoneyPrecise(earned)}`);
     ctx.rebuildUI();
+  }
+
+  /** Pick how many broken units to salvage, with a live payout preview. */
+  function openSalvageModal(ctx: GameContext, toy: ToyTypeDef): void {
+    document.querySelector(".deliver-overlay")?.remove();
+
+    const state = ctx.getState();
+    const mods = ctx.systems.modifier.getModifiers(state);
+    const broken = getBrokenStock(state, toy.id);
+    if (broken <= 0) return;
+    const rate = ctx.systems.economy.getSalvageRate(toy.id, mods);
+
+    let amount = broken; // default to salvaging everything
+
+    const overlay = document.createElement("div");
+    overlay.className = "deliver-overlay"; // reuse the responsive modal shell
+    const sheet = document.createElement("div");
+    sheet.className = "deliver-sheet";
+    overlay.appendChild(sheet);
+
+    const close = () => {
+      overlay.remove();
+      document.removeEventListener("keydown", onKey);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    document.addEventListener("keydown", onKey);
+    overlay.onclick = close;
+    sheet.onclick = (e) => e.stopPropagation();
+
+    const head = document.createElement("div");
+    head.className = "deliver-head";
+    head.innerHTML = `<span class="deliver-title">Salvage ${toy.icon} ${toy.name}</span>`;
+    const x = document.createElement("button");
+    x.className = "deliver-close";
+    x.setAttribute("aria-label", "Close");
+    x.textContent = "✕";
+    x.onclick = close;
+    head.appendChild(x);
+    sheet.appendChild(head);
+
+    const sub = document.createElement("div");
+    sub.className = "deliver-sub";
+    sub.innerHTML = `${formatInt(broken)} broken in stock · ${formatMoneyPrecise(rate)} each`;
+    sheet.appendChild(sub);
+
+    const body = document.createElement("div");
+    body.className = "salvage-body";
+    body.appendChild(
+      createStepper({
+        value: amount,
+        min: 0,
+        max: broken,
+        withMax: true,
+        onChange: (v) => {
+          amount = v;
+          refresh();
+        },
+      })
+    );
+    const value = document.createElement("div");
+    value.className = "salvage-value";
+    body.appendChild(value);
+    sheet.appendChild(body);
+
+    const foot = document.createElement("div");
+    foot.className = "deliver-foot";
+    const actions = document.createElement("div");
+    actions.className = "deliver-actions";
+    const cancel = document.createElement("button");
+    cancel.className = "deliver-cancel";
+    cancel.textContent = "Cancel";
+    cancel.onclick = close;
+    const confirm = document.createElement("button");
+    confirm.className = "deliver-confirm";
+    confirm.onclick = () => {
+      const earned = salvage(ctx, toy.id, amount);
+      close();
+      flash(ctx, earned);
+    };
+    actions.append(cancel, confirm);
+    foot.appendChild(actions);
+    sheet.appendChild(foot);
+
+    function refresh(): void {
+      value.innerHTML = `You'll get <strong>${formatMoneyPrecise(amount * rate)}</strong>`;
+      confirm.textContent = amount > 0 ? `Salvage ${formatInt(amount)}` : "Salvage";
+      confirm.disabled = amount <= 0;
+    }
+    refresh();
+
+    document.body.appendChild(overlay);
+    sheet.querySelector<HTMLInputElement>(".stepper-input")?.focus();
   }
 
   function applyFilter(ctx: GameContext): void {
@@ -78,6 +181,7 @@ export function createStoragePage(): Page {
         <div class="stock-count"><strong data-count>0</strong><span>in stock</span></div>
         <div class="stock-value" data-value>$0.00</div>
         <div class="stock-actions">
+          <button class="stock-btn stock-salvage" type="button" hidden>♻ Salvage</button>
           <button class="stock-btn stock-half" type="button">½</button>
           <button class="stock-btn stock-all" type="button">Sell all</button>
         </div>
@@ -91,6 +195,7 @@ export function createStoragePage(): Page {
         const stock = getSellableStock(ctx.getState(), toy.id);
         flash(ctx, sell(ctx, toy.id, stock));
       };
+      row.querySelector<HTMLButtonElement>(".stock-salvage")!.onclick = () => openSalvageModal(ctx, toy);
 
       list.appendChild(row);
     }
@@ -141,13 +246,18 @@ export function createStoragePage(): Page {
         row.querySelector("[data-count]")!.textContent = formatInt(stock);
         row.querySelector("[data-value]")!.textContent = formatMoneyPrecise(stock * rate);
 
+        const salvageValue = broken * rate * BROKEN_SALVAGE_RATE;
         const brokenEl = row.querySelector<HTMLElement>("[data-broken]")!;
         brokenEl.hidden = broken <= 0;
-        brokenEl.textContent = broken > 0 ? `🔨 ${formatInt(broken)} broken` : "";
+        brokenEl.textContent =
+          broken > 0 ? `🔨 ${formatInt(broken)} broken · ♻ ${formatMoneyPrecise(salvageValue)} salvage` : "";
 
         // A row is "empty" (dimmed) only when it has nothing at all
         row.classList.toggle("empty", stock <= 0 && broken <= 0);
-        row.querySelectorAll<HTMLButtonElement>("button").forEach((b) => (b.disabled = stock <= 0));
+        // Selling needs finished stock; salvaging needs broken stock.
+        row.querySelectorAll<HTMLButtonElement>(".stock-half, .stock-all").forEach((b) => (b.disabled = stock <= 0));
+        const salvageBtn = row.querySelector<HTMLButtonElement>(".stock-salvage")!;
+        salvageBtn.hidden = broken <= 0;
       }
 
       ctx.dom.storageTotalStock.textContent = formatInt(totalStock);

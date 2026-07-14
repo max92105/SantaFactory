@@ -16,7 +16,8 @@ export type UpgradeEffect =
   | { type: "gps_mult"; amount: number } // global production xN (reserved)
   | { type: "producer_output_mult"; amount: number } // pipeline output xN
   | { type: "producer_speed_mult"; amount: number } // pipeline speed xN
-  | { type: "sell_rate_mult"; amount: number }; // sell price xN
+  | { type: "sell_rate_mult"; amount: number } // sell price xN
+  | { type: "unlock" }; // pure gate — owning it enables a feature (no modifier)
 
 export type UpgradeDef = {
   id: string;
@@ -27,54 +28,33 @@ export type UpgradeDef = {
   unlock: UnlockRule;
 };
 
+// NOTE: progression-buff upgrades (click power, sell rate, elf speed…) were
+// removed for now to test the base progression. The hooks (effect types +
+// ModifierSystem) are kept so they can be reintroduced and tuned later.
 export const upgrades: UpgradeDef[] = [
   {
-    id: "bigger_hammer",
-    name: "Bigger Hammer",
-    description: "+1 gift per click.",
-    cost: 25,
-    effect: { type: "gpc_flat", amount: 1 },
+    id: "hire_mechanics",
+    name: "Maintenance Contract",
+    description: "Unlocks hiring the Maintenance Crew — mechanics that auto-repair broken stations.",
+    cost: 600,
+    effect: { type: "unlock" },
     unlock: { type: "always" },
   },
   {
-    id: "double_gloves",
-    name: "Double Gloves",
-    description: "Clicking power x1.5.",
-    cost: 80,
-    effect: { type: "gpc_mult", amount: 1.5 },
-    unlock: { type: "always" },
-  },
-  {
-    id: "better_deals",
-    name: "Better Deals",
-    description: "Sell rate x1.25.",
-    cost: 120,
-    effect: { type: "sell_rate_mult", amount: 1.25 },
-    unlock: { type: "always" },
-  },
-  {
-    id: "training_manuals",
-    name: "Training Manuals",
-    description: "All elves output x1.2.",
-    cost: 150,
-    effect: { type: "producer_output_mult", amount: 1.2 },
-    unlock: { type: "always" },
-  },
-  {
-    id: "overclock_bells",
-    name: "Overclock Bells",
-    description: "All elves work faster (speed x1.15).",
-    cost: 220,
-    effect: { type: "producer_speed_mult", amount: 1.15 },
-    unlock: { type: "always" },
-  },
-  {
-    id: "contract_board",
-    name: "Contract Board",
-    description: "Sell rate x1.15 (stacks with Better Deals).",
+    id: "hire_menders",
+    name: "Repair Workshop",
+    description: "Unlocks hiring the Repair Crew — menders that refurbish broken toys.",
     cost: 400,
-    effect: { type: "sell_rate_mult", amount: 1.15 },
+    effect: { type: "unlock" },
     unlock: { type: "always" },
+  },
+  {
+    id: "bike_handbuild",
+    name: "Bicycle Hand-Building",
+    description: "Learn to hand-build bikes so you can craft them with the click button.",
+    cost: 3000,
+    effect: { type: "unlock" },
+    unlock: { type: "toy_unlocked", toyId: "bike" },
   },
 ];
 
@@ -97,5 +77,7 @@ export function describeUpgradeEffect(effect: UpgradeEffect): string {
       return `x${effect.amount} Producer Speed`;
     case "gps_mult":
       return `x${effect.amount} Global GPS`;
+    case "unlock":
+      return "Unlocks a feature";
   }
 }

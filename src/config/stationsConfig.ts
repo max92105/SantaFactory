@@ -13,3 +13,12 @@ export const STATION_REPAIR_COST = 40;
  * mechanics on shift here auto-repair broken stations (see PipelineSystem).
  */
 export const MAINTENANCE_STEP = "maintenance";
+
+/**
+ * The virtual "step" menders are scheduled to — the Repair Bench. Menders on
+ * shift here refurbish broken toys back into finished ones (see PipelineSystem).
+ */
+export const REPAIR_STEP = "repair";
+
+/** Salvaging a broken toy pays this fraction of its normal sell value. */
+export const BROKEN_SALVAGE_RATE = 0.4;

@@ -19,6 +19,11 @@ export type ToyTypeDef = {
   baseSellValue: number;
   /** One-time cost to unlock this toy line (0 = starts unlocked). */
   unlockCost: number;
+  /**
+   * If set, this toy can't be hand-clicked until the given upgrade is owned —
+   * it must be built on its production line. (See helpers/unlockHelpers.)
+   */
+  clickUnlockUpgrade?: string;
 };
 
 // Progression curve — each toy is worth ~2.3× the previous and unlocks for
@@ -29,6 +34,16 @@ export const toyTypes: ToyTypeDef[] = [
   { id: "rubik", name: "Rubik's Cube", icon: "🟩", baseSellValue: 8.0, unlockCost: 150 },
   { id: "train", name: "Wooden Train", icon: "🚂", baseSellValue: 18.0, unlockCost: 750 },
   { id: "robot", name: "Tin Robot", icon: "🤖", baseSellValue: 42.0, unlockCost: 4000 },
+  // The bike has a longer line (two steps before Quality Control) and can't be
+  // hand-clicked until you buy its hand-build upgrade.
+  {
+    id: "bike",
+    name: "Bicycle",
+    icon: "🚲",
+    baseSellValue: 100.0,
+    unlockCost: 12000,
+    clickUnlockUpgrade: "bike_handbuild",
+  },
 ];
 
 export function getToyType(id: string): ToyTypeDef | undefined {

@@ -18,6 +18,8 @@ export type ElfCategoryDef = {
   id: string;
   name: string;
   description: string;
+  /** If set, this crew can't be hired until the given upgrade is owned. */
+  unlockUpgrade?: string;
 };
 
 export const elfCategories: ElfCategoryDef[] = [
@@ -30,15 +32,23 @@ export const elfCategories: ElfCategoryDef[] = [
     id: "maintenance",
     name: "Maintenance Crew",
     description: "Mechanics that automatically repair broken stations while on shift.",
+    unlockUpgrade: "hire_mechanics",
+  },
+  {
+    id: "mending",
+    name: "Repair Crew",
+    description: "Menders that refurbish ruined toys back into finished gifts while on shift.",
+    unlockUpgrade: "hire_menders",
   },
 ];
 
 /**
- * "worker" elves staff production lines (craft/assembly/packaging).
- * "mechanic" elves staff the Maintenance line and auto-repair breakdowns —
- * they never touch production.
+ * "worker" elves staff production lines (craft/quality-control/packaging).
+ * "mechanic" elves staff the Maintenance line and auto-repair breakdowns.
+ * "mender" elves staff the Repair Bench and turn broken toys back into finished.
+ * Neither mechanics nor menders touch production.
  */
-export type ElfRole = "worker" | "mechanic";
+export type ElfRole = "worker" | "mechanic" | "mender";
 
 export type ElfTypeDef = {
   id: string;
@@ -64,6 +74,8 @@ export type ElfTypeDef = {
   breakChance: number;
   /** Seconds one mechanic takes to auto-repair one broken station. (mechanics) */
   repairTime?: number;
+  /** Seconds one mender takes to refurbish one broken toy into finished. (menders) */
+  refurbishTime?: number;
 
   /** How many of the day's 4 shift slots one elf of this type can cover. */
   maxShifts: number;
@@ -196,6 +208,42 @@ export const elfTypes: ElfTypeDef[] = [
     mistakeChance: 0,
     breakChance: 0,
     repairTime: 5,
+    maxShifts: 2,
+    canWorkNight: true,
+  },
+
+  // ─── Repair Crew — menders that turn broken toys back into finished ───────
+  // They don't produce new toys; they refurbish ruined ones. refurbishTime =
+  // seconds to mend one broken toy. Slower is cheaper; faster costs more.
+  {
+    id: "tinker",
+    name: "Tinker Elf",
+    icon: "🔩",
+    description: "Patient and cheap — slowly mends ruined toys back to sellable shape.",
+    category: "mending",
+    role: "mender",
+    baseCost: 130,
+    costGrowth: 1.15,
+    dailyWage: 3,
+    mistakeChance: 0,
+    breakChance: 0,
+    refurbishTime: 8,
+    maxShifts: 2,
+    canWorkNight: true,
+  },
+  {
+    id: "mender",
+    name: "Mender Elf",
+    icon: "🧵",
+    description: "A deft hand — refurbishes broken toys at a brisk clip.",
+    category: "mending",
+    role: "mender",
+    baseCost: 420,
+    costGrowth: 1.16,
+    dailyWage: 6,
+    mistakeChance: 0,
+    breakChance: 0,
+    refurbishTime: 4,
     maxShifts: 2,
     canWorkNight: true,
   },

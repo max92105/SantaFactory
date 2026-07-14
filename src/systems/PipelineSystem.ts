@@ -9,7 +9,14 @@
  */
 
 import type { GameState, QueueMode, QueueSetting } from "../state/GameState";
-import { addToStage, getStageCount, removeFromStage, addBroken } from "../helpers/inventoryHelpers";
+import {
+  addToStage,
+  getStageCount,
+  removeFromStage,
+  addBroken,
+  getBrokenStock,
+  removeBroken,
+} from "../helpers/inventoryHelpers";
 import { pipelineSteps, getPipelineStep, type PipelineStepDef, type ProductionStage } from "../config/pipelineConfig";
 import { toyTypes } from "../config/toyTypesConfig";
 import { currentShiftSlot, getShiftSlot } from "../config/shiftsConfig";
@@ -19,12 +26,13 @@ import {
   removeElves as removeElvesFromState,
   activeOnStep,
   activeMechanics,
+  activeMenders,
   slotMistakeChance,
   slotBreakChance,
 } from "../helpers/workforceHelpers";
 import { pluralizeElves } from "../helpers/textHelpers";
 import { isStationBroken, setStationBroken, brokenStepIds } from "../helpers/stationHelpers";
-import { STATION_REPAIR_COST, MAINTENANCE_STEP } from "../config/stationsConfig";
+import { STATION_REPAIR_COST, MAINTENANCE_STEP, REPAIR_STEP } from "../config/stationsConfig";
 import { getElfType } from "../config/elfTypesConfig";
 import type { Modifiers } from "./ModifierSystem";
 
@@ -48,6 +56,8 @@ export function createPipelineSystem() {
   const progressAccum: Record<string, number> = {};
   /** Auto-repair progress per broken station, 0..1 (not saved). */
   const repairProgress: Record<string, number> = {};
+  /** Refurbish progress per toy type (broken→finished), 0..1 (not saved). */
+  const refurbishAccum: Record<string, number> = {};
   /** Round-robin cursor per shared step for "balanced" mode (not saved). */
   const rrCursor: Record<string, number> = {};
 
@@ -159,6 +169,53 @@ export function createPipelineSystem() {
     }
 
     autoRepair(state, slot, dtSeconds);
+    autoRefurbish(state, slot, dtSeconds);
+  }
+
+  /**
+   * Menders on the Repair Bench turn broken toys back into finished ones over
+   * time. They spread across toys with breakage (round-robin); each contributes
+   * 1/refurbishTime per second. A toy is mended when its progress reaches 1.
+   */
+  function autoRefurbish(state: GameState, slot: string, dtSeconds: number): void {
+    const menders = activeMenders(state, slot);
+    if (menders.length === 0) return;
+
+    const brokenToys = toyTypes.filter((t) => getBrokenStock(state, t.id) >= 1).map((t) => t.id);
+    if (brokenToys.length === 0) return;
+
+    // Same queue modes as Quality Control/Packaging, but over the broken piles:
+    //  order    → all menders pile on the first broken toy (config order),
+    //  balanced → spread round-robin so every pile shrinks together,
+    //  focus    → the chosen toy first, falling back to order when it's clear.
+    const setting = getQueueMode(state, REPAIR_STEP);
+    const focusHasBroken = setting.mode === "focus" && !!setting.focus && brokenToys.includes(setting.focus);
+
+    for (let i = 0; i < menders.length; i++) {
+      const target =
+        setting.mode === "balanced"
+          ? brokenToys[i % brokenToys.length]
+          : focusHasBroken
+          ? setting.focus!
+          : brokenToys[0];
+      const rt = getElfType(menders[i].type)?.refurbishTime ?? 0;
+      if (rt > 0) refurbishAccum[target] = (refurbishAccum[target] ?? 0) + dtSeconds / rt;
+    }
+
+    for (const toyId of brokenToys) {
+      let acc = refurbishAccum[toyId] ?? 0;
+      while (acc >= 1 && getBrokenStock(state, toyId) >= 1) {
+        removeBroken(state, toyId, 1);
+        addToStage(state, toyId, "finished", 1); // recovered as a finished gift
+        acc -= 1;
+      }
+      refurbishAccum[toyId] = acc;
+    }
+  }
+
+  /** Refurbish progress (0..1) toward the next mended toy of a type — for UI. */
+  function refurbishProgressOf(toyType: string): number {
+    return Math.min(1, refurbishAccum[toyType] ?? 0);
   }
 
   /**
@@ -228,12 +285,12 @@ export function createPipelineSystem() {
     count: number
   ): number {
     const step = pipelineSteps.find((s) => s.id === stepId);
-    if (!step && stepId !== MAINTENANCE_STEP) return 0;
+    if (!step && stepId !== MAINTENANCE_STEP && stepId !== REPAIR_STEP) return 0;
     const n = assignElvesToStep(state, elfTypeId, stepId, slots, count);
     if (n <= 0) return 0;
 
     const name = getElfType(elfTypeId)?.name ?? "elf";
-    const where = step?.name ?? "Maintenance";
+    const where = step?.name ?? (stepId === REPAIR_STEP ? "Repair Bench" : "Maintenance");
     const slotNames = slots.map((s) => getShiftSlot(s)?.name ?? s).join(", ");
     state.meta.statusText = `Scheduled ${n} ${pluralizeElves(n)} (${name}) on ${where} (${slotNames}).`;
     return n;
@@ -273,6 +330,7 @@ export function createPipelineSystem() {
     removeElves,
     repairStation,
     repairProgressOf,
+    refurbishProgressOf,
     getQueueMode,
     setQueueMode,
     getView,

@@ -11,7 +11,7 @@
  * Tuning: config/ordersConfig.ts · Calendar: config/eventsConfig.ts
  */
 
-import type { GameState, Order, OrderLine } from "../state/GameState";
+import type { GameState, Order, OrderLine, GrandOrder } from "../state/GameState";
 import {
   ORDER_OFFERS_PER_DAY,
   MAX_ACTIVE_ORDERS,
@@ -19,7 +19,15 @@ import {
   orderTemplates,
   type OrderTemplate,
 } from "../config/ordersConfig";
-import { SECONDS_PER_GAME_DAY } from "../config/timeConfig";
+import {
+  grandOrderDefs,
+  GRAND_ANNOUNCE_DAYS_BEFORE,
+  GRAND_PAY_MULT,
+  GRAND_MIN_QTY,
+  GRAND_MAX_QTY,
+  GRAND_FEATURED_MULT,
+  type GrandOrderDef,
+} from "../config/grandOrdersConfig";
 import { getActiveEvent, type GameEvent } from "../config/eventsConfig";
 import { getToyType, type ToyTypeDef } from "../config/toyTypesConfig";
 import { getUnlockedToyTypes } from "../helpers/unlockHelpers";
@@ -73,7 +81,7 @@ export function createOrdersSystem() {
   }
 
   /** "20× Plushy, 15× Rubik's Cube" — for status text and alerts. */
-  function linesText(order: Order): string {
+  function linesText(order: { lines: OrderLine[] }): string {
     return order.lines.map((l) => `${l.quantity}× ${getToyType(l.toyType)?.name ?? "toy"}`).join(", ");
   }
 
@@ -119,6 +127,69 @@ export function createOrdersSystem() {
     };
   }
 
+  /** Build a giant holiday order: every unlocked toy, huge quantities. */
+  function makeGrandOrder(state: GameState, def: GrandOrderDef): GrandOrder | null {
+    const unlocked = getUnlockedToyTypes(state);
+    if (unlocked.length === 0) return null;
+
+    const lines: OrderLine[] = unlocked.map((toy) => {
+      let quantity = randInt(GRAND_MIN_QTY, GRAND_MAX_QTY);
+      if (def.featuredToy === toy.id) quantity = Math.round(quantity * GRAND_FEATURED_MULT);
+      return { toyType: toy.id, quantity, delivered: 0 };
+    });
+    const reward = Math.max(
+      1,
+      Math.round(lines.reduce((s, l) => s + l.quantity * (getToyType(l.toyType)?.baseSellValue ?? 1), 0) * GRAND_PAY_MULT)
+    );
+    return {
+      id: state.orders.seq++,
+      defId: def.id,
+      name: def.name,
+      icon: def.icon,
+      flavor: def.flavor,
+      lines,
+      reward,
+      deadlineDay: def.day,
+      announcedDay: state.time.day,
+    };
+  }
+
+  /**
+   * Day-change hook for grand orders: lapse an unfinished one past its deadline,
+   * then announce the next holiday whose warning window has opened.
+   */
+  function updateGrandOrder(state: GameState): void {
+    const g = state.grand.current;
+    if (g && state.time.day > g.deadlineDay) {
+      state.grand.current = null;
+      state.meta.statusText = `${g.icon} ${g.name} grand order missed — the stores took their business elsewhere.`;
+      state.pendingAlerts.push(`${g.icon} ${g.name} grand order missed — no reward this time.`);
+    }
+
+    if (state.grand.current) return; // one at a time
+
+    const def = grandOrderDefs.find(
+      (d) =>
+        !state.grand.seen.includes(d.id) &&
+        state.time.day >= d.day - GRAND_ANNOUNCE_DAYS_BEFORE &&
+        state.time.day <= d.day
+    );
+    if (!def) return;
+
+    const order = makeGrandOrder(state, def);
+    if (!order) return;
+
+    state.grand.current = order;
+    state.grand.seen.push(def.id);
+    const daysLeft = def.day - state.time.day;
+    state.pendingAlerts.push(
+      `${def.icon} ${def.name} is coming! Stores worldwide placed a GIANT order — ${daysLeft} day${
+        daysLeft === 1 ? "" : "s"
+      } to prepare. Reward: $${order.reward}`
+    );
+    state.meta.statusText = `${def.icon} Grand order: ${def.name} — deliver everything by day ${def.day} for +$${order.reward}!`;
+  }
+
   /**
    * Real-time tick (call every frame): counts down rush orders and expires the
    * lapsed ones, and rolls the chance to spawn a fresh rush pop-up. Returns true
@@ -150,20 +221,15 @@ export function createOrdersSystem() {
     state.orders.offers = tick(state.orders.offers, "offer");
     state.orders.active = tick(state.orders.active, "active");
 
-    // Maybe spawn a new rush offer — only while there's ≥ a quarter-day of
-    // daylight left (guarantees the player ≥ minSeconds and finishes by night).
-    const timeToNight = (RUSH_ORDER.nightStartsAt - state.time.dayProgress) * SECONDS_PER_GAME_DAY;
+    // Maybe spawn a new rush offer — any time of day, on its own real-time
+    // clock (so it can land late and be finished the next morning).
     const rushWaiting = state.orders.offers.reduce((n, o) => n + (o.rush ? 1 : 0), 0);
-    if (
-      timeToNight >= RUSH_ORDER.minSeconds &&
-      rushWaiting < RUSH_ORDER.maxPending &&
-      Math.random() < RUSH_ORDER.chancePerSecond * dt
-    ) {
+    if (rushWaiting < RUSH_ORDER.maxPending && Math.random() < RUSH_ORDER.chancePerSecond * dt) {
       const unlocked = getUnlockedToyTypes(state);
       if (unlocked.length > 0) {
         const event = currentEvent(state);
         const order = makeRushOrder(state, unlocked, event);
-        order.secondsLeft = Math.min(RUSH_ORDER.maxSeconds, timeToNight);
+        order.secondsLeft = randInt(RUSH_ORDER.minSeconds, RUSH_ORDER.maxSeconds);
         state.orders.offers.push(order);
 
         const summary = linesText(order);
@@ -203,8 +269,14 @@ export function createOrdersSystem() {
       }
     }
 
-    state.orders.offers = generateOffers(state);
+    // Keep any live rush pop-ups (real-time clock — they may span midnight) and
+    // refresh only the daily board around them.
+    const rushOffers = state.orders.offers.filter((o) => o.rush);
+    state.orders.offers = [...rushOffers, ...generateOffers(state)];
     state.orders.lastRefreshDay = state.time.day;
+
+    // Holiday grand orders are day-driven — announce/lapse on the day change.
+    updateGrandOrder(state);
     return true;
   }
 
@@ -283,7 +355,53 @@ export function createOrdersSystem() {
     return settleDelivery(state, order, gave);
   }
 
-  return { ensureDay, update, acceptOrder, deliverToOrder, deliverAmounts, currentEvent, generateOffers };
+  /** Ship chosen amounts toward the pinned grand order; huge payout on completion. */
+  function deliverToGrand(state: GameState, amounts: Record<string, number>): boolean {
+    const g = state.grand.current;
+    if (!g) return false;
+
+    let gave = 0;
+    for (const line of g.lines) {
+      const want = Math.max(0, Math.floor(amounts[line.toyType] ?? 0));
+      const give = Math.min(want, deliverableToLine(state, line));
+      if (give > 0) {
+        removeFromStage(state, line.toyType, "finished", give);
+        line.delivered += give;
+        gave += give;
+      }
+    }
+
+    if (gave <= 0) {
+      state.meta.statusText = `Nothing delivered — pick an amount you have in stock.`;
+      return false;
+    }
+
+    if (isOrderComplete(g)) {
+      state.resources.money += g.reward;
+      state.dayStats.moneyEarned += g.reward;
+      state.stats.ordersCompleted += 1;
+      state.grand.current = null;
+      state.meta.statusText = `🎉 ${g.name} grand order COMPLETE! Huge payday: +$${g.reward}.`;
+      state.pendingAlerts.push(`🎉 ${g.icon} ${g.name} complete! +$${g.reward}`);
+    } else {
+      const linesLeft = g.lines.filter((l) => l.delivered < l.quantity).length;
+      state.meta.statusText = `Grand order: delivered ${gave} — ${orderRemaining(g)} to go across ${linesLeft} toy${
+        linesLeft === 1 ? "" : "s"
+      }.`;
+    }
+    return true;
+  }
+
+  return {
+    ensureDay,
+    update,
+    acceptOrder,
+    deliverToOrder,
+    deliverAmounts,
+    deliverToGrand,
+    currentEvent,
+    generateOffers,
+  };
 }
 
 export type OrdersSystem = ReturnType<typeof createOrdersSystem>;

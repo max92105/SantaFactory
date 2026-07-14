@@ -82,6 +82,7 @@ export type DomRefs = {
   sellFloatLayer: HTMLDivElement;
 
   // Orders page
+  ordersGrand: HTMLElement;
   ordersEvent: HTMLElement;
   ordersActiveList: HTMLDivElement;
   ordersOfferList: HTMLDivElement;
@@ -197,6 +198,7 @@ export function getDomRefs(): DomRefs {
     sellFloatLayer: mustGet("sellFloatLayer"),
 
     // Orders page
+    ordersGrand: mustGet("ordersGrand"),
     ordersEvent: mustGet("ordersEvent"),
     ordersActiveList: mustGet("ordersActiveList"),
     ordersOfferList: mustGet("ordersOfferList"),

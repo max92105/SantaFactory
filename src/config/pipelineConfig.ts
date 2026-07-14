@@ -10,12 +10,15 @@
  * Shared steps appear once in the UI but handle items from every type.
  */
 
-export type ProductionStage = "raw" | "assembled" | "finished";
+export type ProductionStage = "parts" | "raw" | "assembled" | "finished";
 
 /** Display metadata for each stage (single source for icons/labels in the UI). */
 export const PRODUCTION_STAGES: { id: ProductionStage; label: string; icon: string }[] = [
+  // "parts" is only used by toys with a multi-step line (e.g. the bike); most
+  // toys craft straight to "raw".
+  { id: "parts", label: "Parts", icon: "🔩" },
   { id: "raw", label: "Raw", icon: "📦" },
-  { id: "assembled", label: "Assembled", icon: "🔧" },
+  { id: "assembled", label: "Checked", icon: "🔍" },
   { id: "finished", label: "Finished", icon: "🎁" },
 ];
 
@@ -82,9 +85,29 @@ export const pipelineSteps: PipelineStepDef[] = [
     order: 1.7,
   },
   {
+    id: "craft_bike_frame",
+    name: "Weld Bike Frame",
+    description: "Elves weld and paint sturdy bicycle frames from raw metal.",
+    toyType: "bike",
+    inputStage: null,
+    outputStage: "parts",
+    baseTime: 14,
+    order: 1.8,
+  },
+  {
+    id: "assemble_bike",
+    name: "Assemble Bike",
+    description: "Wheels, chain and seat are fitted onto the welded frame.",
+    toyType: "bike",
+    inputStage: "parts",
+    outputStage: "raw",
+    baseTime: 16,
+    order: 1.85,
+  },
+  {
     id: "assembly",
-    name: "Assembly",
-    description: "Raw toys are assembled into complete products.",
+    name: "Quality Control",
+    description: "Freshly crafted toys are inspected and finished to gift standard.",
     toyType: null,
     inputStage: "raw",
     outputStage: "assembled",
