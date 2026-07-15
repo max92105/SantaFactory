@@ -41,8 +41,9 @@ export type DomRefs = {
   factoryBadge: HTMLElement;
   ordersBadge: HTMLElement;
 
-  // Toasts
+  // Toasts + celebration effects
   toastLayer: HTMLDivElement;
+  fxLayer: HTMLDivElement;
 
   // Click page
   makeGiftBtn: HTMLButtonElement;
@@ -157,8 +158,9 @@ export function getDomRefs(): DomRefs {
     factoryBadge: mustGet("factoryBadge"),
     ordersBadge: mustGet("ordersBadge"),
 
-    // Toasts
+    // Toasts + celebration effects
     toastLayer: mustGet("toastLayer"),
+    fxLayer: mustGet("fxLayer"),
 
     // Click page
     makeGiftBtn: mustGet("makeGiftBtn"),

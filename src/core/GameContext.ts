@@ -15,6 +15,8 @@ import type { ShopSystem } from "../systems/ShopSystem";
 import type { SaveSystem } from "../systems/SaveSystem";
 import type { ModifierSystem } from "../systems/ModifierSystem";
 import type { OrdersSystem } from "../systems/OrdersSystem";
+import type { EventSystem } from "../systems/EventSystem";
+import type { GrinchSystem } from "../systems/GrinchSystem";
 import type { GameEvent } from "../config/eventsConfig";
 
 /** All game systems, wired once in core/Game.ts. */
@@ -28,6 +30,8 @@ export type Systems = {
   save: SaveSystem;
   modifier: ModifierSystem;
   orders: OrdersSystem;
+  event: EventSystem;
+  grinch: GrinchSystem;
 };
 
 /** Read-only snapshot of system views, computed once per frame and shared by all pages. */

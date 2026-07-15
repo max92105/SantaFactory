@@ -1,0 +1,139 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   EVENT MODAL — non-dismissable "choose one of three" random-event dialog.
+   Freezes the game (the loop pauses); the player must pick. Logic: eventModal.ts
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.event-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400; /* above deliver modals (200) and celebrations (300) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, 0.72);
+  animation: event-fade 0.15s ease;
+}
+
+@keyframes event-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.event-sheet {
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+  animation: event-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+@keyframes event-pop {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.event-overlay.good .event-sheet {
+  border-color: rgba(74, 222, 128, 0.5);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), 0 0 60px rgba(74, 222, 128, 0.18);
+}
+
+.event-overlay.bad .event-sheet {
+  border-color: rgba(248, 113, 113, 0.5);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6), 0 0 60px rgba(248, 113, 113, 0.18);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.event-head {
+  text-align: center;
+  margin-bottom: var(--space-lg);
+}
+
+.event-kicker {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.event-overlay.good .event-kicker {
+  color: var(--success);
+}
+
+.event-overlay.bad .event-kicker {
+  color: var(--danger);
+}
+
+.event-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ── Choices ────────────────────────────────────────────────────────────── */
+.event-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.event-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  text-align: left;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.event-choice:hover {
+  transform: translateY(-2px);
+}
+
+.event-overlay.good .event-choice:hover {
+  border-color: var(--success);
+  background: rgba(74, 222, 128, 0.08);
+}
+
+.event-overlay.bad .event-choice:hover {
+  border-color: var(--danger);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.event-choice-icon {
+  font-size: 30px;
+  flex-shrink: 0;
+  width: 40px;
+  text-align: center;
+}
+
+.event-choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.event-choice-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.event-choice-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 560px) {
+  .event-sheet { padding: var(--space-lg); }
+  .event-choice-icon { font-size: 26px; width: 32px; }
+}

@@ -16,18 +16,18 @@ export function createWageSystem() {
   }
 
   /** Total wages owed at the end of the current day (sum of each elf's wage). */
-  function calcDailyWages(state: GameState): number {
+  function calcDailyWages(state: GameState, wageMult = 1): number {
     let total = 0;
     for (const def of elfTypes) {
       total += countOfType(state, def.id) * def.dailyWage;
     }
-    return total;
+    return Math.round(total * wageMult);
   }
 
-  function payEndOfDayWages(state: GameState) {
+  function payEndOfDayWages(state: GameState, wageMult = 1) {
     if (state.meta.isRunOver) return;
 
-    const wages = calcDailyWages(state);
+    const wages = calcDailyWages(state, wageMult);
     state.dayStats.wagesDue = wages;
 
     if (wages <= 0) {

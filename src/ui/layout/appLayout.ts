@@ -14,7 +14,10 @@ import { totalElves, countOfType, onShiftCount, totalIdle, ownedElfTypes } from 
 import { currentShiftSlot } from "../../config/shiftsConfig";
 import { brokenStationCount } from "../../helpers/stationHelpers";
 import { spawnToast } from "../components/toast";
-import { isMuted, toggleMute } from "../audio";
+import { spawnCelebration } from "../components/celebration";
+import { showEventModal, removeEventModal, eventModalOpen } from "../components/eventModal";
+import { showGrinchCard, updateGrinchCard, removeGrinchCard, grinchCardOpen } from "../components/grinchCard";
+import { isMuted, toggleMute, playCash } from "../audio";
 import { formatInt, formatMoney } from "../../helpers/formatHelpers";
 
 /** Emoji for each time-of-day label (single source for the HUD clock). */
@@ -187,5 +190,47 @@ export function renderAppLayout(ctx: GameContext, views: FrameViews): void {
   if (state.pendingAlerts.length > 0) {
     for (const msg of state.pendingAlerts) spawnToast(dom.toastLayer, msg, "warning");
     state.pendingAlerts.length = 0;
+  }
+
+  // Drain payout celebrations: confetti + counting money pop + cha-ching
+  if (state.pendingCelebrations.length > 0) {
+    for (const c of state.pendingCelebrations) {
+      spawnCelebration(dom.fxLayer, c);
+      playCash();
+    }
+    state.pendingCelebrations.length = 0;
+  }
+
+  // The Grinch: a non-blocking heist card with a live countdown.
+  if (state.grinch.active) {
+    if (!grinchCardOpen()) {
+      showGrinchCard(state.grinch.active, {
+        onPay: () => {
+          ctx.systems.grinch.payToll(ctx.getState());
+          removeGrinchCard();
+          ctx.rebuildUI();
+        },
+        onGive: () => {
+          ctx.systems.grinch.deliverDemand(ctx.getState());
+          ctx.rebuildUI();
+        },
+      });
+    }
+    updateGrinchCard(state);
+  } else if (grinchCardOpen()) {
+    removeGrinchCard();
+  }
+
+  // Random-event freeze modal: show while a choice is pending, remove after.
+  if (state.events.pending) {
+    if (!eventModalOpen()) {
+      showEventModal(state.events.pending, (choiceId) => {
+        ctx.systems.event.choose(ctx.getState(), choiceId);
+        removeEventModal();
+        ctx.rebuildUI();
+      });
+    }
+  } else if (eventModalOpen()) {
+    removeEventModal();
   }
 }

@@ -60,6 +60,42 @@ export type Order = {
 };
 
 /**
+ * A temporary modifier bundle applied by a random event, active while the
+ * current day is <= `expiresDay`. Missing fields mean "no change" (×1).
+ */
+export type TimedMod = Partial<{
+  speed: number; // producer speed ×
+  output: number; // producer output ×
+  sell: number; // sell rate ×
+  gpc: number; // gifts-per-click ×
+  mistake: number; // mistake chance × (>1 worse, <1 better, 0 none)
+  wage: number; // daily wage × (0 = free day)
+}>;
+
+export type ActiveMod = { id: string; icon: string; label: string; expiresDay: number; mod: TimedMod };
+
+/**
+ * The Grinch's live heist threat: pay `toll`, or hand over `demandQty` of
+ * `demandToy`, before `secondsLeft` hits 0 — or he steals `stealPct` of your
+ * finished stock.
+ */
+export type GrinchThreat = {
+  toll: number;
+  demandToy: string;
+  demandQty: number;
+  demandDelivered: number;
+  stealPct: number;
+  secondsLeft: number;
+  taunt: string;
+};
+
+/** One of the three choices shown when a random event fires. */
+export type PendingChoice = { id: string; icon: string; title: string; desc: string };
+
+/** A random event awaiting the player's choice (freezes the game). */
+export type PendingEvent = { polarity: "good" | "bad"; choices: PendingChoice[] };
+
+/**
  * How a SHARED step (Quality Control/Packaging, which handle every toy) chooses which
  * toy to work next:
  *  - order:    top-to-bottom — finish the first toy's queue before the next.
@@ -132,6 +168,10 @@ export type GameState = {
   /** Transient notification queue drained by the UI each frame (toasts). */
   pendingAlerts: string[];
 
+  /** Transient payout celebrations (confetti + cash SFX) drained by the UI
+   *  each frame. `grand` triggers the full-screen golden flash. */
+  pendingCelebrations: { amount: number; grand?: boolean }[];
+
   stats: {
     lifetimeSoldGifts: number;
     /** Items ruined by elf mistakes over the whole run. */
@@ -148,6 +188,22 @@ export type GameState = {
     lastRefreshDay: number;
     /** Id source for new orders. */
     seq: number;
+  };
+
+  /** The Grinch (config/grinchConfig.ts): a live heist threat + cadence counter. */
+  grinch: {
+    active: GrinchThreat | null;
+    daysSince: number;
+  };
+
+  /** Random events (config/randomEventsConfig.ts): a pending choice + active timed mods. */
+  events: {
+    /** A choice awaiting the player — freezes the game while set. */
+    pending: PendingEvent | null;
+    /** Currently-active temporary modifiers from past event choices. */
+    active: ActiveMod[];
+    /** Days elapsed since the last event fired (drives cadence). */
+    daysSince: number;
   };
 
   /** Rare holiday "grand orders" (config/grandOrdersConfig.ts). */
@@ -228,6 +284,7 @@ export function createInitialState(): GameState {
     stations: {},
     pipeline: { queueModes: {} },
     pendingAlerts: [],
+    pendingCelebrations: [],
 
     stats: {
       lifetimeSoldGifts: 0,
@@ -240,6 +297,17 @@ export function createInitialState(): GameState {
       active: [],
       lastRefreshDay: 0,
       seq: 1,
+    },
+
+    grinch: {
+      active: null,
+      daysSince: 0,
+    },
+
+    events: {
+      pending: null,
+      active: [],
+      daysSince: 0,
     },
 
     grand: {

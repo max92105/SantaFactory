@@ -22,6 +22,8 @@ import { createShopSystem } from "../systems/ShopSystem";
 import { createSaveSystem } from "../systems/SaveSystem";
 import { createModifierSystem } from "../systems/ModifierSystem";
 import { createOrdersSystem } from "../systems/OrdersSystem";
+import { createEventSystem } from "../systems/EventSystem";
+import { createGrinchSystem } from "../systems/GrinchSystem";
 
 import { getDomRefs } from "../ui/domRegistry";
 import { mountAppLayout, bindAppLayout, renderAppLayout } from "../ui/layout/appLayout";
@@ -89,6 +91,8 @@ export function createGame(opts: CreateGameOptions): Game {
     save: createSaveSystem(),
     modifier: createModifierSystem(),
     orders: createOrdersSystem(),
+    event: createEventSystem(),
+    grinch: createGrinchSystem(),
   };
 
   const ctx: GameContext = {
@@ -110,7 +114,7 @@ export function createGame(opts: CreateGameOptions): Game {
       economy: systems.economy.getView(state, mods),
       production: systems.production.getView(state, mods),
       pipeline: systems.pipeline.getView(state, mods),
-      wagesDue: systems.wage.calcDailyWages(state),
+      wagesDue: systems.wage.calcDailyWages(state, mods.wageMult),
       wageRuleText: systems.wage.getWageRuleText(),
       activeEvent: systems.orders.currentEvent(state) ?? null,
     };
@@ -158,6 +162,12 @@ export function createGame(opts: CreateGameOptions): Game {
   const loop = createGameLoop((dtSeconds) => {
     if (state.meta.isRunOver) return;
 
+    // Frozen while a random event awaits the player's choice — only paint.
+    if (state.meta.isPaused) {
+      renderFrame();
+      return;
+    }
+
     const mods = systems.modifier.getModifiers(state);
 
     // A station breaking mid-tick changes the factory UI structure (repair
@@ -173,6 +183,11 @@ export function createGame(opts: CreateGameOptions): Game {
       scheduleRebuild();
     }
 
+    // The Grinch's heist runs on a real-time clock; rebuild when it lapses.
+    if (systems.grinch.update(state, dtSeconds)) {
+      scheduleRebuild();
+    }
+
     // New day → refresh order offers / age active orders (rebuild lists if so)
     if (systems.orders.ensureDay(state)) {
       scheduleRebuild();
@@ -183,7 +198,9 @@ export function createGame(opts: CreateGameOptions): Game {
     }
 
     if (timeResult.dayEnded) {
-      systems.wage.payEndOfDayWages(state);
+      // `mods` was captured before the clock ticked, so it reflects the day
+      // that just ended (e.g. a wage-holiday still applies to its own payroll).
+      systems.wage.payEndOfDayWages(state, mods.wageMult);
 
       // Start a fresh "today" for the day-stat counters (Metrics tab)
       state.dayStats.giftsMade = 0;
@@ -194,6 +211,14 @@ export function createGame(opts: CreateGameOptions): Game {
 
       // New day: spent shifts free up again
       resetSpentShifts(state);
+
+      // Random events: expire yesterday's timed mods, then maybe fire a new one
+      // (which pauses the game until the player chooses).
+      systems.event.expireMods(state);
+      systems.event.maybeTrigger(state);
+
+      // The Grinch only crashes days that aren't already frozen by an event.
+      if (!state.meta.isPaused) systems.grinch.maybeTrigger(state);
 
       // Wages change money/elves, so shop buttons etc. must refresh
       scheduleRebuild();

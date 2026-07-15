@@ -12,12 +12,14 @@
 
 import clickUrl from "../assets/btn_click.mp3";
 import hoverUrl from "../assets/btn_hover.mp3";
+import cashUrl from "../assets/cash.mp3";
 import musicUrl from "../assets/Background.mp3";
 
 const MUTE_KEY = "santa_factory_muted";
 const MUSIC_VOLUME = 0.35;
 const CLICK_VOLUME = 0.55;
 const HOVER_VOLUME = 0.22;
+const CASH_VOLUME = 0.8;
 
 /** Elements that should click/hover — plain buttons and role="button" widgets. */
 const SFX_SELECTOR = "button, [role='button']";
@@ -25,12 +27,14 @@ const SFX_SELECTOR = "button, [role='button']";
 let ctx: AudioContext | null = null;
 let clickBuf: AudioBuffer | null = null;
 let hoverBuf: AudioBuffer | null = null;
+let cashBuf: AudioBuffer | null = null;
 let music: HTMLAudioElement | null = null;
 let muted = localStorage.getItem(MUTE_KEY) === "1";
 
 // Fetch the small SFX bytes right away; decode once a context exists (below).
 const clickBytes = fetch(clickUrl).then((r) => r.arrayBuffer());
 const hoverBytes = fetch(hoverUrl).then((r) => r.arrayBuffer());
+const cashBytes = fetch(cashUrl).then((r) => r.arrayBuffer());
 
 /** Lazily create/resume the AudioContext (must follow a user gesture). */
 function wakeContext(): void {
@@ -39,6 +43,7 @@ function wakeContext(): void {
     ctx = new AudioContext();
     clickBytes.then((b) => ctx!.decodeAudioData(b)).then((buf) => (clickBuf = buf)).catch(() => {});
     hoverBytes.then((b) => ctx!.decodeAudioData(b)).then((buf) => (hoverBuf = buf)).catch(() => {});
+    cashBytes.then((b) => ctx!.decodeAudioData(b)).then((buf) => (cashBuf = buf)).catch(() => {});
   }
   if (ctx.state === "suspended") ctx.resume().catch(() => {});
 }
@@ -81,6 +86,12 @@ export function bindUiSounds(): void {
     wakeContext();
     playBuffer(hoverBuf, HOVER_VOLUME);
   });
+}
+
+/** Cha-ching! — payout celebration sound (order / grand order complete). */
+export function playCash(): void {
+  wakeContext();
+  playBuffer(cashBuf, CASH_VOLUME);
 }
 
 /** Start (or resume) the looping background music. Safe to call repeatedly. */

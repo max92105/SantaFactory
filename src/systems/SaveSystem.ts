@@ -89,6 +89,16 @@ export function createSaveSystem() {
           current: parsed.grand?.current ?? null,
           seen: Array.isArray(parsed.grand?.seen) ? parsed.grand.seen : [],
         },
+        events: {
+          pending: null, // never restore a mid-event freeze
+          active: Array.isArray(parsed.events?.active) ? parsed.events.active : [],
+          daysSince: typeof parsed.events?.daysSince === "number" ? parsed.events.daysSince : 0,
+        },
+        grinch: {
+          // The heist resumes from its saved countdown (no dodging by reloading).
+          active: parsed.grinch?.active ?? null,
+          daysSince: typeof parsed.grinch?.daysSince === "number" ? parsed.grinch.daysSince : 0,
+        },
         pipeline: { queueModes: { ...(parsed.pipeline?.queueModes ?? {}) } },
         owned: {
           upgrades: { ...fresh.owned.upgrades, ...(parsed.owned?.upgrades ?? {}) },
@@ -120,6 +130,8 @@ export function createSaveSystem() {
 
       // Runtime-only fields: never replay stale alerts; ensure stations exists.
       state.pendingAlerts = [];
+      state.pendingCelebrations = [];
+      state.meta.isPaused = false; // never load into a frozen event state
       if (typeof state.stations !== "object" || state.stations === null) {
         state.stations = {};
       }

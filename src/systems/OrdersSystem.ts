@@ -308,6 +308,7 @@ export function createOrdersSystem() {
       state.stats.ordersCompleted += 1;
       state.orders.active = state.orders.active.filter((o) => o.id !== order.id);
       state.meta.statusText = `Order complete! ${linesText(order)} for +$${order.reward}.`;
+      state.pendingCelebrations.push({ amount: order.reward });
     } else {
       const linesLeft = order.lines.filter((l) => l.delivered < l.quantity).length;
       state.meta.statusText = `Delivered ${gave} — ${orderRemaining(order)} to go across ${linesLeft} toy${
@@ -383,6 +384,7 @@ export function createOrdersSystem() {
       state.grand.current = null;
       state.meta.statusText = `🎉 ${g.name} grand order COMPLETE! Huge payday: +$${g.reward}.`;
       state.pendingAlerts.push(`🎉 ${g.icon} ${g.name} complete! +$${g.reward}`);
+      state.pendingCelebrations.push({ amount: g.reward, grand: true });
     } else {
       const linesLeft = g.lines.filter((l) => l.delivered < l.quantity).length;
       state.meta.statusText = `Grand order: delivered ${gave} — ${orderRemaining(g)} to go across ${linesLeft} toy${

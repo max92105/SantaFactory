@@ -106,7 +106,7 @@ export function createPipelineSystem() {
     const elves = activeOnStep(state, step.id, slot);
     if (elves <= 0) return 0;
     const effectiveTime = step.baseTime / mods.producerSpeedMult;
-    const successRate = 1 - slotMistakeChance(state, step.id, slot);
+    const successRate = 1 - Math.min(1, slotMistakeChance(state, step.id, slot) * mods.mistakeMult);
     return (elves / effectiveTime) * mods.producerOutputMult * successRate;
   }
 
@@ -128,7 +128,7 @@ export function createPipelineSystem() {
 
       progressAccum[step.id] = (progressAccum[step.id] ?? 0) + rawProduction;
 
-      const mistakeChance = slotMistakeChance(state, step.id, slot);
+      const mistakeChance = Math.min(1, slotMistakeChance(state, step.id, slot) * mods.mistakeMult);
       const breakChance = slotBreakChance(state, step.id, slot);
 
       while (progressAccum[step.id] >= 1) {
