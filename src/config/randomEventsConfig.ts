@@ -19,9 +19,14 @@ export const EVENT_GOOD_CHANCE = 0.5;
 export const EVENT_CHOICES = 3;
 
 export type EventEffect =
-  | { kind: "money"; amount: number } // flat cash +/- (clamped at 0)
+  // Flat cash +/- (clamped at 0). `netWorthPct` scales it with progress: the
+  // magnitude becomes at least that share of the player's net worth, so a
+  // $1,500 fine still stings on day 60. The sign of `amount` is kept.
+  | { kind: "money"; amount: number; netWorthPct?: number }
   | { kind: "moneyPct"; pct: number } // cash ×(1+pct), e.g. -0.2 loses 20%
-  | { kind: "gifts"; amount: number } // + finished gifts of a random unlocked toy
+  // + finished gifts of a random unlocked toy. `daysWorth` scales it with
+  // progress: at least that many days of the player's average output.
+  | { kind: "gifts"; amount: number; daysWorth?: number }
   | { kind: "loseGiftsPct"; pct: number } // finished stock ×(1-pct) for every toy
   | { kind: "breakStations"; count: number } // break up to N random working stations
   | { kind: "fixAll" } // repair every broken station
@@ -50,11 +55,11 @@ export const randomEvents: RandomEventDef[] = [
     desc: "Wired elves — clicks make ×3 gifts today.",
     effects: [{ kind: "timed", days: 1, mod: { gpc: 3 } }] },
   { id: "free_shipment", polarity: "good", icon: "📦", title: "Surprise Shipment",
-    desc: "A mystery crate arrives: +250 finished gifts.",
-    effects: [{ kind: "gifts", amount: 250 }] },
+    desc: "A mystery crate arrives: +{gifts} finished gifts.",
+    effects: [{ kind: "gifts", amount: 250, daysWorth: 0.6 }] },
   { id: "investor", polarity: "good", icon: "💰", title: "Generous Investor",
-    desc: "A backer drops +$2,000 in your lap.",
-    effects: [{ kind: "money", amount: 2000 }] },
+    desc: "A backer drops +{amount} in your lap.",
+    effects: [{ kind: "money", amount: 2000, netWorthPct: 0.1 }] },
   { id: "high_morale", polarity: "good", icon: "🎶", title: "High Morale",
     desc: "Inspired elves — mistakes cut in half today.",
     effects: [{ kind: "timed", days: 1, mod: { mistake: 0.5 } }] },
@@ -65,8 +70,8 @@ export const randomEvents: RandomEventDef[] = [
     desc: "Every broken station is repaired for free.",
     effects: [{ kind: "fixAll" }] },
   { id: "toy_drive", polarity: "good", icon: "🎁", title: "Charity Toy Drive",
-    desc: "Donations pour in: +$800 and +100 gifts.",
-    effects: [{ kind: "money", amount: 800 }, { kind: "gifts", amount: 100 }] },
+    desc: "Donations pour in: +{amount} and +{gifts} gifts.",
+    effects: [{ kind: "money", amount: 800, netWorthPct: 0.05 }, { kind: "gifts", amount: 100, daysWorth: 0.25 }] },
   { id: "wage_holiday", polarity: "good", icon: "🏖️", title: "Wage Holiday",
     desc: "Elves work for the fun of it — no wages tomorrow.",
     effects: [{ kind: "timed", days: 1, mod: { wage: 0 } }] },
@@ -109,8 +114,8 @@ export const randomEvents: RandomEventDef[] = [
     desc: "Thin materials — output ×0.5 for 2 days.",
     effects: [{ kind: "timed", days: 2, mod: { output: 0.5 } }] },
   { id: "safety_fine", polarity: "bad", icon: "🚨", title: "Safety Fine",
-    desc: "Inspectors slap you with a $1,500 fine.",
-    effects: [{ kind: "money", amount: -1500 }] },
+    desc: "Inspectors slap you with a {amount} fine.",
+    effects: [{ kind: "money", amount: -1500, netWorthPct: 0.08 }] },
   { id: "gremlins", polarity: "bad", icon: "👺", title: "Gremlin Infestation",
     desc: "Chaos! 3 stations break and mistakes spike today.",
     effects: [{ kind: "breakStations", count: 3 }, { kind: "timed", days: 1, mod: { mistake: 1.5 } }] },

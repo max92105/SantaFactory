@@ -8,15 +8,19 @@
     <div class="menu">
       <button id="menuBtn" class="menu-btn" aria-label="Menu">☰</button>
       <div id="menuPanel" class="menu-panel hidden">
-        <button id="saveBtn" class="menu-item">💾 Save now</button>
+        <button id="saveBtn" class="menu-item" data-i18n="menu.save">💾 Save now</button>
         <button id="muteBtn" class="menu-item">🔊 Music: on</button>
-        <button id="mainMenuBtn" class="menu-item">🏠 Main menu</button>
+        <button id="mainMenuBtn" class="menu-item" data-i18n="menu.mainMenu">🏠 Main menu</button>
+        <div class="menu-lang">
+          <span class="menu-lang-label" data-i18n="menu.language">Language</span>
+          <span id="langSelect"></span>
+        </div>
       </div>
     </div>
     <span class="brand-icon">🎅</span>
     <div class="brand-text">
       <div class="brand-title">Santa Factory</div>
-      <div class="brand-sub">Elf Manager</div>
+      <div class="brand-sub" data-i18n="hud.brandSub">Elf Manager</div>
     </div>
   </div>
 
@@ -28,7 +32,7 @@
       <div class="res-main">
         <span class="res-icon">🎁</span>
         <div class="res-info">
-          <span class="res-label">Gifts</span>
+          <span class="res-label" data-i18n="hud.gifts">Gifts</span>
           <strong class="res-value" id="hudGifts">0</strong>
         </div>
       </div>
@@ -44,7 +48,7 @@
       <div class="res-main">
         <span class="res-icon">💰</span>
         <div class="res-info">
-          <span class="res-label">Money</span>
+          <span class="res-label" data-i18n="hud.money">Money</span>
           <strong class="res-value" id="hudMoney">$0</strong>
         </div>
       </div>
@@ -55,7 +59,7 @@
       <div class="res-main">
         <span class="res-icon">🧝</span>
         <div class="res-info">
-          <span class="res-label">Elves</span>
+          <span class="res-label" data-i18n="hud.elves">Elves</span>
           <strong class="res-value" id="hudElves">0</strong>
         </div>
       </div>
@@ -72,26 +76,26 @@
   <div class="hud-season">
     <span class="season-icon" id="hudTimeIcon">🌅</span>
     <div class="season-info">
-      <span class="season-day">Day <strong id="hudDay">1</strong> <span class="season-total">/ 365</span> · <span id="hudTimeOfDay" class="season-tod">Morning</span></span>
+      <span class="season-day"><span data-i18n="clock.day">Day</span> <strong id="hudDay">1</strong> <span class="season-total">/ 365</span> · <span id="hudTimeOfDay" class="season-tod">Morning</span></span>
       <div class="season-progress">
         <div id="timeBarFill" class="season-progress-fill"></div>
       </div>
     </div>
     <div class="season-countdown" title="Days until Christmas">
       <span class="countdown-num" id="hudDaysLeft">364</span>
-      <span class="countdown-label">🎄 to go</span>
+      <span class="countdown-label" data-i18n="clock.toGo">🎄 to go</span>
     </div>
   </div>
 </header>
 
 <main class="main-content">
   <nav class="tab-nav">
-    <button class="tab-btn active" data-tab="click">🖱️ Click</button>
-    <button class="tab-btn" data-tab="factory">🏭 Factory<span id="factoryBadge" class="tab-badge" hidden>0</span></button>
-    <button class="tab-btn" data-tab="shop">🛠️ Upgrades</button>
-    <button class="tab-btn" data-tab="storage">📦 Storage</button>
-    <button class="tab-btn" data-tab="orders">📋 Orders<span id="ordersBadge" class="tab-badge" hidden>0</span></button>
-    <button class="tab-btn" data-tab="metrics">📊 Metrics</button>
+    <button class="tab-btn active" data-tab="click"><span data-i18n="tab.click">🖱️ Click</span></button>
+    <button class="tab-btn" data-tab="factory"><span data-i18n="tab.factory">🏭 Factory</span><span id="factoryBadge" class="tab-badge" hidden>0</span></button>
+    <button class="tab-btn" data-tab="shop"><span data-i18n="tab.upgrades">🛠️ Upgrades</span></button>
+    <button class="tab-btn" data-tab="storage"><span data-i18n="tab.storage">📦 Storage</span></button>
+    <button class="tab-btn" data-tab="orders"><span data-i18n="tab.orders">📋 Orders</span><span id="ordersBadge" class="tab-badge" hidden>0</span></button>
+    <button class="tab-btn" data-tab="metrics"><span data-i18n="tab.metrics">📊 Metrics</span></button>
   </nav>
 
   <!-- Each page (ui/pages/*) mounts its panel here -->
@@ -99,7 +103,7 @@
 </main>
 
 <footer class="footer">
-  <span class="status-label">Status:</span>
+  <span class="status-label" data-i18n="footer.status">Status:</span>
   <span id="statusText" class="status-text">Ready.</span>
 </footer>
 

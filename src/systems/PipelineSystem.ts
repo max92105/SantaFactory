@@ -17,9 +17,9 @@ import {
   getBrokenStock,
   removeBroken,
 } from "../helpers/inventoryHelpers";
-import { pipelineSteps, getPipelineStep, type PipelineStepDef, type ProductionStage } from "../config/pipelineConfig";
+import { pipelineSteps, type PipelineStepDef, type ProductionStage } from "../config/pipelineConfig";
 import { toyTypes } from "../config/toyTypesConfig";
-import { currentShiftSlot, getShiftSlot } from "../config/shiftsConfig";
+import { currentShiftSlot } from "../config/shiftsConfig";
 import { isToyUnlocked } from "../helpers/unlockHelpers";
 import {
   assignElves as assignElvesToStep,
@@ -30,10 +30,11 @@ import {
   slotMistakeChance,
   slotBreakChance,
 } from "../helpers/workforceHelpers";
-import { pluralizeElves } from "../helpers/textHelpers";
 import { isStationBroken, setStationBroken, brokenStepIds } from "../helpers/stationHelpers";
 import { STATION_REPAIR_COST, MAINTENANCE_STEP, REPAIR_STEP } from "../config/stationsConfig";
 import { getElfType } from "../config/elfTypesConfig";
+import { t } from "../ui/i18n/i18n";
+import { stepName, elfName, slotName } from "../ui/i18n/localize";
 import type { Modifiers } from "./ModifierSystem";
 
 export type StepProgress = {
@@ -137,7 +138,7 @@ export function createPipelineSystem() {
           setStationBroken(state, step.id, true);
           progressAccum[step.id] = 0;
           repairProgress[step.id] = 0;
-          state.pendingAlerts.push(`🔧 ${step.name} broke down! Repair it or let a mechanic fix it.`);
+          state.pendingAlerts.push(t("sys.stationBroke", { name: stepName(step.id) }));
           break;
         }
 
@@ -238,7 +239,7 @@ export function createPipelineSystem() {
       if ((repairProgress[stepId] ?? 0) >= 1) {
         setStationBroken(state, stepId, false);
         repairProgress[stepId] = 0;
-        state.meta.statusText = `${getPipelineStep(stepId)?.name ?? "Station"} repaired by your mechanics.`;
+        state.meta.statusText = t("sys.mechRepaired", { name: stepName(stepId) });
       }
     }
   }
@@ -257,22 +258,22 @@ export function createPipelineSystem() {
   function setQueueMode(state: GameState, stepId: string, mode: QueueMode, focus?: string): void {
     if (!state.pipeline) state.pipeline = { queueModes: {} };
     state.pipeline.queueModes[stepId] = mode === "focus" ? { mode, focus } : { mode };
-    const label = mode === "focus" ? `focus ${focus ?? ""}`.trim() : mode;
-    state.meta.statusText = `${getPipelineStep(stepId)?.name ?? "Station"} queue set to ${label}.`;
+    const modeLabel =
+      mode === "focus" ? t("factory.queueFocus") : mode === "balanced" ? t("factory.queueBalanced") : t("factory.queueOrder");
+    state.meta.statusText = t("sys.queueSet", { name: stepName(stepId), mode: modeLabel });
   }
 
   /** Pay to repair a broken station instantly. Returns false if not broken/unaffordable. */
   function repairStation(state: GameState, stepId: string): boolean {
     if (!isStationBroken(state, stepId)) return false;
     if (state.resources.money < STATION_REPAIR_COST) {
-      state.meta.statusText = `Not enough money to repair (need $${STATION_REPAIR_COST}).`;
+      state.meta.statusText = t("sys.repairNoMoney", { cost: `$${STATION_REPAIR_COST}` });
       return false;
     }
     state.resources.money -= STATION_REPAIR_COST;
     setStationBroken(state, stepId, false);
     repairProgress[stepId] = 0;
-    const name = getPipelineStep(stepId)?.name ?? "Station";
-    state.meta.statusText = `${name} repaired for $${STATION_REPAIR_COST}.`;
+    state.meta.statusText = t("sys.repairPaid", { name: stepName(stepId), cost: `$${STATION_REPAIR_COST}` });
     return true;
   }
 
@@ -289,17 +290,20 @@ export function createPipelineSystem() {
     const n = assignElvesToStep(state, elfTypeId, stepId, slots, count);
     if (n <= 0) return 0;
 
-    const name = getElfType(elfTypeId)?.name ?? "elf";
-    const where = step?.name ?? (stepId === REPAIR_STEP ? "Repair Bench" : "Maintenance");
-    const slotNames = slots.map((s) => getShiftSlot(s)?.name ?? s).join(", ");
-    state.meta.statusText = `Scheduled ${n} ${pluralizeElves(n)} (${name}) on ${where} (${slotNames}).`;
+    const where = step
+      ? stepName(step.id)
+      : stepId === REPAIR_STEP
+      ? t("factory.repairBench")
+      : t("factory.maintenance");
+    const slotNames = slots.map((s) => slotName(s)).join(", ");
+    state.meta.statusText = t("sys.scheduled", { n, name: elfName(elfTypeId), where, slots: slotNames });
     return n;
   }
 
   /** Send a batch of elves home (spent until tomorrow). */
   function removeElves(state: GameState, ids: number[]): number {
     const n = removeElvesFromState(state, ids);
-    if (n > 0) state.meta.statusText = `Sent ${n} ${pluralizeElves(n)} home — idle until tomorrow.`;
+    if (n > 0) state.meta.statusText = t("sys.sentHome", { n });
     return n;
   }
 

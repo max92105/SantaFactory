@@ -7,9 +7,10 @@
 import "./grinchCard.css";
 
 import type { GameState, GrinchThreat } from "../../state/GameState";
-import { getToyType } from "../../config/toyTypesConfig";
 import { getSellableStock } from "../../helpers/inventoryHelpers";
 import { formatInt, formatMoney } from "../../helpers/formatHelpers";
+import { t } from "../i18n/i18n";
+import { toyName, toyIcon } from "../i18n/localize";
 
 const CARD_CLASS = "grinch-card";
 
@@ -25,7 +26,6 @@ export function removeGrinchCard(): void {
 
 export function showGrinchCard(threat: GrinchThreat, handlers: GrinchHandlers): void {
   removeGrinchCard();
-  const toy = getToyType(threat.demandToy);
 
   const card = document.createElement("div");
   card.className = CARD_CLASS;
@@ -33,15 +33,15 @@ export function showGrinchCard(threat: GrinchThreat, handlers: GrinchHandlers): 
     <div class="grinch-head">
       <span class="grinch-face">😈</span>
       <div class="grinch-head-text">
-        <div class="grinch-name">The Grinch <span class="grinch-secs" data-grinch-secs>—</span></div>
-        <div class="grinch-taunt">${threat.taunt}</div>
+        <div class="grinch-name">${t("grinch.name")} <span class="grinch-secs" data-grinch-secs>—</span></div>
+        <div class="grinch-taunt">${t(threat.taunt)}</div>
       </div>
     </div>
-    <div class="grinch-threat">Loots <strong>${Math.round(threat.stealPct * 100)}%</strong> of your gifts when the timer hits zero.</div>
+    <div class="grinch-threat">${t("grinch.threat", { pct: Math.round(threat.stealPct * 100) })}</div>
     <div class="grinch-actions">
       <button class="grinch-btn grinch-pay" data-grinch-pay type="button"></button>
       <button class="grinch-btn grinch-give" data-grinch-give type="button">
-        <span class="grinch-give-main">Give ${toy?.icon ?? "🎁"} <span data-grinch-progress>0</span>/${formatInt(threat.demandQty)}</span>
+        <span class="grinch-give-main">${t("grinch.give")} ${toyIcon(threat.demandToy)} <span data-grinch-progress>0</span>/${formatInt(threat.demandQty)}</span>
         <span class="grinch-give-sub" data-grinch-have></span>
       </button>
     </div>
@@ -66,7 +66,7 @@ export function updateGrinchCard(state: GameState): void {
 
   const pay = card.querySelector<HTMLButtonElement>("[data-grinch-pay]");
   if (pay) {
-    pay.textContent = `Pay ${formatMoney(g.toll)}`;
+    pay.textContent = t("grinch.pay", { toll: formatMoney(g.toll) });
     pay.disabled = state.resources.money < g.toll;
   }
 
@@ -74,7 +74,7 @@ export function updateGrinchCard(state: GameState): void {
   const progressEl = card.querySelector<HTMLElement>("[data-grinch-progress]");
   if (progressEl) progressEl.textContent = formatInt(g.demandDelivered);
   const haveEl = card.querySelector<HTMLElement>("[data-grinch-have]");
-  if (haveEl) haveEl.textContent = `${formatInt(stock)} in stock`;
+  if (haveEl) haveEl.textContent = t("grinch.have", { n: formatInt(stock), name: toyName(g.demandToy) });
   const give = card.querySelector<HTMLButtonElement>("[data-grinch-give]");
   if (give) give.disabled = stock <= 0;
 }

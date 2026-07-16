@@ -7,6 +7,8 @@
 import type { GameState } from "../state/GameState";
 import { slotKey, LEGACY_SAVE_KEY, SLOT_COUNT } from "../config/saveConfig";
 import { createInitialState } from "../state/GameState";
+import { GRINCH_MIN_GAP_DAYS } from "../config/grinchConfig";
+import { SECONDS_PER_GAME_DAY } from "../config/timeConfig";
 
 /** Lightweight summary shown on the main-menu slot cards (no full load). */
 export type SlotSummary = {
@@ -89,6 +91,17 @@ export function createSaveSystem() {
           current: parsed.grand?.current ?? null,
           seen: Array.isArray(parsed.grand?.seen) ? parsed.grand.seen : [],
         },
+        // Older saves have no Christmas Order — ChristmasSystem.ensureInit
+        // generates it on load, so mid-run saves get their endgame too.
+        christmas: {
+          lines: Array.isArray(parsed.christmas?.lines)
+            ? parsed.christmas.lines.map((l: any) => ({
+                toyType: String(l?.toyType ?? "plushy"),
+                quantity: typeof l?.quantity === "number" ? l.quantity : 0,
+                delivered: typeof l?.delivered === "number" ? l.delivered : 0,
+              }))
+            : [],
+        },
         events: {
           pending: null, // never restore a mid-event freeze
           active: Array.isArray(parsed.events?.active) ? parsed.events.active : [],
@@ -97,7 +110,12 @@ export function createSaveSystem() {
         grinch: {
           // The heist resumes from its saved countdown (no dodging by reloading).
           active: parsed.grinch?.active ?? null,
-          daysSince: typeof parsed.grinch?.daysSince === "number" ? parsed.grinch.daysSince : 0,
+          // New real-time cooldown; migrate old day-based saves (daysSince) into
+          // the seconds still left on their warm-up.
+          cooldownSeconds:
+            typeof parsed.grinch?.cooldownSeconds === "number"
+              ? parsed.grinch.cooldownSeconds
+              : Math.max(0, (GRINCH_MIN_GAP_DAYS - (parsed.grinch?.daysSince ?? 0)) * SECONDS_PER_GAME_DAY),
         },
         pipeline: { queueModes: { ...(parsed.pipeline?.queueModes ?? {}) } },
         owned: {
@@ -126,6 +144,10 @@ export function createSaveSystem() {
 
       if (typeof state.meta.lastWageResult !== "string") {
         state.meta.lastWageResult = "—";
+      }
+
+      if (state.meta.runOutcome !== "won" && state.meta.runOutcome !== "lost") {
+        state.meta.runOutcome = null;
       }
 
       // Runtime-only fields: never replay stale alerts; ensure stations exists.

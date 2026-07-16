@@ -33,6 +33,9 @@ import { getToyType, type ToyTypeDef } from "../config/toyTypesConfig";
 import { getUnlockedToyTypes } from "../helpers/unlockHelpers";
 import { removeFromStage } from "../helpers/inventoryHelpers";
 import { deliverableToLine, orderRemaining, isOrderComplete } from "../helpers/orderHelpers";
+import { formatMoney } from "../helpers/formatHelpers";
+import { t } from "../ui/i18n/i18n";
+import { toyName, grandOrderName } from "../ui/i18n/localize";
 
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -82,7 +85,7 @@ export function createOrdersSystem() {
 
   /** "20× Plushy, 15× Rubik's Cube" — for status text and alerts. */
   function linesText(order: { lines: OrderLine[] }): string {
-    return order.lines.map((l) => `${l.quantity}× ${getToyType(l.toyType)?.name ?? "toy"}`).join(", ");
+    return order.lines.map((l) => `${l.quantity}× ${toyName(l.toyType)}`).join(", ");
   }
 
   function makeOrder(state: GameState, tpl: OrderTemplate, unlocked: ToyTypeDef[], event: GameEvent | undefined): Order {
@@ -162,8 +165,8 @@ export function createOrdersSystem() {
     const g = state.grand.current;
     if (g && state.time.day > g.deadlineDay) {
       state.grand.current = null;
-      state.meta.statusText = `${g.icon} ${g.name} grand order missed — the stores took their business elsewhere.`;
-      state.pendingAlerts.push(`${g.icon} ${g.name} grand order missed — no reward this time.`);
+      state.meta.statusText = t("sys.grandMissed", { icon: g.icon, name: grandOrderName(g.defId) });
+      state.pendingAlerts.push(t("sys.grandMissedAlert", { icon: g.icon, name: grandOrderName(g.defId) }));
     }
 
     if (state.grand.current) return; // one at a time
@@ -183,11 +186,14 @@ export function createOrdersSystem() {
     state.grand.seen.push(def.id);
     const daysLeft = def.day - state.time.day;
     state.pendingAlerts.push(
-      `${def.icon} ${def.name} is coming! Stores worldwide placed a GIANT order — ${daysLeft} day${
-        daysLeft === 1 ? "" : "s"
-      } to prepare. Reward: $${order.reward}`
+      t("sys.grandComing", { icon: def.icon, name: grandOrderName(def.id), days: daysLeft, reward: formatMoney(order.reward) })
     );
-    state.meta.statusText = `${def.icon} Grand order: ${def.name} — deliver everything by day ${def.day} for +$${order.reward}!`;
+    state.meta.statusText = t("sys.grandAnnounce", {
+      icon: def.icon,
+      name: grandOrderName(def.id),
+      day: def.day,
+      reward: formatMoney(order.reward),
+    });
   }
 
   /**
@@ -209,7 +215,7 @@ export function createOrdersSystem() {
         if (o.secondsLeft <= 0 && !isOrderComplete(o)) {
           changed = true;
           if (kind === "active") {
-            state.meta.statusText = `⚡ Rush order expired — ${orderRemaining(o)} undelivered.`;
+            state.meta.statusText = t("sys.rushExpired", { n: orderRemaining(o) });
           }
           continue; // expired → drop it
         }
@@ -234,9 +240,9 @@ export function createOrdersSystem() {
 
         const summary = linesText(order);
         state.pendingAlerts.push(
-          `⚡ Rush order! ${summary} — ${Math.round(order.secondsLeft)}s, pays $${order.reward}`
+          t("sys.rushAlert", { lines: summary, secs: Math.round(order.secondsLeft), reward: formatMoney(order.reward) })
         );
-        state.meta.statusText = `⚡ Rush order in! ${summary} — deliver fast.`;
+        state.meta.statusText = t("sys.rushIn", { lines: summary });
         changed = true;
       }
     }
@@ -265,7 +271,7 @@ export function createOrdersSystem() {
         return true;
       });
       if (expired > 0) {
-        state.meta.statusText = `${expired} order${expired > 1 ? "s" : ""} expired undelivered.`;
+        state.meta.statusText = t("sys.ordersExpired", { n: expired });
       }
     }
 
@@ -283,7 +289,7 @@ export function createOrdersSystem() {
   /** Accept an offered order (moves it to active), if under the active cap. */
   function acceptOrder(state: GameState, orderId: number): boolean {
     if (state.orders.active.length >= MAX_ACTIVE_ORDERS) {
-      state.meta.statusText = `You can't take on more than ${MAX_ACTIVE_ORDERS} orders at once.`;
+      state.meta.statusText = t("sys.ordersMax", { n: MAX_ACTIVE_ORDERS });
       return false;
     }
     const idx = state.orders.offers.findIndex((o) => o.id === orderId);
@@ -292,14 +298,14 @@ export function createOrdersSystem() {
     const [order] = state.orders.offers.splice(idx, 1);
     state.orders.active.push(order);
 
-    state.meta.statusText = `Accepted order: ${linesText(order)} for $${order.reward}.`;
+    state.meta.statusText = t("sys.orderAccepted", { lines: linesText(order), reward: formatMoney(order.reward) });
     return true;
   }
 
   /** Common tail for a delivery: pay + clear if complete, else report progress. */
   function settleDelivery(state: GameState, order: Order, gave: number): boolean {
     if (gave <= 0) {
-      state.meta.statusText = `Nothing delivered — pick an amount you have in stock.`;
+      state.meta.statusText = t("sys.orderNothing");
       return false;
     }
     if (isOrderComplete(order)) {
@@ -307,13 +313,11 @@ export function createOrdersSystem() {
       state.dayStats.moneyEarned += order.reward;
       state.stats.ordersCompleted += 1;
       state.orders.active = state.orders.active.filter((o) => o.id !== order.id);
-      state.meta.statusText = `Order complete! ${linesText(order)} for +$${order.reward}.`;
+      state.meta.statusText = t("sys.orderComplete", { lines: linesText(order), reward: formatMoney(order.reward) });
       state.pendingCelebrations.push({ amount: order.reward });
     } else {
       const linesLeft = order.lines.filter((l) => l.delivered < l.quantity).length;
-      state.meta.statusText = `Delivered ${gave} — ${orderRemaining(order)} to go across ${linesLeft} toy${
-        linesLeft === 1 ? "" : "s"
-      }.`;
+      state.meta.statusText = t("sys.orderPartial", { n: gave, left: orderRemaining(order), toys: linesLeft });
     }
     return true;
   }
@@ -373,7 +377,7 @@ export function createOrdersSystem() {
     }
 
     if (gave <= 0) {
-      state.meta.statusText = `Nothing delivered — pick an amount you have in stock.`;
+      state.meta.statusText = t("sys.orderNothing");
       return false;
     }
 
@@ -382,14 +386,12 @@ export function createOrdersSystem() {
       state.dayStats.moneyEarned += g.reward;
       state.stats.ordersCompleted += 1;
       state.grand.current = null;
-      state.meta.statusText = `🎉 ${g.name} grand order COMPLETE! Huge payday: +$${g.reward}.`;
-      state.pendingAlerts.push(`🎉 ${g.icon} ${g.name} complete! +$${g.reward}`);
+      state.meta.statusText = t("sys.grandComplete", { name: grandOrderName(g.defId), reward: formatMoney(g.reward) });
+      state.pendingAlerts.push(t("sys.grandCompleteAlert", { icon: g.icon, name: grandOrderName(g.defId), reward: formatMoney(g.reward) }));
       state.pendingCelebrations.push({ amount: g.reward, grand: true });
     } else {
       const linesLeft = g.lines.filter((l) => l.delivered < l.quantity).length;
-      state.meta.statusText = `Grand order: delivered ${gave} — ${orderRemaining(g)} to go across ${linesLeft} toy${
-        linesLeft === 1 ? "" : "s"
-      }.`;
+      state.meta.statusText = t("sys.grandPartial", { n: gave, left: orderRemaining(g), toys: linesLeft });
     }
     return true;
   }

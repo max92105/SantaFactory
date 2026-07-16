@@ -7,22 +7,22 @@
       <button class="shop-cat active" data-shop="toys">
         <span class="shop-cat-icon">🧸</span>
         <span class="shop-cat-text">
-          <span class="shop-cat-name">New Toys</span>
-          <span class="shop-cat-sub">Unlock lines to produce</span>
+          <span class="shop-cat-name" data-i18n="shop.toys">New Toys</span>
+          <span class="shop-cat-sub" data-i18n="shop.catSubToys">Unlock lines to produce</span>
         </span>
       </button>
       <button class="shop-cat" data-shop="hiring">
         <span class="shop-cat-icon">🧝</span>
         <span class="shop-cat-text">
-          <span class="shop-cat-name">Hiring</span>
-          <span class="shop-cat-sub">Grow your workforce</span>
+          <span class="shop-cat-name" data-i18n="shop.hiring">Hiring</span>
+          <span class="shop-cat-sub" data-i18n="shop.catSubHiring">Grow your workforce</span>
         </span>
       </button>
       <button class="shop-cat" data-shop="upgrades">
         <span class="shop-cat-icon">⬆️</span>
         <span class="shop-cat-text">
-          <span class="shop-cat-name">Upgrades</span>
-          <span class="shop-cat-sub">Permanent boosts</span>
+          <span class="shop-cat-name" data-i18n="shop.upgrades">Upgrades</span>
+          <span class="shop-cat-sub" data-i18n="shop.catSubUpgrades">Permanent boosts</span>
         </span>
       </button>
     </aside>
@@ -31,7 +31,7 @@
     <section class="shop-content">
       <div class="shop-content-head">
         <h2 class="shop-content-title" id="shopContentTitle">New Toys</h2>
-        <input id="shopSearch" class="shop-search" type="search" placeholder="Search toys…" autocomplete="off" />
+        <input id="shopSearch" class="shop-search" type="search" data-i18n-ph="shop.searchToys" placeholder="Search toys…" autocomplete="off" />
       </div>
 
       <div class="shop-view active" data-shop="toys">
@@ -44,7 +44,7 @@
         <div id="upgradesList" class="shop-list"></div>
       </div>
 
-      <div id="shopEmpty" class="shop-empty" hidden>No matches.</div>
+      <div id="shopEmpty" class="shop-empty" hidden data-i18n="shop.empty">No matches.</div>
     </section>
   </div>
 </div>

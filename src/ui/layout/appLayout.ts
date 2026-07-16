@@ -17,6 +17,9 @@ import { spawnToast } from "../components/toast";
 import { spawnCelebration } from "../components/celebration";
 import { showEventModal, removeEventModal, eventModalOpen } from "../components/eventModal";
 import { showGrinchCard, updateGrinchCard, removeGrinchCard, grinchCardOpen } from "../components/grinchCard";
+import { createLangSelect } from "../components/langSelect";
+import { t, applyTranslations } from "../i18n/i18n";
+import { toyLabel, elfName } from "../i18n/localize";
 import { isMuted, toggleMute, playCash } from "../audio";
 import { formatInt, formatMoney } from "../../helpers/formatHelpers";
 
@@ -36,6 +39,17 @@ export function mountAppLayout(root: HTMLElement): void {
 /** Wire menu, tab switching, gifts dropdown and save/load/reset. */
 export function bindAppLayout(ctx: GameContext): void {
   const { dom } = ctx;
+
+  // Fill static markup for the current language, and mount the EN/FR toggle.
+  applyTranslations(document);
+  dom.langSelect.innerHTML = "";
+  dom.langSelect.appendChild(
+    createLangSelect(() => {
+      applyTranslations(document);
+      dom.muteBtn.textContent = muteLabel();
+      ctx.rebuildUI();
+    })
+  );
 
   // Main tabs
   dom.tabButtons.forEach((btn) => {
@@ -114,7 +128,7 @@ export function bindAppLayout(ctx: GameContext): void {
 }
 
 function muteLabel(): string {
-  return isMuted() ? "🔇 Music: off" : "🔊 Music: on";
+  return isMuted() ? t("menu.musicOff") : t("menu.musicOn");
 }
 
 /** Per-frame refresh of the HUD (resources, gift breakdown, time) and status bar. */
@@ -130,13 +144,13 @@ export function renderAppLayout(ctx: GameContext, views: FrameViews): void {
   dom.giftsDropdown.innerHTML = "";
   const header = document.createElement("div");
   header.className = "dropdown-header";
-  header.textContent = "Gifts in stock";
+  header.textContent = t("hud.giftsInStock");
   dom.giftsDropdown.appendChild(header);
-  for (const t of getUnlockedToyTypes(state)) {
-    const inv = ensureInventory(state, t.id);
+  for (const toy of getUnlockedToyTypes(state)) {
+    const inv = ensureInventory(state, toy.id);
     const item = document.createElement("div");
     item.className = "dropdown-item";
-    item.innerHTML = `<span>${t.icon} ${t.name}</span><strong>${formatInt(inv.finished)}</strong>`;
+    item.innerHTML = `<span>${toyLabel(toy.id)}</span><strong>${formatInt(inv.finished)}</strong>`;
     dom.giftsDropdown.appendChild(item);
   }
 
@@ -144,32 +158,35 @@ export function renderAppLayout(ctx: GameContext, views: FrameViews): void {
   dom.elvesDropdown.innerHTML = "";
   const elvesHeader = document.createElement("div");
   elvesHeader.className = "dropdown-header";
-  elvesHeader.textContent = "Elves by type";
+  elvesHeader.textContent = t("hud.elvesByType");
   dom.elvesDropdown.appendChild(elvesHeader);
 
   const owned = ownedElfTypes(state);
   if (owned.length === 0) {
     const empty = document.createElement("div");
     empty.className = "dropdown-item dropdown-empty";
-    empty.textContent = "No elves hired yet";
+    empty.textContent = t("hud.noElves");
     dom.elvesDropdown.appendChild(empty);
   } else {
-    for (const t of owned) {
+    for (const elf of owned) {
       const item = document.createElement("div");
       item.className = "dropdown-item";
-      item.innerHTML = `<span>${t.icon} ${t.name}</span><strong>${formatInt(countOfType(state, t.id))}</strong>`;
+      item.innerHTML = `<span>${elf.icon} ${elfName(elf.id)}</span><strong>${formatInt(countOfType(state, elf.id))}</strong>`;
       dom.elvesDropdown.appendChild(item);
     }
     const slot = currentShiftSlot(state.time.dayProgress);
     const footer = document.createElement("div");
     footer.className = "dropdown-footer";
-    footer.textContent = `${formatInt(onShiftCount(state, slot))} on shift now · ${formatInt(totalIdle(state))} idle`;
+    footer.textContent = t("hud.onShiftIdle", {
+      on: formatInt(onShiftCount(state, slot)),
+      idle: formatInt(totalIdle(state)),
+    });
     dom.elvesDropdown.appendChild(footer);
   }
 
-  // Season clock
+  // Season clock (icon keyed by the canonical English label; text localized)
   dom.hudDay.textContent = String(views.time.day);
-  dom.hudTimeOfDay.textContent = views.time.timeOfDayLabel;
+  dom.hudTimeOfDay.textContent = t(`tod.${views.time.timeOfDayLabel}`);
   dom.hudTimeIcon.textContent = TIME_OF_DAY_ICON[views.time.timeOfDayLabel] ?? "⏰";
   dom.hudDaysLeft.textContent = String(Math.max(0, views.time.seasonDays - views.time.day));
   dom.timeBarFill.style.width = `${Math.floor(views.time.dayProgress * 100)}%`;

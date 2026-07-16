@@ -21,19 +21,24 @@ import { getElfCost } from "../../../helpers/costHelpers";
 import { countOfType } from "../../../helpers/workforceHelpers";
 import { isToyUnlocked } from "../../../helpers/unlockHelpers";
 import { formatCost, formatMoneyPrecise } from "../../../helpers/formatHelpers";
+import { t } from "../../i18n/i18n";
+import {
+  toyName,
+  elfName,
+  elfDesc,
+  elfCategoryName,
+  elfCategoryDesc,
+  upgradeName,
+  upgradeDesc,
+} from "../../i18n/localize";
 
 type Category = "toys" | "hiring" | "upgrades";
 
-const CATEGORY_TITLE: Record<Category, string> = {
-  toys: "New Toys",
-  hiring: "Hiring",
-  upgrades: "Upgrades",
-};
-
+const CATEGORY_TITLE: Record<Category, string> = { toys: "shop.toys", hiring: "shop.hiring", upgrades: "shop.upgrades" };
 const CATEGORY_PLACEHOLDER: Record<Category, string> = {
-  toys: "Search toys…",
-  hiring: "Search elves…",
-  upgrades: "Search upgrades…",
+  toys: "shop.searchToys",
+  hiring: "shop.searchElves",
+  upgrades: "shop.searchUpgrades",
 };
 
 export function createShopPage(): Page {
@@ -50,8 +55,8 @@ export function createShopPage(): Page {
   function applyView(ctx: GameContext): void {
     ctx.dom.shopCats.forEach((b) => b.classList.toggle("active", b.dataset.shop === activeCategory));
     ctx.dom.shopViews.forEach((v) => v.classList.toggle("active", v.dataset.shop === activeCategory));
-    ctx.dom.shopContentTitle.textContent = CATEGORY_TITLE[activeCategory];
-    ctx.dom.shopSearch.placeholder = CATEGORY_PLACEHOLDER[activeCategory];
+    ctx.dom.shopContentTitle.textContent = t(CATEGORY_TITLE[activeCategory]);
+    ctx.dom.shopSearch.placeholder = t(CATEGORY_PLACEHOLDER[activeCategory]);
   }
 
   /** Hide rows in the active list that don't match the search; toggle empty state. */
@@ -152,14 +157,12 @@ function buildToysList(ctx: GameContext): void {
 
     const row = buildShopRow({
       icon: def.icon,
-      title: def.name,
-      tag: unlocked ? "unlocked" : undefined,
-      sub: unlocked
-        ? "In production — craft it by hand or assign elves to its line."
-        : "Unlock this toy line to produce and sell it.",
-      meta: `Sells for ${formatMoneyPrecise(def.baseSellValue)} each (base)`,
-      searchKey: def.name,
-      buttonLabel: unlocked ? "Unlocked" : `Unlock (${formatCost(def.unlockCost)})`,
+      title: toyName(def.id),
+      tag: unlocked ? t("shop.unlocked") : undefined,
+      sub: unlocked ? t("shop.inProduction") : t("shop.unlockToy"),
+      meta: t("shop.sellsFor", { value: formatMoneyPrecise(def.baseSellValue) }),
+      searchKey: `${toyName(def.id)} ${def.name}`,
+      buttonLabel: unlocked ? t("shop.unlockedBtn") : t("shop.unlockBtn", { cost: formatCost(def.unlockCost) }),
       disabled: unlocked || state.resources.money < def.unlockCost,
       onBuy: unlocked
         ? undefined
@@ -195,8 +198,8 @@ function buildElvesList(ctx: GameContext): void {
     const header = document.createElement("div");
     header.className = "shop-group";
     header.innerHTML = `
-      <span class="shop-group-name">${cat.name}</span>
-      <span class="shop-group-desc">${cat.description}</span>
+      <span class="shop-group-name">${elfCategoryName(cat.id)}</span>
+      <span class="shop-group-desc">${elfCategoryDesc(cat.id)}</span>
     `;
     ctx.dom.elvesList.appendChild(header);
 
@@ -215,19 +218,19 @@ function buildElfRow(ctx: GameContext, def: ElfTypeDef): HTMLDivElement {
   const isSpecialist = def.role === "mechanic" || def.role === "mender";
   const row = document.createElement("div");
   row.className = "shop-row elf-row" + (isSpecialist ? " mechanic" : "");
-  row.dataset.name = `${def.name} ${def.description}`.toLowerCase();
+  row.dataset.name = `${elfName(def.id)} ${elfDesc(def.id)} ${def.name}`.toLowerCase();
   row.dataset.elfType = def.id;
 
   const wageStat = `
     <div class="elf-stat">
-      <span class="elf-stat-label">💰 Wage</span>
-      <span class="elf-stat-value wage">$${def.dailyWage}/day</span>
+      <span class="elf-stat-label">${t("shop.wage")}</span>
+      <span class="elf-stat-value wage">${t("shop.wagePerDay", { n: `$${def.dailyWage}` })}</span>
     </div>`;
   const shiftStat = `
     <div class="elf-stat">
-      <span class="elf-stat-label">⏰ Shifts</span>
-      <span class="elf-stat-value shifts">${def.maxShifts}/day</span>
-      <span class="elf-stat-sub ${def.canWorkNight ? "" : "warn"}">${def.canWorkNight ? "any slot" : "no nights"}</span>
+      <span class="elf-stat-label">${t("shop.shifts")}</span>
+      <span class="elf-stat-value shifts">${t("shop.shiftsPerDay", { n: def.maxShifts })}</span>
+      <span class="elf-stat-sub ${def.canWorkNight ? "" : "warn"}">${def.canWorkNight ? t("shop.anySlot") : t("shop.noNights")}</span>
     </div>`;
 
   // Specialists show their speed; workers show ruin + break chances.
@@ -235,30 +238,30 @@ function buildElfRow(ctx: GameContext, def: ElfTypeDef): HTMLDivElement {
     def.role === "mechanic"
       ? `
     <div class="elf-stat">
-      <span class="elf-stat-label">🛠️ Repairs in</span>
+      <span class="elf-stat-label">${t("shop.repairsIn")}</span>
       <span class="elf-stat-value repair">${def.repairTime}s</span>
     </div>`
       : def.role === "mender"
       ? `
     <div class="elf-stat">
-      <span class="elf-stat-label">🪡 Mends toy in</span>
+      <span class="elf-stat-label">${t("shop.mendsIn")}</span>
       <span class="elf-stat-value repair">${def.refurbishTime}s</span>
     </div>`
       : `
     <div class="elf-stat">
-      <span class="elf-stat-label">🎁 Ruins gifts</span>
+      <span class="elf-stat-label">${t("shop.ruinsGifts")}</span>
       <span class="elf-stat-value ruin">${formatPct(def.mistakeChance)}</span>
     </div>
     <div class="elf-stat">
-      <span class="elf-stat-label">🔧 Breaks station</span>
+      <span class="elf-stat-label">${t("shop.breaksStation")}</span>
       <span class="elf-stat-value break">${formatPct(def.breakChance)}</span>
     </div>`;
 
   row.innerHTML = `
     <div class="shop-row-icon">${def.icon}</div>
     <div class="elf-main">
-      <div class="shop-row-title">${def.name}</div>
-      <div class="shop-row-sub">${def.description}</div>
+      <div class="shop-row-title">${elfName(def.id)}</div>
+      <div class="shop-row-sub">${elfDesc(def.id)}</div>
     </div>
     ${wageStat}
     ${midStats}
@@ -267,7 +270,7 @@ function buildElfRow(ctx: GameContext, def: ElfTypeDef): HTMLDivElement {
 
   const btn = document.createElement("button");
   btn.className = "shop-buy-btn";
-  btn.textContent = `Hire (${formatCost(cost)})`;
+  btn.textContent = t("shop.hireBtn", { cost: formatCost(cost) });
   btn.disabled = state.resources.money < cost;
   btn.onclick = () => {
     ctx.systems.shop.buyElf(ctx.getState(), def.id);
@@ -289,14 +292,15 @@ function buildUpgradesList(ctx: GameContext): void {
 
     const owned = !!state.owned.upgrades[def.id];
 
+    const effectText = def.effect.type === "unlock" ? t("upgrade.effect.unlock") : describeUpgradeEffect(def.effect);
     const row = buildShopRow({
       icon: "⬆️",
-      title: def.name,
-      tag: owned ? "owned" : undefined,
-      sub: def.description,
-      meta: `Effect: ${describeUpgradeEffect(def.effect)}`,
-      searchKey: `${def.name} ${def.description}`,
-      buttonLabel: owned ? "Owned" : `Buy (${formatCost(def.cost)})`,
+      title: upgradeName(def.id),
+      tag: owned ? t("shop.owned") : undefined,
+      sub: upgradeDesc(def.id),
+      meta: t("shop.effect", { effect: effectText }),
+      searchKey: `${upgradeName(def.id)} ${upgradeDesc(def.id)} ${def.name}`,
+      buttonLabel: owned ? t("shop.ownedBtn") : t("shop.buyBtn", { cost: formatCost(def.cost) }),
       disabled: owned || state.resources.money < def.cost,
       onBuy: owned
         ? undefined

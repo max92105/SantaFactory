@@ -6,6 +6,7 @@
 import { SECONDS_PER_GAME_DAY, SEASON_DAYS } from "../config/timeConfig";
 import type { GameState } from "../state/GameState";
 import { clamp01 } from "../helpers/mathHelpers";
+import { t } from "../ui/i18n/i18n";
 
 export type TimeView = {
   day: number;
@@ -31,14 +32,14 @@ export function createTimeSystem() {
       dayEnded = true;
       state.time.day += 1;
       state.time.dayProgress = clamp01(next - 1);
-      state.meta.statusText = `Day ${state.time.day - 1} ended. Wages due.`;
+      state.meta.statusText = t("sys.dayEnded", { day: state.time.day - 1 });
     } else {
       state.time.dayProgress = next;
     }
 
     if (state.time.day > SEASON_DAYS) {
       state.meta.isRunOver = true;
-      state.meta.statusText = `Season over (Day ${SEASON_DAYS}). Final scoring screen comes next.`;
+      state.meta.statusText = t("sys.seasonOver", { n: SEASON_DAYS });
     }
 
     return { dayEnded };

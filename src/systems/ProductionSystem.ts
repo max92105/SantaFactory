@@ -7,8 +7,8 @@
 import type { GameState } from "../state/GameState";
 import { addToStage } from "../helpers/inventoryHelpers";
 import { isToyClickable } from "../helpers/unlockHelpers";
-import { getToyType } from "../config/toyTypesConfig";
-import { pluralize } from "../helpers/textHelpers";
+import { t } from "../ui/i18n/i18n";
+import { toyName } from "../ui/i18n/localize";
 import type { Modifiers } from "./ModifierSystem";
 
 export type ProductionView = {
@@ -25,14 +25,13 @@ export function createProductionSystem() {
   function makeClick(state: GameState, mods: Modifiers): number {
     const toyType = state.selectedClickToyType || "plushy";
     if (!isToyClickable(state, toyType)) {
-      const name = getToyType(toyType)?.name ?? "That toy";
-      state.meta.statusText = `${name} can't be hand-made — build it on the line (or buy its hand-build upgrade).`;
+      state.meta.statusText = t("click.status.locked", { name: toyName(toyType) });
       return 0;
     }
     const amount = getGiftsPerClick(state, mods);
     // addToStage with "finished" auto-increments lifetimeGifts + dayStats.giftsMade
     addToStage(state, toyType, "finished", amount);
-    state.meta.statusText = `Made ${amount} ${pluralize(amount, "gift")} by hand.`;
+    state.meta.statusText = t("click.status.made", { n: amount });
     return amount;
   }
 

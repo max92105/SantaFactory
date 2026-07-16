@@ -28,6 +28,14 @@
   opacity: 0.9;
 }
 
+/* Language toggle, top-right of the title screen */
+.menu-lang-corner {
+  position: absolute;
+  top: var(--space-lg);
+  right: var(--space-lg);
+  z-index: 1;
+}
+
 /* ── Hero ───────────────────────────────────────────────────────────────── */
 .menu-hero {
   text-align: center;

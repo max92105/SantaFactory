@@ -23,29 +23,44 @@
   gap: var(--space-md);
 }
 
+/* The arena: the button jumps to a random spot inside it on every click.
+   JS positions the button via --btn-x/--btn-y (its CENTER coordinates),
+   clamped so it can never poke outside. Sized to always fit on screen. */
 .click-area {
   position: relative;
-  display: grid;
-  place-items: center;
-  padding: var(--space-lg);
+  width: min(640px, calc(100vw - 2 * var(--space-lg)));
+  height: 320px;
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.015);
+  overflow: hidden;
 }
 
-/* Soft festive glow behind the button */
+/* Soft festive glow — follows the button */
 .click-area::before {
   content: "";
   position: absolute;
-  width: 280px;
-  height: 280px;
+  left: var(--btn-x, 50%);
+  top: var(--btn-y, 50%);
+  translate: -50% -50%;
+  width: 220px;
+  height: 220px;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(251, 191, 36, 0.16), transparent 68%);
   pointer-events: none;
 }
 
+/* Smaller and mobile: the button darts around, so it's a target, not a slab.
+   `translate` (not transform) centers it on --btn-x/--btn-y, leaving transform
+   free for the hover/active scale effects. */
 .click-btn {
-  position: relative;
-  width: 172px;
-  height: 172px;
-  font-size: 78px;
+  position: absolute;
+  left: var(--btn-x, 50%);
+  top: var(--btn-y, 50%);
+  translate: -50% -50%;
+  width: 110px;
+  height: 110px;
+  font-size: 48px;
   line-height: 1;
   background: radial-gradient(circle at 50% 38%, #1d2740, #0d1220);
   border: 1px solid var(--border-light);
@@ -231,5 +246,13 @@
 @media (max-width: 640px) {
   .toy-tray {
     justify-content: safe flex-start;
+  }
+  .click-area {
+    height: 260px;
+  }
+  .click-btn {
+    width: 92px;
+    height: 92px;
+    font-size: 40px;
   }
 }

@@ -12,6 +12,8 @@ import { getToyType } from "../config/toyTypesConfig";
 import { getElfCost } from "../helpers/costHelpers";
 import { addElf, countOfType } from "../helpers/workforceHelpers";
 import { isToyUnlocked } from "../helpers/unlockHelpers";
+import { t } from "../ui/i18n/i18n";
+import { elfName, upgradeName, toyName } from "../ui/i18n/localize";
 
 export function createShopSystem() {
   /** Hire one elf of the given type into the unassigned pool. */
@@ -22,19 +24,19 @@ export function createShopSystem() {
     // Some crews (Maintenance, Repair) are locked behind an upgrade.
     const gate = elfCategories.find((c) => c.id === def.category)?.unlockUpgrade;
     if (gate && !state.owned.upgrades[gate]) {
-      state.meta.statusText = `Unlock this crew first — buy the upgrade in the Upgrades tab.`;
+      state.meta.statusText = t("sys.hireLocked");
       return false;
     }
 
     const cost = getElfCost(def, countOfType(state, elfTypeId));
     if (state.resources.money < cost) {
-      state.meta.statusText = `Not enough money to hire a ${def.name}.`;
+      state.meta.statusText = t("sys.notEnoughHire", { name: elfName(elfTypeId) });
       return false;
     }
 
     state.resources.money -= cost;
     addElf(state, elfTypeId);
-    state.meta.statusText = `Hired a ${def.name}. Schedule their shifts in the Factory.`;
+    state.meta.statusText = t("sys.hired", { name: elfName(elfTypeId) });
     return true;
   }
 
@@ -44,13 +46,13 @@ export function createShopSystem() {
     if (state.owned.upgrades[upgradeId]) return false;
 
     if (state.resources.money < def.cost) {
-      state.meta.statusText = `Not enough money to buy ${def.name}.`;
+      state.meta.statusText = t("sys.notEnoughUpgrade", { name: upgradeName(upgradeId) });
       return false;
     }
 
     state.resources.money -= def.cost;
     state.owned.upgrades[upgradeId] = true;
-    state.meta.statusText = `Purchased upgrade: ${def.name}.`;
+    state.meta.statusText = t("sys.upgradeBought", { name: upgradeName(upgradeId) });
     return true;
   }
 
@@ -61,13 +63,13 @@ export function createShopSystem() {
     if (isToyUnlocked(state, toyTypeId)) return false;
 
     if (state.resources.money < def.unlockCost) {
-      state.meta.statusText = `Not enough money to unlock ${def.name}.`;
+      state.meta.statusText = t("sys.notEnoughToy", { name: toyName(toyTypeId) });
       return false;
     }
 
     state.resources.money -= def.unlockCost;
     state.owned.toys[toyTypeId] = true;
-    state.meta.statusText = `New toy unlocked: ${def.icon} ${def.name}!`;
+    state.meta.statusText = t("sys.toyUnlocked", { icon: def.icon, name: toyName(toyTypeId) });
     return true;
   }
 

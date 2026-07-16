@@ -8,6 +8,8 @@
 
 import { BASE_GIFTS_PER_CLICK } from "../config/productionConfig";
 import { toyTypes } from "../config/toyTypesConfig";
+import { GRINCH_MIN_GAP_DAYS } from "../config/grinchConfig";
+import { SECONDS_PER_GAME_DAY } from "../config/timeConfig";
 
 /**
  * Per-toy-type item counts. `raw`/`assembled`/`finished` are the production
@@ -89,8 +91,16 @@ export type GrinchThreat = {
   taunt: string;
 };
 
-/** One of the three choices shown when a random event fires. */
-export type PendingChoice = { id: string; icon: string; title: string; desc: string };
+/** One of the three choices shown when a random event fires. `params` fills
+ *  the desc's {amount}/{gifts} placeholders with the progress-scaled numbers
+ *  the player will actually get. */
+export type PendingChoice = {
+  id: string;
+  icon: string;
+  title: string;
+  desc: string;
+  params?: Record<string, string>;
+};
 
 /** A random event awaiting the player's choice (freezes the game). */
 export type PendingEvent = { polarity: "good" | "bad"; choices: PendingChoice[] };
@@ -190,10 +200,12 @@ export type GameState = {
     seq: number;
   };
 
-  /** The Grinch (config/grinchConfig.ts): a live heist threat + cadence counter. */
+  /** The Grinch (config/grinchConfig.ts): a live heist threat + a real-time
+   *  cooldown (in-game seconds until he can roll again). He can strike at any
+   *  moment, so the cadence is tracked in seconds, not days. */
   grinch: {
     active: GrinchThreat | null;
-    daysSince: number;
+    cooldownSeconds: number;
   };
 
   /** Random events (config/randomEventsConfig.ts): a pending choice + active timed mods. */
@@ -212,6 +224,15 @@ export type GameState = {
     current: GrandOrder | null;
     /** defIds already announced this run (so each holiday fires once). */
     seen: string[];
+  };
+
+  /**
+   * THE CHRISTMAS ORDER (config/christmasConfig.ts) — the endgame. One line per
+   * toy type, quantities randomized per run (generated once by ChristmasSystem).
+   * Complete every line before Christmas to win; miss it and the run is lost.
+   */
+  christmas: {
+    lines: OrderLine[];
   };
 
   /** Stats that reset every day (debug + balancing). */
@@ -244,6 +265,9 @@ export type GameState = {
     lastSavedAt: number | null;
     statusText: string;
     isRunOver: boolean;
+    /** Final result once the run ends: won (Christmas Order filled in time),
+     *  lost (Christmas came first), or null while still playing. */
+    runOutcome: "won" | "lost" | null;
 
     lastWageResult: string;
 
@@ -301,7 +325,7 @@ export function createInitialState(): GameState {
 
     grinch: {
       active: null,
-      daysSince: 0,
+      cooldownSeconds: GRINCH_MIN_GAP_DAYS * SECONDS_PER_GAME_DAY, // initial warm-up
     },
 
     events: {
@@ -313,6 +337,10 @@ export function createInitialState(): GameState {
     grand: {
       current: null,
       seen: [],
+    },
+
+    christmas: {
+      lines: [], // generated once by ChristmasSystem.ensureInit
     },
 
     dayStats: {
@@ -340,6 +368,7 @@ export function createInitialState(): GameState {
       lastSavedAt: null,
       statusText: "Ready.",
       isRunOver: false,
+      runOutcome: null,
       lastWageResult: "—",
       isPaused: false,
       showDaySummary: false,

@@ -26,6 +26,10 @@ import { pipelineSteps } from "../config/pipelineConfig";
 import { addToStage, ensureInventory, getBrokenStock, removeBroken } from "../helpers/inventoryHelpers";
 import { getUnlockedToyTypes, isToyUnlocked } from "../helpers/unlockHelpers";
 import { isStationBroken, setStationBroken, brokenStepIds } from "../helpers/stationHelpers";
+import { scaledMoney, scaledGifts } from "../helpers/progressHelpers";
+import { formatInt, formatMoney } from "../helpers/formatHelpers";
+import { t } from "../ui/i18n/i18n";
+import { randomEventTitle, randomEventDesc } from "../ui/i18n/localize";
 
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -40,6 +44,32 @@ function sample<T>(items: T[], n: number): T[] {
 }
 
 export function createEventSystem() {
+  /** Resolve a money effect's real signed amount for the CURRENT state
+   *  (progress-scaled when the effect declares netWorthPct). */
+  function resolveMoney(state: GameState, e: Extract<EventEffect, { kind: "money" }>): number {
+    const magnitude = e.netWorthPct ? scaledMoney(state, Math.abs(e.amount), e.netWorthPct) : Math.abs(e.amount);
+    return e.amount < 0 ? -magnitude : magnitude;
+  }
+
+  /** Resolve a gifts effect's real count for the CURRENT state. */
+  function resolveGifts(state: GameState, e: Extract<EventEffect, { kind: "gifts" }>): number {
+    return e.daysWorth ? scaledGifts(state, e.amount, e.daysWorth) : e.amount;
+  }
+
+  /**
+   * Display params for a choice's description ({amount}/{gifts} placeholders).
+   * The game is frozen while the modal is up, so resolving again at apply time
+   * yields the same numbers the player was shown.
+   */
+  function choiceParams(state: GameState, def: RandomEventDef): Record<string, string> {
+    const params: Record<string, string> = {};
+    for (const e of def.effects) {
+      if (e.kind === "money") params.amount = formatMoney(Math.abs(resolveMoney(state, e)));
+      if (e.kind === "gifts") params.gifts = formatInt(resolveGifts(state, e));
+    }
+    return params;
+  }
+
   /**
    * Called on a day change: maybe start an event. Returns true if one fired
    * (in which case the game is now paused awaiting a choice).
@@ -58,12 +88,17 @@ export function createEventSystem() {
 
     state.events.pending = {
       polarity,
-      choices: picks.map((p) => ({ id: p.id, icon: p.icon, title: p.title, desc: p.desc })),
+      choices: picks.map((p) => ({
+        id: p.id,
+        icon: p.icon,
+        title: p.title,
+        desc: p.desc,
+        params: choiceParams(state, p),
+      })),
     };
     state.events.daysSince = 0;
     state.meta.isPaused = true;
-    state.meta.statusText =
-      polarity === "good" ? "✨ Something wonderful is happening — pick one!" : "⚠️ Trouble strikes — choose your poison.";
+    state.meta.statusText = polarity === "good" ? t("event.status.good") : t("event.status.bad");
     return true;
   }
 
@@ -73,11 +108,20 @@ export function createEventSystem() {
     if (!pending || !pending.choices.some((c) => c.id === choiceId)) return false;
 
     const def = getRandomEvent(choiceId);
+    // Snapshot the scaled amounts BEFORE applying (applying changes the state
+    // they're computed from) — the status line must echo what really happened.
+    const params = def ? choiceParams(state, def) : {};
     if (def) applyEffects(state, def);
 
     state.events.pending = null;
     state.meta.isPaused = false;
-    if (def) state.meta.statusText = `${def.icon} ${def.title}: ${def.desc}`;
+    if (def) {
+      state.meta.statusText = t("event.status.chosen", {
+        icon: def.icon,
+        title: randomEventTitle(def.id),
+        desc: randomEventDesc(def.id, params),
+      });
+    }
     return true;
   }
 
@@ -93,14 +137,14 @@ export function createEventSystem() {
   function applyEffect(state: GameState, def: RandomEventDef, e: EventEffect): void {
     switch (e.kind) {
       case "money":
-        state.resources.money = Math.max(0, state.resources.money + e.amount);
+        state.resources.money = Math.max(0, state.resources.money + resolveMoney(state, e));
         break;
       case "moneyPct":
         state.resources.money = Math.max(0, Math.round(state.resources.money * (1 + e.pct)));
         break;
       case "gifts": {
         const toys = getUnlockedToyTypes(state);
-        if (toys.length > 0) addToStage(state, toys[randInt(0, toys.length - 1)].id, "finished", e.amount);
+        if (toys.length > 0) addToStage(state, toys[randInt(0, toys.length - 1)].id, "finished", resolveGifts(state, e));
         break;
       }
       case "loseGiftsPct":

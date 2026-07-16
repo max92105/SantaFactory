@@ -24,6 +24,8 @@ import { createModifierSystem } from "../systems/ModifierSystem";
 import { createOrdersSystem } from "../systems/OrdersSystem";
 import { createEventSystem } from "../systems/EventSystem";
 import { createGrinchSystem } from "../systems/GrinchSystem";
+import { createChristmasSystem } from "../systems/ChristmasSystem";
+import { showEndScreen } from "../ui/components/endScreen";
 
 import { getDomRefs } from "../ui/domRegistry";
 import { mountAppLayout, bindAppLayout, renderAppLayout } from "../ui/layout/appLayout";
@@ -93,6 +95,7 @@ export function createGame(opts: CreateGameOptions): Game {
     orders: createOrdersSystem(),
     event: createEventSystem(),
     grinch: createGrinchSystem(),
+    christmas: createChristmasSystem(),
   };
 
   const ctx: GameContext = {
@@ -117,7 +120,17 @@ export function createGame(opts: CreateGameOptions): Game {
       wagesDue: systems.wage.calcDailyWages(state, mods.wageMult),
       wageRuleText: systems.wage.getWageRuleText(),
       activeEvent: systems.orders.currentEvent(state) ?? null,
+      christmas: systems.christmas.getView(state),
     };
+  }
+
+  // The run's end screen is shown exactly once, the moment the outcome lands
+  // (win via delivery, loss via the season clock — both set meta.runOutcome).
+  let endScreenShown = false;
+  function maybeShowEndScreen() {
+    if (endScreenShown || !state.meta.isRunOver || state.meta.runOutcome === null) return;
+    endScreenShown = true;
+    showEndScreen(ctx);
   }
 
   /** Cheap value refresh — runs every frame. */
@@ -125,6 +138,7 @@ export function createGame(opts: CreateGameOptions): Game {
     const views = buildFrameViews();
     renderAppLayout(ctx, views);
     for (const page of pages) page.renderFrame(ctx, views);
+    maybeShowEndScreen();
   }
 
   /** Full refresh: rebuild interactive lists, then refresh values — runs on user actions. */
@@ -217,14 +231,16 @@ export function createGame(opts: CreateGameOptions): Game {
       systems.event.expireMods(state);
       systems.event.maybeTrigger(state);
 
-      // The Grinch only crashes days that aren't already frozen by an event.
-      if (!state.meta.isPaused) systems.grinch.maybeTrigger(state);
+      // (The Grinch now rolls continuously in systems.grinch.update — he can
+      // strike at any moment, not just on a day change.)
 
       // Wages change money/elves, so shop buttons etc. must refresh
       scheduleRebuild();
     }
 
-    if (state.time.day > SEASON_DAYS) state.meta.isRunOver = true;
+    // Christmas morning: the season clock has run out — resolve the run
+    // (won if the Christmas Order is complete, lost otherwise).
+    if (state.time.day > SEASON_DAYS) systems.christmas.resolveSeasonEnd(state);
 
     // Flush a deferred rebuild once the player has closed their open widget;
     // otherwise just refresh live values (non-destructive) this frame.
@@ -257,6 +273,7 @@ export function createGame(opts: CreateGameOptions): Game {
 
   return {
     start() {
+      systems.christmas.ensureInit(state); // the endgame order exists from day 1
       systems.orders.ensureDay(state); // day-1 offers before the first render
       rebuildUI();
 

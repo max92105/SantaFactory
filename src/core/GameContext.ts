@@ -17,6 +17,7 @@ import type { ModifierSystem } from "../systems/ModifierSystem";
 import type { OrdersSystem } from "../systems/OrdersSystem";
 import type { EventSystem } from "../systems/EventSystem";
 import type { GrinchSystem } from "../systems/GrinchSystem";
+import type { ChristmasSystem, ChristmasView } from "../systems/ChristmasSystem";
 import type { GameEvent } from "../config/eventsConfig";
 
 /** All game systems, wired once in core/Game.ts. */
@@ -32,6 +33,7 @@ export type Systems = {
   orders: OrdersSystem;
   event: EventSystem;
   grinch: GrinchSystem;
+  christmas: ChristmasSystem;
 };
 
 /** Read-only snapshot of system views, computed once per frame and shared by all pages. */
@@ -43,6 +45,7 @@ export type FrameViews = {
   wagesDue: number;
   wageRuleText: string;
   activeEvent: GameEvent | null;
+  christmas: ChristmasView;
 };
 
 /** Everything a UI page needs to read state, trigger game actions, and refresh the screen. */

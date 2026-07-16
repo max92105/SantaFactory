@@ -7,7 +7,8 @@ import type { GameState } from "../state/GameState";
 import { ensureInventory, getSellableStock, getBrokenStock, removeBroken } from "../helpers/inventoryHelpers";
 import { toyTypes, getToyType } from "../config/toyTypesConfig";
 import { BROKEN_SALVAGE_RATE } from "../config/stationsConfig";
-import { pluralize } from "../helpers/textHelpers";
+import { t } from "../ui/i18n/i18n";
+import { toyName } from "../ui/i18n/localize";
 import type { Modifiers } from "./ModifierSystem";
 
 export type SellRateEntry = { toyType: string; name: string; icon: string; rate: number };
@@ -48,9 +49,11 @@ export function createEconomySystem() {
     state.dayStats.giftsSold += sellable;
     state.dayStats.moneyEarned += earned;
 
-    const def = getToyType(toyTypeId);
-    const label = def?.name ?? toyTypeId;
-    state.meta.statusText = `Sold ${sellable} ${pluralize(sellable, label)} for $${earned.toFixed(2)}.`;
+    state.meta.statusText = t("sys.sold", {
+      n: sellable,
+      name: toyName(toyTypeId),
+      money: `$${earned.toFixed(2)}`,
+    });
     return earned;
   }
 
@@ -69,8 +72,11 @@ export function createEconomySystem() {
     state.resources.money += earned;
     state.dayStats.moneyEarned += earned;
 
-    const label = getToyType(toyTypeId)?.name ?? toyTypeId;
-    state.meta.statusText = `Salvaged ${n} broken ${pluralize(n, label)} for $${earned.toFixed(2)}.`;
+    state.meta.statusText = t("sys.salvaged", {
+      n,
+      name: toyName(toyTypeId),
+      money: `$${earned.toFixed(2)}`,
+    });
     return earned;
   }
 

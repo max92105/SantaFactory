@@ -11,6 +11,163 @@
   margin: 0 auto;
 }
 
+/* ── THE CHRISTMAS ORDER (the endgame, pinned above everything) ─────────── */
+.orders-christmas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.14), rgba(239, 68, 68, 0.12));
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.xmas-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.xmas-icon {
+  font-size: 40px;
+  flex-shrink: 0;
+}
+
+.xmas-head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.xmas-tag {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #4ade80;
+}
+
+.xmas-flavor {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.xmas-magic {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.xmas-deadline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.xmas-days {
+  font-size: 22px;
+  font-weight: 800;
+  color: #f87171;
+  line-height: 1;
+}
+
+.xmas-days-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.xmas-progress {
+  height: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.xmas-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ef4444, #fbbf24, #22c55e);
+  border-radius: 5px;
+  transition: width 0.2s ease;
+}
+
+.xmas-numbers {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.xmas-pct {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.xmas-details summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-dim);
+  user-select: none;
+}
+
+.xmas-details summary:hover {
+  color: var(--text);
+}
+
+.xmas-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+  font-size: 12px;
+}
+
+.xmas-line.locked {
+  opacity: 0.55;
+}
+
+.xmas-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.xmas-ready {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.xmas-deliver {
+  margin-left: auto;
+  padding: var(--space-sm) var(--space-lg);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: #22c55e;
+  color: #052e14;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.xmas-deliver:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.xmas-deliver:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (max-width: 620px) {
+  .xmas-foot {
+    flex-wrap: wrap;
+  }
+  .xmas-deliver {
+    margin-left: 0;
+    flex: 1 1 100%;
+  }
+}
+
 /* ── Grand order (pinned holiday event) ─────────────────────────────────── */
 .orders-grand[hidden] {
   display: none;

@@ -4,7 +4,7 @@
     <!-- Hero: the big craft button + what you're crafting -->
     <div class="click-hero">
       <div class="click-area">
-        <button id="makeGiftBtn" class="click-btn" aria-label="Craft gift">🎁</button>
+        <button id="makeGiftBtn" class="click-btn" data-i18n-aria="click.craftAria" aria-label="Craft gift">🎁</button>
         <div id="floatLayer" class="float-layer"></div>
       </div>
 
@@ -14,15 +14,15 @@
       </div>
 
       <div class="click-stats">
-        <span class="click-stat"><span class="click-stat-icon">⚡</span><strong id="clickGpc">1</strong> per click</span>
+        <span class="click-stat"><span class="click-stat-icon">⚡</span><strong id="clickGpc">1</strong> <span data-i18n="click.perClick">per click</span></span>
         <span class="click-stat-sep">·</span>
-        <span class="click-stat"><span class="click-stat-icon">📦</span><strong id="clickStock">0</strong> in stock</span>
+        <span class="click-stat"><span class="click-stat-icon">📦</span><strong id="clickStock">0</strong> <span data-i18n="click.inStock">in stock</span></span>
       </div>
     </div>
 
     <!-- Make Gifts: pick which toy the button crafts. Scrolls for many toys. -->
     <div class="click-selector">
-      <h2 class="click-title">Make Gifts</h2>
+      <h2 class="click-title" data-i18n="click.makeGifts">Make Gifts</h2>
       <div id="clickToySelector" class="toy-tray"></div>
     </div>
   </div>

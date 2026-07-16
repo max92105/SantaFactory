@@ -13,6 +13,8 @@ import { getPipelineStep } from "../../../config/pipelineConfig";
 import { getUnlockedToyTypes } from "../../../helpers/unlockHelpers";
 import { ensureInventory, getTotalFinished, getTotalBroken } from "../../../helpers/inventoryHelpers";
 import { formatInt, formatMoney, formatMoneyPrecise } from "../../../helpers/formatHelpers";
+import { toyName } from "../../i18n/localize";
+import { t } from "../../i18n/i18n";
 
 export function createMetricsPage(): Page {
   return {
@@ -68,11 +70,13 @@ export function createMetricsPage(): Page {
 
       // Per-toy sell rates (only unlocked toys)
       dom.mSellRates.innerHTML = "";
-      for (const t of unlocked) {
-        const rate = sellRates.find((r) => r.toyType === t.id)?.rate ?? 0;
+      for (const toy of unlocked) {
+        const rate = sellRates.find((r) => r.toyType === toy.id)?.rate ?? 0;
         const row = document.createElement("div");
         row.className = "sell-rate-row";
-        row.innerHTML = `<span>${t.icon} ${t.name}</span><strong>${formatMoneyPrecise(rate)}/ea</strong>`;
+        row.innerHTML = `<span>${toy.icon} ${toyName(toy.id)}</span><strong>${t("storage.each", {
+          value: formatMoneyPrecise(rate),
+        })}</strong>`;
         dom.mSellRates.appendChild(row);
       }
 

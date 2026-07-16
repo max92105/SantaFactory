@@ -1,0 +1,104 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   END SCREEN — the run-over overlay (won / lost the Christmas Order).
+   Shown once when the run resolves; the loop stops behind it. Logic: endScreen.ts
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.end-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500; /* above everything, including event modals (400) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, 0.82);
+  animation: end-fade 0.4s ease;
+}
+
+@keyframes end-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.end-sheet {
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7);
+  text-align: center;
+  animation: end-pop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+@keyframes end-pop {
+  from { transform: scale(0.85); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.end-overlay.won .end-sheet {
+  border-color: rgba(250, 204, 21, 0.6);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7), 0 0 90px rgba(250, 204, 21, 0.25);
+}
+
+.end-overlay.lost .end-sheet {
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.end-icon {
+  font-size: 56px;
+  line-height: 1;
+  margin-bottom: var(--space-md);
+}
+
+.end-title {
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: var(--space-sm);
+}
+
+.end-overlay.won .end-title { color: #facc15; }
+.end-overlay.lost .end-title { color: var(--text-dim); }
+
+.end-sub {
+  color: var(--text-dim);
+  margin-bottom: var(--space-lg);
+  line-height: 1.45;
+}
+
+.end-stats {
+  display: grid;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-lg);
+  text-align: left;
+}
+
+.end-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.end-stat span { color: var(--text-dim); }
+
+.end-menu-btn {
+  width: 100%;
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.end-menu-btn:hover { filter: brightness(1.1); }

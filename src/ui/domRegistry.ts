@@ -29,6 +29,7 @@ export type DomRefs = {
   saveBtn: HTMLButtonElement;
   muteBtn: HTMLButtonElement;
   mainMenuBtn: HTMLButtonElement;
+  langSelect: HTMLElement;
 
   // Main tab navigation
   tabButtons: NodeListOf<HTMLButtonElement>;
@@ -83,6 +84,7 @@ export type DomRefs = {
   sellFloatLayer: HTMLDivElement;
 
   // Orders page
+  ordersChristmas: HTMLElement;
   ordersGrand: HTMLElement;
   ordersEvent: HTMLElement;
   ordersActiveList: HTMLDivElement;
@@ -146,6 +148,7 @@ export function getDomRefs(): DomRefs {
     saveBtn: mustGet("saveBtn"),
     muteBtn: mustGet("muteBtn"),
     mainMenuBtn: mustGet("mainMenuBtn"),
+    langSelect: mustGet("langSelect"),
 
     // Main tab navigation
     tabButtons: document.querySelectorAll<HTMLButtonElement>(".tab-nav .tab-btn"),
@@ -200,6 +203,7 @@ export function getDomRefs(): DomRefs {
     sellFloatLayer: mustGet("sellFloatLayer"),
 
     // Orders page
+    ordersChristmas: mustGet("ordersChristmas"),
     ordersGrand: mustGet("ordersGrand"),
     ordersEvent: mustGet("ordersEvent"),
     ordersActiveList: mustGet("ordersActiveList"),

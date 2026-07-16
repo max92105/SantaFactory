@@ -6,22 +6,22 @@
     <div class="storage-head">
       <div class="storage-summary">
         <div class="sum">
-          <span>Gifts in stock</span>
+          <span data-i18n="storage.totalStock">Gifts in stock</span>
           <strong id="storageTotalStock">0</strong>
         </div>
         <div class="sum sum-value">
-          <span>Total value</span>
+          <span data-i18n="storage.totalValue">Total value</span>
           <strong id="storageTotalValue">$0.00</strong>
         </div>
         <div class="sum sum-broken">
-          <span>Broken</span>
+          <span data-i18n="storage.totalBroken">Broken</span>
           <strong id="storageTotalBroken">0</strong>
         </div>
       </div>
       <div class="storage-tools">
-        <input id="storageSearch" class="storage-search" type="search" placeholder="Search toys…" autocomplete="off" />
+        <input id="storageSearch" class="storage-search" type="search" data-i18n-ph="storage.search" placeholder="Search toys…" autocomplete="off" />
         <div class="sell-all-wrap">
-          <button id="sellAllBtn" class="sell-all-btn">💵 Sell all gifts</button>
+          <button id="sellAllBtn" class="sell-all-btn" data-i18n="storage.sellAll">💵 Sell all gifts</button>
           <div id="sellFloatLayer" class="sell-float-layer"></div>
         </div>
       </div>
@@ -29,6 +29,6 @@
 
     <!-- One row per unlocked toy (built in storagePage.ts) -->
     <div id="storageList" class="stock-list"></div>
-    <div id="storageEmpty" class="storage-empty" hidden>No matches.</div>
+    <div id="storageEmpty" class="storage-empty" hidden data-i18n="storage.empty">No matches.</div>
   </div>
 </div>

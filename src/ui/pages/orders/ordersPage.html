@@ -1,17 +1,18 @@
 <!-- ORDERS PAGE — accept daily delivery orders, fill them with finished toys -->
 <div id="tab-orders" class="tab-panel">
   <div class="orders">
+    <div id="ordersChristmas" class="orders-christmas"></div>
     <div id="ordersGrand" class="orders-grand" hidden></div>
     <div id="ordersEvent" class="orders-event" hidden></div>
 
     <section class="orders-section">
-      <h3 class="section-title">Accepted — deliver finished toys before the deadline
+      <h3 class="section-title"><span data-i18n="orders.accepted">Accepted — deliver finished toys before the deadline</span>
         (<span id="ordersActiveCount">0</span>/<span id="ordersMax">6</span>)</h3>
       <div id="ordersActiveList" class="orders-list"></div>
     </section>
 
     <section class="orders-section">
-      <h3 class="section-title">Available — a fresh board each morning, plus ⚡ rush pop-ups during the day</h3>
+      <h3 class="section-title" data-i18n="orders.availableTitle">Available — a fresh board each morning, plus ⚡ rush pop-ups during the day</h3>
       <div id="ordersOfferList" class="orders-list"></div>
     </section>
   </div>

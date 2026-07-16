@@ -20,16 +20,28 @@ import {
   GRINCH_STEAL_MAX,
   GRINCH_TOLL_FACTOR,
   GRINCH_TOLL_FLOOR,
+  GRINCH_TOLL_NETWORTH_PCT,
   GRINCH_DEMAND_MIN,
   GRINCH_DEMAND_MAX,
+  GRINCH_DEMAND_DAYS_WORTH,
   grinchTaunts,
   grinchStealTaunts,
   grinchFoiledTaunts,
 } from "../config/grinchConfig";
 import { getToyType } from "../config/toyTypesConfig";
+import { SECONDS_PER_GAME_DAY } from "../config/timeConfig";
 import { getUnlockedToyTypes } from "../helpers/unlockHelpers";
 import { ensureInventory, getSellableStock, removeFromStage } from "../helpers/inventoryHelpers";
-import { pluralize } from "../helpers/textHelpers";
+import { netWorth, scaledGifts } from "../helpers/progressHelpers";
+import { formatMoney } from "../helpers/formatHelpers";
+import { t } from "../ui/i18n/i18n";
+import { toyName } from "../ui/i18n/localize";
+
+/** Quiet cooldown after a heist (and the initial warm-up), in in-game seconds. */
+const COOLDOWN_SECONDS = GRINCH_MIN_GAP_DAYS * SECONDS_PER_GAME_DAY;
+/** Per-second appearance chance, derived so the odds over one full eligible day
+ *  still match GRINCH_DAILY_CHANCE — only now spread continuously through it. */
+const CHANCE_PER_SECOND = 1 - Math.pow(1 - GRINCH_DAILY_CHANCE, 1 / SECONDS_PER_GAME_DAY);
 
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -51,40 +63,63 @@ export function createGrinchSystem() {
     return total;
   }
 
-  /** On a day change: maybe start a heist. Returns true if one started. */
-  function maybeTrigger(state: GameState): boolean {
-    if (state.grinch.active) return false;
-    state.grinch.daysSince += 1;
-    if (state.grinch.daysSince < GRINCH_MIN_GAP_DAYS) return false;
-    if (Math.random() >= GRINCH_DAILY_CHANCE) return false;
+  /** Clear the active heist and start his quiet cooldown before the next one. */
+  function clearThreat(state: GameState): void {
+    clearThreat(state);
+    state.grinch.cooldownSeconds = COOLDOWN_SECONDS;
+  }
 
+  /** Kick off a heist right now. Returns true if one started (false if there's
+   *  nothing to steal). No gating — callers decide when he's eligible. */
+  function startHeist(state: GameState): boolean {
     const toys = getUnlockedToyTypes(state);
     if (toys.length === 0) return false;
 
     const stealPct = randRange(GRINCH_STEAL_MIN, GRINCH_STEAL_MAX);
-    const toll = Math.max(GRINCH_TOLL_FLOOR, Math.round(finishedStockValue(state) * stealPct * GRINCH_TOLL_FACTOR));
+    // Toll tracks BOTH the stock he threatens and your overall wealth, so it
+    // stings early ($200 floor) and late (10% of net worth) alike.
+    const toll = Math.max(
+      GRINCH_TOLL_FLOOR,
+      Math.round(finishedStockValue(state) * stealPct * GRINCH_TOLL_FACTOR),
+      Math.round(netWorth(state) * GRINCH_TOLL_NETWORTH_PCT)
+    );
     const demandToy = pick(toys).id;
 
+    const tauntKey = `grinch.taunt.${randInt(0, grinchTaunts.length - 1)}`;
     state.grinch.active = {
       toll,
       demandToy,
-      demandQty: randInt(GRINCH_DEMAND_MIN, GRINCH_DEMAND_MAX),
+      // The toy ransom grows with your factory: at least a third of a day's output.
+      demandQty: scaledGifts(state, randInt(GRINCH_DEMAND_MIN, GRINCH_DEMAND_MAX), GRINCH_DEMAND_DAYS_WORTH),
       demandDelivered: 0,
       stealPct,
       secondsLeft: randInt(GRINCH_SECONDS_MIN, GRINCH_SECONDS_MAX),
-      taunt: pick(grinchTaunts),
+      taunt: tauntKey,
     };
-    state.grinch.daysSince = 0;
 
-    state.pendingAlerts.push(`😈 The Grinch is here! ${state.grinch.active.taunt}`);
-    state.meta.statusText = "😈 The Grinch is shaking you down — pay up or hand over toys!";
+    state.pendingAlerts.push(t("grinch.status.alert", { taunt: t(tauntKey) }));
+    state.meta.statusText = t("grinch.status.arrive");
     return true;
   }
 
-  /** Real-time tick; on timeout he steals. Returns true if the threat changed. */
+  /**
+   * Real-time tick (call every frame). When a heist is live, counts it down and
+   * lets him steal on timeout. When none is live, burns the quiet cooldown and
+   * then rolls his continuous per-second chance — so he can appear at ANY time
+   * of day. Returns true when the threat changed (so the UI rebuilds).
+   */
   function update(state: GameState, dt: number): boolean {
     const g = state.grinch.active;
-    if (!g) return false;
+
+    // No heist running: tick down the cooldown, then maybe start one.
+    if (!g) {
+      if (state.grinch.cooldownSeconds > 0) {
+        state.grinch.cooldownSeconds = Math.max(0, state.grinch.cooldownSeconds - dt);
+        return false;
+      }
+      if (Math.random() < CHANCE_PER_SECOND * dt) return startHeist(state);
+      return false;
+    }
 
     g.secondsLeft -= dt;
     if (g.secondsLeft > 0) return false;
@@ -96,9 +131,10 @@ export function createGrinchSystem() {
       inv.finished -= take;
       stolen += take;
     }
-    state.grinch.active = null;
-    state.pendingAlerts.push(`😈 ${pick(grinchStealTaunts)} (−${stolen} gifts)`);
-    state.meta.statusText = `The Grinch ran off with ${stolen} ${pluralize(stolen, "gift")}!`;
+    clearThreat(state);
+    const stealKey = `grinch.steal.${randInt(0, grinchStealTaunts.length - 1)}`;
+    state.pendingAlerts.push(t("grinch.status.stoleAlert", { taunt: t(stealKey), n: stolen }));
+    state.meta.statusText = t("grinch.status.stole", { n: stolen });
     return true;
   }
 
@@ -107,13 +143,13 @@ export function createGrinchSystem() {
     const g = state.grinch.active;
     if (!g) return false;
     if (state.resources.money < g.toll) {
-      state.meta.statusText = `Not enough to pay the Grinch's $${g.toll} toll.`;
+      state.meta.statusText = t("grinch.status.noMoney", { toll: formatMoney(g.toll) });
       return false;
     }
     state.resources.money -= g.toll;
-    state.grinch.active = null;
-    state.pendingAlerts.push(`💸 ${pick(grinchFoiledTaunts)}`);
-    state.meta.statusText = `Paid the Grinch $${g.toll} to shove off.`;
+    clearThreat(state);
+    state.pendingAlerts.push(t("grinch.foiled.pay", { taunt: t(`grinch.foiled.${randInt(0, grinchFoiledTaunts.length - 1)}`) }));
+    state.meta.statusText = t("grinch.status.paid", { toll: formatMoney(g.toll) });
     return true;
   }
 
@@ -122,11 +158,11 @@ export function createGrinchSystem() {
     const g = state.grinch.active;
     if (!g) return false;
 
-    const name = getToyType(g.demandToy)?.name ?? "toy";
+    const name = toyName(g.demandToy);
     const need = g.demandQty - g.demandDelivered;
     const give = Math.min(need, getSellableStock(state, g.demandToy));
     if (give <= 0) {
-      state.meta.statusText = `No finished ${name} in stock for the Grinch.`;
+      state.meta.statusText = t("grinch.status.noStock", { name });
       return false;
     }
 
@@ -134,16 +170,16 @@ export function createGrinchSystem() {
     g.demandDelivered += give;
 
     if (g.demandDelivered >= g.demandQty) {
-      state.grinch.active = null;
-      state.pendingAlerts.push(`🎁 ${pick(grinchFoiledTaunts)}`);
-      state.meta.statusText = `Handed the Grinch ${g.demandQty} ${pluralize(g.demandQty, name)} — he slunk off.`;
+      clearThreat(state);
+      state.pendingAlerts.push(t("grinch.foiled.give", { taunt: t(`grinch.foiled.${randInt(0, grinchFoiledTaunts.length - 1)}`) }));
+      state.meta.statusText = t("grinch.status.gaveAll", { n: g.demandQty, name });
       return true;
     }
-    state.meta.statusText = `Gave the Grinch ${give} ${name}. ${g.demandQty - g.demandDelivered} to go.`;
+    state.meta.statusText = t("grinch.status.gaveSome", { n: give, name, left: g.demandQty - g.demandDelivered });
     return true;
   }
 
-  return { maybeTrigger, update, payToll, deliverDemand };
+  return { update, payToll, deliverDemand };
 }
 
 export type GrinchSystem = ReturnType<typeof createGrinchSystem>;

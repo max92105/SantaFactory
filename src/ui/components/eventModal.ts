@@ -7,6 +7,8 @@
 import "./eventModal.css";
 
 import type { PendingEvent } from "../../state/GameState";
+import { t } from "../i18n/i18n";
+import { randomEventTitle, randomEventDesc } from "../i18n/localize";
 
 const EVENT_OVERLAY_CLASS = "event-overlay";
 
@@ -35,8 +37,8 @@ export function showEventModal(pending: PendingEvent, onChoose: (choiceId: strin
   const head = document.createElement("div");
   head.className = "event-head";
   head.innerHTML = good
-    ? `<div class="event-kicker">✨ A stroke of luck!</div><div class="event-sub">Pick one — they're all good.</div>`
-    : `<div class="event-kicker">⚠️ Trouble at the workshop!</div><div class="event-sub">Pick your poison — all three sting.</div>`;
+    ? `<div class="event-kicker">${t("eventModal.goodKicker")}</div><div class="event-sub">${t("eventModal.goodSub")}</div>`
+    : `<div class="event-kicker">${t("eventModal.badKicker")}</div><div class="event-sub">${t("eventModal.badSub")}</div>`;
   sheet.appendChild(head);
 
   const list = document.createElement("div");
@@ -47,8 +49,8 @@ export function showEventModal(pending: PendingEvent, onChoose: (choiceId: strin
     btn.innerHTML = `
       <span class="event-choice-icon">${c.icon}</span>
       <span class="event-choice-text">
-        <span class="event-choice-title">${c.title}</span>
-        <span class="event-choice-desc">${c.desc}</span>
+        <span class="event-choice-title">${randomEventTitle(c.id)}</span>
+        <span class="event-choice-desc">${randomEventDesc(c.id, c.params)}</span>
       </span>
     `;
     btn.onclick = () => onChoose(c.id);

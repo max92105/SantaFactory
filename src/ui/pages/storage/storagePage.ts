@@ -19,6 +19,8 @@ import { BROKEN_SALVAGE_RATE } from "../../../config/stationsConfig";
 import { formatInt, formatMoneyPrecise } from "../../../helpers/formatHelpers";
 import { spawnSellFloat } from "../../components/floatingText";
 import { createStepper } from "../../components/stepper";
+import { t } from "../../i18n/i18n";
+import { toyName } from "../../i18n/localize";
 
 export function createStoragePage(): Page {
   // Search text persists across rebuilds (rebuild() recreates rows each action)
@@ -88,7 +90,7 @@ export function createStoragePage(): Page {
 
     const head = document.createElement("div");
     head.className = "deliver-head";
-    head.innerHTML = `<span class="deliver-title">Salvage ${toy.icon} ${toy.name}</span>`;
+    head.innerHTML = `<span class="deliver-title">${t("storage.salvageTitle", { icon: toy.icon, name: toyName(toy.id) })}</span>`;
     const x = document.createElement("button");
     x.className = "deliver-close";
     x.setAttribute("aria-label", "Close");
@@ -99,7 +101,7 @@ export function createStoragePage(): Page {
 
     const sub = document.createElement("div");
     sub.className = "deliver-sub";
-    sub.innerHTML = `${formatInt(broken)} broken in stock · ${formatMoneyPrecise(rate)} each`;
+    sub.innerHTML = t("storage.salvageSub", { n: formatInt(broken), rate: formatMoneyPrecise(rate) });
     sheet.appendChild(sub);
 
     const body = document.createElement("div");
@@ -141,8 +143,8 @@ export function createStoragePage(): Page {
     sheet.appendChild(foot);
 
     function refresh(): void {
-      value.innerHTML = `You'll get <strong>${formatMoneyPrecise(amount * rate)}</strong>`;
-      confirm.textContent = amount > 0 ? `Salvage ${formatInt(amount)}` : "Salvage";
+      value.innerHTML = `${t("storage.salvageYouGet")} <strong>${formatMoneyPrecise(amount * rate)}</strong>`;
+      confirm.textContent = amount > 0 ? t("storage.salvageN", { n: formatInt(amount) }) : t("storage.salvage");
       confirm.disabled = amount <= 0;
     }
     refresh();
@@ -170,20 +172,20 @@ export function createStoragePage(): Page {
       const row = document.createElement("div");
       row.className = "stock-row";
       row.dataset.toyType = toy.id;
-      row.dataset.name = toy.name.toLowerCase();
+      row.dataset.name = `${toyName(toy.id)} ${toy.name}`.toLowerCase();
       row.innerHTML = `
         <span class="stock-icon">${toy.icon}</span>
         <div class="stock-info">
-          <div class="stock-name">${toy.name}</div>
-          <div class="stock-rate">${formatMoneyPrecise(rate)} / ea</div>
+          <div class="stock-name">${toyName(toy.id)}</div>
+          <div class="stock-rate">${t("storage.each", { value: formatMoneyPrecise(rate) })}</div>
           <div class="stock-broken" data-broken hidden></div>
         </div>
-        <div class="stock-count"><strong data-count>0</strong><span>in stock</span></div>
+        <div class="stock-count"><strong data-count>0</strong><span>${t("storage.inStock")}</span></div>
         <div class="stock-value" data-value>$0.00</div>
         <div class="stock-actions">
-          <button class="stock-btn stock-salvage" type="button" hidden>♻ Salvage</button>
-          <button class="stock-btn stock-half" type="button">½</button>
-          <button class="stock-btn stock-all" type="button">Sell all</button>
+          <button class="stock-btn stock-salvage" type="button" hidden>${t("storage.salvage")}</button>
+          <button class="stock-btn stock-half" type="button">${t("storage.half")}</button>
+          <button class="stock-btn stock-all" type="button">${t("storage.sellRowAll")}</button>
         </div>
       `;
 
@@ -250,7 +252,7 @@ export function createStoragePage(): Page {
         const brokenEl = row.querySelector<HTMLElement>("[data-broken]")!;
         brokenEl.hidden = broken <= 0;
         brokenEl.textContent =
-          broken > 0 ? `🔨 ${formatInt(broken)} broken · ♻ ${formatMoneyPrecise(salvageValue)} salvage` : "";
+          broken > 0 ? t("storage.brokenLine", { n: formatInt(broken), value: formatMoneyPrecise(salvageValue) }) : "";
 
         // A row is "empty" (dimmed) only when it has nothing at all
         row.classList.toggle("empty", stock <= 0 && broken <= 0);
