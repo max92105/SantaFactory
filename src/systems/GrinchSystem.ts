@@ -33,7 +33,7 @@ import { SECONDS_PER_GAME_DAY } from "../config/timeConfig";
 import { getUnlockedToyTypes } from "../helpers/unlockHelpers";
 import { ensureInventory, getSellableStock, removeFromStage } from "../helpers/inventoryHelpers";
 import { netWorth, scaledGifts } from "../helpers/progressHelpers";
-import { formatMoney } from "../helpers/formatHelpers";
+import { formatInt, formatMoney } from "../helpers/formatHelpers";
 import { t } from "../ui/i18n/i18n";
 import { toyName } from "../ui/i18n/localize";
 
@@ -65,7 +65,7 @@ export function createGrinchSystem() {
 
   /** Clear the active heist and start his quiet cooldown before the next one. */
   function clearThreat(state: GameState): void {
-    clearThreat(state);
+    state.grinch.active = null;
     state.grinch.cooldownSeconds = COOLDOWN_SECONDS;
   }
 
@@ -88,6 +88,7 @@ export function createGrinchSystem() {
     const tauntKey = `grinch.taunt.${randInt(0, grinchTaunts.length - 1)}`;
     state.grinch.active = {
       toll,
+      tollPaid: 0,
       demandToy,
       // The toy ransom grows with your factory: at least a third of a day's output.
       demandQty: scaledGifts(state, randInt(GRINCH_DEMAND_MIN, GRINCH_DEMAND_MAX), GRINCH_DEMAND_DAYS_WORTH),
@@ -138,48 +139,57 @@ export function createGrinchSystem() {
     return true;
   }
 
-  /** Pay the toll to be rid of him. */
-  function payToll(state: GameState): boolean {
-    const g = state.grinch.active;
-    if (!g) return false;
-    if (state.resources.money < g.toll) {
-      state.meta.statusText = t("grinch.status.noMoney", { toll: formatMoney(g.toll) });
-      return false;
-    }
-    state.resources.money -= g.toll;
-    clearThreat(state);
-    state.pendingAlerts.push(t("grinch.foiled.pay", { taunt: t(`grinch.foiled.${randInt(0, grinchFoiledTaunts.length - 1)}`) }));
-    state.meta.statusText = t("grinch.status.paid", { toll: formatMoney(g.toll) });
-    return true;
-  }
+  const foiledTaunt = () => t(`grinch.foiled.${randInt(0, grinchFoiledTaunts.length - 1)}`);
 
-  /** Hand over as much of his demanded toy as you have; foils him when met. */
-  function deliverDemand(state: GameState): boolean {
+  /**
+   * Settle the heist with a chosen mix of cash and toys (either can be 0). Both
+   * accumulate toward their own condition, so partial payments carry over. He
+   * leaves the moment EITHER the toll is fully paid or the toy demand is met.
+   * Returns true if anything changed (so the UI refreshes).
+   */
+  function makeDeal(state: GameState, cashAmount: number, toyAmount: number): boolean {
     const g = state.grinch.active;
     if (!g) return false;
 
-    const name = toyName(g.demandToy);
-    const need = g.demandQty - g.demandDelivered;
-    const give = Math.min(need, getSellableStock(state, g.demandToy));
-    if (give <= 0) {
-      state.meta.statusText = t("grinch.status.noStock", { name });
-      return false;
+    // Cash installment toward the toll (never more than owed or on hand).
+    const cash = Math.min(Math.max(0, Math.floor(cashAmount)), g.toll - g.tollPaid, Math.floor(state.resources.money));
+    if (cash > 0) {
+      state.resources.money -= cash;
+      g.tollPaid += cash;
     }
 
-    removeFromStage(state, g.demandToy, "finished", give);
-    g.demandDelivered += give;
+    // Toy installment toward the demand (never more than owed or in stock).
+    const toys = Math.min(Math.max(0, Math.floor(toyAmount)), g.demandQty - g.demandDelivered, getSellableStock(state, g.demandToy));
+    if (toys > 0) {
+      removeFromStage(state, g.demandToy, "finished", toys);
+      g.demandDelivered += toys;
+    }
 
-    if (g.demandDelivered >= g.demandQty) {
+    if (cash <= 0 && toys <= 0) return false;
+
+    // Either condition fully met → he's foiled and leaves.
+    if (g.tollPaid >= g.toll || g.demandDelivered >= g.demandQty) {
+      const viaCash = g.tollPaid >= g.toll;
       clearThreat(state);
-      state.pendingAlerts.push(t("grinch.foiled.give", { taunt: t(`grinch.foiled.${randInt(0, grinchFoiledTaunts.length - 1)}`) }));
-      state.meta.statusText = t("grinch.status.gaveAll", { n: g.demandQty, name });
+      state.pendingAlerts.push(t(viaCash ? "grinch.foiled.pay" : "grinch.foiled.give", { taunt: foiledTaunt() }));
+      state.meta.statusText = viaCash
+        ? t("grinch.status.paid", { toll: formatMoney(g.toll) })
+        : t("grinch.status.gaveAll", { n: formatInt(g.demandQty), name: toyName(g.demandToy) });
       return true;
     }
-    state.meta.statusText = t("grinch.status.gaveSome", { n: give, name, left: g.demandQty - g.demandDelivered });
+
+    // Still owed on both — report the progress.
+    state.meta.statusText = t("grinch.status.progress", {
+      paid: formatMoney(g.tollPaid),
+      toll: formatMoney(g.toll),
+      given: formatInt(g.demandDelivered),
+      qty: formatInt(g.demandQty),
+      name: toyName(g.demandToy),
+    });
     return true;
   }
 
-  return { update, payToll, deliverDemand };
+  return { update, makeDeal };
 }
 
 export type GrinchSystem = ReturnType<typeof createGrinchSystem>;

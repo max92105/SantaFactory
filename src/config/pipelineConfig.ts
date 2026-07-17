@@ -106,7 +106,7 @@ export const pipelineSteps: PipelineStepDef[] = [
     toyType: null,
     inputStage: "raw",
     outputStage: "assembled",
-    baseTime: 3,
+    baseTime: 1,
     order: 2,
   },
   {

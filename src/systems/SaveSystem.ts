@@ -109,7 +109,10 @@ export function createSaveSystem() {
         },
         grinch: {
           // The heist resumes from its saved countdown (no dodging by reloading).
-          active: parsed.grinch?.active ?? null,
+          // Older active threats predate the cash accumulator — default it to 0.
+          active: parsed.grinch?.active
+            ? { tollPaid: 0, ...parsed.grinch.active }
+            : null,
           // New real-time cooldown; migrate old day-based saves (daysSince) into
           // the seconds still left on their warm-up.
           cooldownSeconds:

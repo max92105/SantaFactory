@@ -218,24 +218,12 @@ export function renderAppLayout(ctx: GameContext, views: FrameViews): void {
     state.pendingCelebrations.length = 0;
   }
 
-  // The Grinch: a non-blocking heist card with a live countdown.
+  // The Grinch: a non-blocking heist card with a live countdown + deal picker.
   if (state.grinch.active) {
-    if (!grinchCardOpen()) {
-      showGrinchCard(state.grinch.active, {
-        onPay: () => {
-          ctx.systems.grinch.payToll(ctx.getState());
-          removeGrinchCard();
-          ctx.rebuildUI();
-        },
-        onGive: () => {
-          ctx.systems.grinch.deliverDemand(ctx.getState());
-          ctx.rebuildUI();
-        },
-      });
-    }
+    if (!grinchCardOpen()) showGrinchCard(ctx);
     updateGrinchCard(state);
   } else if (grinchCardOpen()) {
-    removeGrinchCard();
+    removeGrinchCard(); // also closes an open deal modal if the timer ran out
   }
 
   // Random-event freeze modal: show while a choice is pending, remove after.

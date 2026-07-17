@@ -10,7 +10,7 @@
 
 import type { GameState, ElfInstance } from "../state/GameState";
 import { elfTypes, getElfType, type ElfTypeDef } from "../config/elfTypesConfig";
-import { shiftSlots, NIGHT_SLOT } from "../config/shiftsConfig";
+import { shiftSlots } from "../config/shiftsConfig";
 import { MAINTENANCE_STEP, REPAIR_STEP } from "../config/stationsConfig";
 
 // ── Reads ────────────────────────────────────────────────────────────────
@@ -93,12 +93,12 @@ export function activeMenders(state: GameState, slotId: string): ElfInstance[] {
 }
 
 // ── Shift eligibility ─────────────────────────────────────────────────────
+/** Can this elf type work the given slot? (false if it's in its blockedSlots.) */
 export function canWorkSlot(typeId: string, slotId: string): boolean {
-  if (slotId !== NIGHT_SLOT) return true;
-  return getElfType(typeId)?.canWorkNight !== false;
+  return !getElfType(typeId)?.blockedSlots?.includes(slotId);
 }
 
-/** Slots an elf type is allowed to work at all (drunken skips night). */
+/** Slots an elf type is allowed to work at all (some skip specific shifts). */
 export function allowedSlots(typeId: string): string[] {
   return shiftSlots.filter((s) => canWorkSlot(typeId, s.id)).map((s) => s.id);
 }

@@ -12,8 +12,7 @@
 
 import type { GameState } from "../state/GameState";
 import {
-  CHRISTMAS_TOTAL_TOYS,
-  SLEIGH_MAGIC,
+  CHRISTMAS_TOTAL_GIFTS,
   CHRISTMAS_QTY_JITTER,
   CHRISTMAS_MIN_PER_TOY,
   CHRISTMAS_DEADLINE_DAY,
@@ -26,11 +25,10 @@ import { formatInt } from "../helpers/formatHelpers";
 import { t } from "../ui/i18n/i18n";
 
 export type ChristmasView = {
-  totalToys: number;
-  deliveredToys: number;
-  remainingToys: number;
-  totalGifts: number;
-  deliveredGifts: number;
+  /** Every count is in gifts — one delivered toy = one gift (1:1). */
+  total: number;
+  delivered: number;
+  remaining: number;
   progress: number; // 0..1
   daysLeft: number;
   deadlineDay: number;
@@ -64,21 +62,29 @@ export function createChristmasSystem() {
 
     const lines = weights.map((w) => ({
       toyType: w.toyId,
-      quantity: Math.max(CHRISTMAS_MIN_PER_TOY, Math.round((CHRISTMAS_TOTAL_TOYS * w.weight) / totalWeight)),
+      quantity: Math.max(CHRISTMAS_MIN_PER_TOY, Math.round((CHRISTMAS_TOTAL_GIFTS * w.weight) / totalWeight)),
       delivered: 0,
     }));
 
     // Land the rounding/min-floor drift on the largest line so the total is exact.
-    const drift = CHRISTMAS_TOTAL_TOYS - lines.reduce((s, l) => s + l.quantity, 0);
+    const drift = CHRISTMAS_TOTAL_GIFTS - lines.reduce((s, l) => s + l.quantity, 0);
     const biggest = lines.reduce((a, b) => (b.quantity > a.quantity ? b : a));
     biggest.quantity = Math.max(CHRISTMAS_MIN_PER_TOY, biggest.quantity + drift);
 
     state.christmas.lines = lines;
   }
 
-  /** Make sure the order exists (new runs and older saves alike). */
+  /** Make sure the order exists and matches the current goal (new runs and
+   *  older saves alike). Regenerates a stale order — e.g. a save from before the
+   *  9-billion target — so an in-progress run always plays toward today's goal.
+   *  A finished run is left untouched so its result still reads correctly. */
   function ensureInit(state: GameState): void {
-    if (state.christmas.lines.length === 0) generateLines(state);
+    if (!state.meta.isRunOver) {
+      const currentTotal = orderQuantity(state.christmas);
+      if (state.christmas.lines.length === 0 || currentTotal !== CHRISTMAS_TOTAL_GIFTS) {
+        generateLines(state);
+      }
+    }
 
     // A run that ended before outcomes existed: resolve it now so the old
     // "season over" save shows a proper end screen instead of a dead UI.
@@ -121,7 +127,39 @@ export function createChristmasSystem() {
     } else {
       state.meta.statusText = t("sys.christmasPartial", {
         n: formatInt(gave),
-        gifts: formatInt(gave * SLEIGH_MAGIC),
+        left: formatInt(orderRemaining(state.christmas)),
+      });
+    }
+    return true;
+  }
+
+  /**
+   * Ship a player-chosen amount of each toy (keyed by toyType) toward the
+   * order — the exact-amount path, mirroring the daily-order deliver modal.
+   * Each is capped to what's owed and in stock. Wins if it finishes the order.
+   */
+  function deliverAmounts(state: GameState, amounts: Record<string, number>): boolean {
+    let gave = 0;
+    for (const line of state.christmas.lines) {
+      const want = Math.max(0, Math.floor(amounts[line.toyType] ?? 0));
+      const give = Math.min(want, deliverableToLine(state, line));
+      if (give > 0) {
+        removeFromStage(state, line.toyType, "finished", give);
+        line.delivered += give;
+        gave += give;
+      }
+    }
+
+    if (gave <= 0) {
+      state.meta.statusText = t("sys.orderNothing");
+      return false;
+    }
+
+    if (isOrderComplete(state.christmas)) {
+      win(state);
+    } else {
+      state.meta.statusText = t("sys.christmasPartial", {
+        n: formatInt(gave),
         left: formatInt(orderRemaining(state.christmas)),
       });
     }
@@ -144,11 +182,9 @@ export function createChristmasSystem() {
     const total = orderQuantity(state.christmas);
     const delivered = orderDelivered(state.christmas);
     return {
-      totalToys: total,
-      deliveredToys: delivered,
-      remainingToys: total - delivered,
-      totalGifts: total * SLEIGH_MAGIC,
-      deliveredGifts: delivered * SLEIGH_MAGIC,
+      total,
+      delivered,
+      remaining: total - delivered,
       progress: total > 0 ? delivered / total : 0,
       daysLeft: Math.max(0, CHRISTMAS_DEADLINE_DAY - state.time.day + 1),
       deadlineDay: CHRISTMAS_DEADLINE_DAY,
@@ -156,7 +192,7 @@ export function createChristmasSystem() {
     };
   }
 
-  return { ensureInit, deliverMax, resolveSeasonEnd, getView };
+  return { ensureInit, deliverMax, deliverAmounts, resolveSeasonEnd, getView };
 }
 
 export type ChristmasSystem = ReturnType<typeof createChristmasSystem>;

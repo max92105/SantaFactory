@@ -31,7 +31,7 @@ import {
   slotBreakChance,
 } from "../helpers/workforceHelpers";
 import { isStationBroken, setStationBroken, brokenStepIds } from "../helpers/stationHelpers";
-import { STATION_REPAIR_COST, MAINTENANCE_STEP, REPAIR_STEP } from "../config/stationsConfig";
+import { MAINTENANCE_STEP, REPAIR_STEP } from "../config/stationsConfig";
 import { getElfType } from "../config/elfTypesConfig";
 import { t } from "../ui/i18n/i18n";
 import { stepName, elfName, slotName } from "../ui/i18n/localize";
@@ -263,17 +263,13 @@ export function createPipelineSystem() {
     state.meta.statusText = t("sys.queueSet", { name: stepName(stepId), mode: modeLabel });
   }
 
-  /** Pay to repair a broken station instantly. Returns false if not broken/unaffordable. */
+  /** Repair a broken station (free — the player holds the repair button, or a
+   *  mechanic finishes an auto-repair). Returns false if it wasn't broken. */
   function repairStation(state: GameState, stepId: string): boolean {
     if (!isStationBroken(state, stepId)) return false;
-    if (state.resources.money < STATION_REPAIR_COST) {
-      state.meta.statusText = t("sys.repairNoMoney", { cost: `$${STATION_REPAIR_COST}` });
-      return false;
-    }
-    state.resources.money -= STATION_REPAIR_COST;
     setStationBroken(state, stepId, false);
     repairProgress[stepId] = 0;
-    state.meta.statusText = t("sys.repairPaid", { name: stepName(stepId), cost: `$${STATION_REPAIR_COST}` });
+    state.meta.statusText = t("sys.repaired", { name: stepName(stepId) });
     return true;
   }
 

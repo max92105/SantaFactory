@@ -30,6 +30,7 @@ import {
   elfCategoryDesc,
   upgradeName,
   upgradeDesc,
+  slotName,
 } from "../../i18n/localize";
 
 type Category = "toys" | "hiring" | "upgrades";
@@ -226,11 +227,14 @@ function buildElfRow(ctx: GameContext, def: ElfTypeDef): HTMLDivElement {
       <span class="elf-stat-label">${t("shop.wage")}</span>
       <span class="elf-stat-value wage">${t("shop.wagePerDay", { n: `$${def.dailyWage}` })}</span>
     </div>`;
+  const blocked = def.blockedSlots ?? [];
   const shiftStat = `
     <div class="elf-stat">
       <span class="elf-stat-label">${t("shop.shifts")}</span>
       <span class="elf-stat-value shifts">${t("shop.shiftsPerDay", { n: def.maxShifts })}</span>
-      <span class="elf-stat-sub ${def.canWorkNight ? "" : "warn"}">${def.canWorkNight ? t("shop.anySlot") : t("shop.noNights")}</span>
+      <span class="elf-stat-sub ${blocked.length ? "warn" : ""}">${
+        blocked.length ? t("shop.noSlots", { slots: blocked.map((s) => slotName(s)).join(", ") }) : t("shop.anySlot")
+      }</span>
     </div>`;
 
   // Specialists show their speed; workers show ruin + break chances.

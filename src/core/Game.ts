@@ -154,7 +154,10 @@ export function createGame(opts: CreateGameOptions): Game {
    * not rebuild the lists out from under them.
    */
   function isUserBusy(): boolean {
-    return document.querySelector(".assign-panel, .confirm-pop, .deliver-overlay") !== null;
+    return (
+      document.querySelector(".assign-panel, .confirm-pop, .deliver-overlay, .detail-broken.holding, .detail-repairs.holding") !==
+      null
+    );
   }
 
   /**

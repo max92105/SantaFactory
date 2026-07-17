@@ -34,12 +34,11 @@ export function showEndScreen(ctx: GameContext): void {
     <div class="end-title">${won ? t("end.wonTitle") : t("end.lostTitle")}</div>
     <div class="end-sub">${
       won
-        ? t("end.wonSub", { gifts: formatInt(view.totalGifts), day: state.time.day })
+        ? t("end.wonSub", { gifts: formatInt(view.total), day: state.time.day })
         : t("end.lostSub", { pct })
     }</div>
     <div class="end-stats">
-      <div class="end-stat"><span>${t("end.toysDelivered")}</span><strong>${formatInt(view.deliveredToys)} / ${formatInt(view.totalToys)}</strong></div>
-      <div class="end-stat"><span>${t("end.giftsDelivered")}</span><strong>${formatInt(view.deliveredGifts)}</strong></div>
+      <div class="end-stat"><span>${t("end.giftsDelivered")}</span><strong>${formatInt(view.delivered)} / ${formatInt(view.total)}</strong></div>
       <div class="end-stat"><span>${t("end.lifetimeGifts")}</span><strong>${formatInt(state.resources.lifetimeGifts)}</strong></div>
       <div class="end-stat"><span>${t("end.ordersFilled")}</span><strong>${formatInt(state.stats.ordersCompleted)}</strong></div>
     </div>

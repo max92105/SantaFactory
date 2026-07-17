@@ -77,12 +77,15 @@ export type TimedMod = Partial<{
 export type ActiveMod = { id: string; icon: string; label: string; expiresDay: number; mod: TimedMod };
 
 /**
- * The Grinch's live heist threat: pay `toll`, or hand over `demandQty` of
- * `demandToy`, before `secondsLeft` hits 0 — or he steals `stealPct` of your
- * finished stock.
+ * The Grinch's live heist threat. Two ways out, and you can pay toward EITHER in
+ * chosen amounts (installments): pay the `toll` in cash (`tollPaid` accumulates),
+ * or hand over `demandQty` of `demandToy` (`demandDelivered` accumulates). He
+ * leaves the instant either is fully met; if `secondsLeft` hits 0 first he steals
+ * `stealPct` of your finished stock.
  */
 export type GrinchThreat = {
   toll: number;
+  tollPaid: number;
   demandToy: string;
   demandQty: number;
   demandDelivered: number;

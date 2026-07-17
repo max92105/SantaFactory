@@ -47,7 +47,7 @@ import {
   type CrewGroup,
 } from "../../../helpers/workforceHelpers";
 import { isStationBroken, brokenStationCount, brokenStepIds } from "../../../helpers/stationHelpers";
-import { STATION_REPAIR_COST, MAINTENANCE_STEP, REPAIR_STEP } from "../../../config/stationsConfig";
+import { REPAIR_HOLD_SECONDS, MAINTENANCE_STEP, REPAIR_STEP } from "../../../config/stationsConfig";
 import { formatInt, formatCost } from "../../../helpers/formatHelpers";
 import { t } from "../../i18n/i18n";
 import { toyName, elfName, stepName, stepDesc, slotName } from "../../i18n/localize";
@@ -495,11 +495,13 @@ function buildStepControl(ctx: GameContext, step: PipelineStepDef): HTMLElement 
   `;
   block.appendChild(meta);
 
+  // A broken station shows the repair banner, but you can STILL schedule elves
+  // onto it — they simply produce nothing (output is 0 while broken) and start
+  // working the instant it's repaired.
   if (broken) {
     block.appendChild(brokenBanner(ctx, step.id, t("factory.brokenBanner")));
-  } else {
-    block.appendChild(buildScheduler(ctx, step.id, "worker"));
   }
+  block.appendChild(buildScheduler(ctx, step.id, "worker"));
 
   block.appendChild(buildFlow(ctx, step));
   return block;
@@ -572,27 +574,88 @@ function buildQueueMode(ctx: GameContext, stepId: string, titleText = t("factory
 }
 
 /**
- * A red banner for a broken station: manual-repair button plus a live
+ * A "press and hold to repair" button (free — no cost). Holding for
+ * REPAIR_HOLD_SECONDS fixes the station; a fill overlay shows progress and
+ * releasing early cancels. While held it tags its container `.holding` so the
+ * game loop defers background rebuilds (see Game.ts isUserBusy) — the interaction
+ * isn't yanked away mid-hold.
+ */
+function makeRepairHoldButton(ctx: GameContext, stepId: string, label: string, extraClass = ""): HTMLButtonElement {
+  const HOLD_MS = REPAIR_HOLD_SECONDS * 1000;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = `repair-btn repair-hold ${extraClass}`.trim();
+  btn.innerHTML = `<span class="repair-hold-fill" data-hold-fill></span><span class="repair-hold-label">${label}</span>`;
+  const fill = btn.querySelector<HTMLElement>("[data-hold-fill]")!;
+
+  let raf = 0;
+  let startTs = 0;
+  let holding = false;
+
+  const setFill = (p: number) => {
+    fill.style.width = `${Math.min(100, Math.max(0, p * 100))}%`;
+  };
+  const container = () => btn.closest<HTMLElement>(".detail-broken, .detail-repairs");
+  const stop = (done: boolean) => {
+    if (!holding) return;
+    holding = false;
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    btn.classList.remove("holding");
+    container()?.classList.remove("holding");
+    window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onUp);
+    if (!done) setFill(0);
+  };
+  const tick = (ts: number) => {
+    if (!holding) return;
+    const p = (ts - startTs) / HOLD_MS;
+    setFill(p);
+    if (p >= 1) {
+      stop(true);
+      ctx.systems.pipeline.repairStation(ctx.getState(), stepId);
+      ctx.rebuildUI();
+      return;
+    }
+    raf = requestAnimationFrame(tick);
+  };
+  const onUp = () => stop(false);
+
+  btn.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (holding) return;
+    holding = true;
+    startTs = performance.now();
+    try {
+      btn.setPointerCapture(e.pointerId);
+    } catch {
+      /* capture unsupported — window listeners still catch the release */
+    }
+    btn.classList.add("holding");
+    container()?.classList.add("holding");
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    raf = requestAnimationFrame(tick);
+  });
+  btn.addEventListener("pointerup", onUp);
+  btn.addEventListener("pointercancel", onUp);
+
+  return btn;
+}
+
+/**
+ * A red banner for a broken station: press-and-hold repair button plus a live
  * mechanic auto-repair progress bar (fills as mechanics on shift work it).
  * The bar + hint are refreshed each frame in renderFrame.
  */
 function brokenBanner(ctx: GameContext, stepId: string, text: string): HTMLElement {
-  const state = ctx.getState();
   const banner = document.createElement("div");
   banner.className = "detail-broken";
 
   const top = document.createElement("div");
   top.className = "detail-broken-top";
   top.innerHTML = `<span>⚠️ ${text}</span>`;
-  const repair = document.createElement("button");
-  repair.className = "repair-btn";
-  repair.textContent = t("factory.repairBtn", { cost: formatCost(STATION_REPAIR_COST) });
-  repair.disabled = state.resources.money < STATION_REPAIR_COST;
-  repair.onclick = () => {
-    ctx.systems.pipeline.repairStation(ctx.getState(), stepId);
-    ctx.rebuildUI();
-  };
-  top.appendChild(repair);
+  top.appendChild(makeRepairHoldButton(ctx, stepId, t("factory.repairHold")));
   banner.appendChild(top);
 
   const auto = document.createElement("div");
@@ -653,15 +716,7 @@ function buildMaintenanceDetail(ctx: GameContext): void {
           <div class="repair-track"><div class="repair-fill" data-repair="${stepId}"></div></div>
         </div>
       `;
-      const btn = document.createElement("button");
-      btn.className = "repair-btn small";
-      btn.textContent = t("factory.repairShort", { cost: formatCost(STATION_REPAIR_COST) });
-      btn.disabled = state.resources.money < STATION_REPAIR_COST;
-      btn.onclick = () => {
-        ctx.systems.pipeline.repairStation(ctx.getState(), stepId);
-        ctx.rebuildUI();
-      };
-      row.appendChild(btn);
+      row.appendChild(makeRepairHoldButton(ctx, stepId, t("factory.repairHoldShort"), "small"));
       repairs.appendChild(row);
     }
   }

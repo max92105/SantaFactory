@@ -29,8 +29,12 @@
 }
 
 .grinch-face {
-  font-size: 34px;
-  line-height: 1;
+  width: auto;
+  height: 48px;
+  flex-shrink: 0;
+  object-fit: contain;
+  transform-origin: bottom center;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.45));
   animation: grinch-wobble 2.4s ease-in-out infinite;
 }
 
@@ -82,9 +86,67 @@
   color: var(--danger);
 }
 
+.grinch-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: var(--space-md);
+}
+
+.grinch-prog-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  font-size: 12px;
+}
+
+.grinch-prog-label {
+  color: var(--text-muted);
+}
+
+.grinch-prog-val {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text);
+}
+
 .grinch-actions {
   display: flex;
   gap: var(--space-sm);
+}
+
+.grinch-deal {
+  background: var(--success);
+  color: #06220f;
+}
+
+/* Deal modal (inside the shared .deliver-sheet) */
+.grinch-deal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin: var(--space-md) 0;
+}
+
+.grinch-deal-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+}
+
+.grinch-deal-label {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.grinch-deal-none {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
 }
 
 .grinch-btn {

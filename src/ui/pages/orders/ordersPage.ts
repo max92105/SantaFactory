@@ -12,7 +12,6 @@ import type { Page } from "../Page";
 import type { GameContext } from "../../../core/GameContext";
 import type { Order, OrderLine } from "../../../state/GameState";
 import { MAX_ACTIVE_ORDERS } from "../../../config/ordersConfig";
-import { SLEIGH_MAGIC } from "../../../config/christmasConfig";
 import { deliverableTo, deliverableToLine, orderRemaining, progressOf } from "../../../helpers/orderHelpers";
 import { getSellableStock } from "../../../helpers/inventoryHelpers";
 import { isToyUnlocked } from "../../../helpers/unlockHelpers";
@@ -80,12 +79,13 @@ export function createOrdersPage(): Page {
         if (fill) fill.style.width = `${Math.floor(progressOf(g) * 100)}%`;
       }
 
-      // Live: the Christmas Order's ready count + deliver button
+      // Live: the Christmas Order's ready count + deliver/choose buttons
       const xmasReady = deliverableTo(state, state.christmas);
       const xmasReadyEl = ctx.dom.ordersChristmas.querySelector<HTMLElement>("[data-xmas-ready]");
       if (xmasReadyEl) xmasReadyEl.textContent = t("orders.readyToShip", { n: formatInt(xmasReady) });
-      const xmasBtn = ctx.dom.ordersChristmas.querySelector<HTMLButtonElement>(".xmas-deliver");
-      if (xmasBtn) xmasBtn.disabled = xmasReady <= 0;
+      ctx.dom.ordersChristmas
+        .querySelectorAll<HTMLButtonElement>(".xmas-deliver, .xmas-choose")
+        .forEach((b) => (b.disabled = xmasReady <= 0));
     },
   };
 }
@@ -169,8 +169,7 @@ function buildChristmasSection(ctx: GameContext): void {
       <span class="xmas-icon">🎄</span>
       <div class="xmas-head-text">
         <div class="xmas-tag">${t("christmas.tag")}</div>
-        <div class="xmas-flavor">${t("christmas.flavor", { gifts: formatInt(view.totalGifts) })}</div>
-        <div class="xmas-magic">${t("christmas.magic", { n: formatInt(SLEIGH_MAGIC) })}</div>
+        <div class="xmas-flavor">${t("christmas.flavor", { gifts: formatInt(view.total) })}</div>
       </div>
       <div class="xmas-deadline">
         <span class="xmas-days">${formatInt(view.daysLeft)}</span>
@@ -180,8 +179,8 @@ function buildChristmasSection(ctx: GameContext): void {
     <div class="xmas-progress"><div class="xmas-progress-fill" style="width:${pct}%"></div></div>
     <div class="xmas-numbers">
       <span>${t("christmas.progressGifts", {
-        d: formatCompact(view.deliveredGifts),
-        total: formatCompact(view.totalGifts),
+        d: formatCompact(view.delivered),
+        total: formatCompact(view.total),
       })}</span>
       <span class="xmas-pct">${pct}%</span>
     </div>
@@ -202,6 +201,25 @@ function buildChristmasSection(ctx: GameContext): void {
     </div>
   `;
 
+  const foot = host.querySelector(".xmas-foot")!;
+
+  // Choose exact amounts per toy (same picker as a daily order).
+  const choose = document.createElement("button");
+  choose.className = "xmas-choose";
+  choose.textContent = t("christmas.chooseAmounts");
+  choose.disabled = true; // renderFrame enables it as soon as stock is ready
+  choose.onclick = () =>
+    openDeliverModal(ctx, {
+      title: t("christmas.deliverTitle"),
+      getOrder: () => ({ lines: ctx.getState().christmas.lines, reward: 0 }),
+      deliver: (amounts) => ctx.systems.christmas.deliverAmounts(ctx.getState(), amounts),
+      hideEmpty: true, // 50 toys — only show the ones with stock to give
+      subHtml: (ord) => t("christmas.deliverSub", { left: formatCompact(orderRemaining(ord)) }),
+      completesHtml: () => `<span class="ok">${t("christmas.deliverCompletes")}</span>`,
+    });
+  foot.appendChild(choose);
+
+  // Send everything at once (no per-toy fiddling).
   const deliver = document.createElement("button");
   deliver.className = "xmas-deliver";
   deliver.textContent = t("christmas.deliverAll");
@@ -210,7 +228,7 @@ function buildChristmasSection(ctx: GameContext): void {
     ctx.systems.christmas.deliverMax(ctx.getState());
     ctx.rebuildUI();
   };
-  host.querySelector(".xmas-foot")!.appendChild(deliver);
+  foot.appendChild(deliver);
 }
 
 /** The pinned holiday "grand order": banner, progress, and a Deliver button. */
@@ -380,11 +398,20 @@ function buildOfferList(ctx: GameContext): void {
 }
 
 // ── Deliver modal ─────────────────────────────────────────────────────────
-/** What the deliver modal needs — works for a daily Order or a GrandOrder. */
+/** What the deliver modal needs — works for a daily Order, a GrandOrder, or
+ *  the reward-less 50-line Christmas Order. */
+type DeliverFillable = { lines: OrderLine[]; reward: number };
 type DeliverSource = {
   title: string;
-  getOrder: () => { id: number; lines: OrderLine[]; reward: number } | null;
+  getOrder: () => DeliverFillable | null;
   deliver: (amounts: Record<string, number>) => void;
+  /** Hide lines with nothing shippable right now (the Christmas Order lists all
+   *  50 toys — only show the ones the player can actually act on). */
+  hideEmpty?: boolean;
+  /** Override the reward-centric sub line (Christmas has no cash reward). */
+  subHtml?: (ord: DeliverFillable) => string;
+  /** Override the "…completes the order" hint shown when the picks finish it. */
+  completesHtml?: (ord: DeliverFillable) => string;
 };
 
 /**
@@ -455,7 +482,9 @@ function openDeliverModal(ctx: GameContext, source: DeliverSource): void {
 
     const sub = document.createElement("div");
     sub.className = "deliver-sub";
-    sub.innerHTML = t("deliver.sub", { reward: `<strong>${formatMoney(ord.reward)}</strong>`, left: formatInt(orderRemaining(ord)) });
+    sub.innerHTML = source.subHtml
+      ? source.subHtml(ord)
+      : t("deliver.sub", { reward: `<strong>${formatMoney(ord.reward)}</strong>`, left: formatInt(orderRemaining(ord)) });
     sheet.appendChild(sub);
 
     // One row per toy line
@@ -464,6 +493,7 @@ function openDeliverModal(ctx: GameContext, source: DeliverSource): void {
     for (const line of ord.lines) {
       const remaining = Math.max(0, line.quantity - line.delivered);
       const cap = maxShip[line.toyType] ?? 0;
+      if (source.hideEmpty && cap <= 0) continue; // Christmas: skip toys with nothing to give now
       amounts[line.toyType] = Math.max(0, Math.min(amounts[line.toyType] ?? 0, cap));
 
       const row = document.createElement("div");
@@ -563,12 +593,13 @@ function openDeliverModal(ctx: GameContext, source: DeliverSource): void {
         total += ship;
         if (line.delivered + ship < line.quantity) completes = false;
       }
+      const completesHtml = source.completesHtml
+        ? source.completesHtml(ord!)
+        : `<span class="ok">${t("deliver.summaryCompletes", { reward: formatMoney(ord!.reward) })}</span>`;
       summary.innerHTML =
         total > 0
           ? t("deliver.summaryShip", { n: `<strong>${formatInt(total)}</strong>` }) +
-            (completes
-              ? `<span class="ok">${t("deliver.summaryCompletes", { reward: formatMoney(ord!.reward) })}</span>`
-              : t("deliver.summaryPartial"))
+            (completes ? completesHtml : t("deliver.summaryPartial"))
           : t("deliver.summaryEmpty");
       confirm.disabled = total <= 0;
     }

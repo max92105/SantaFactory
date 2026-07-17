@@ -79,8 +79,12 @@ export type ElfTypeDef = {
 
   /** How many of the day's 4 shift slots one elf of this type can cover. */
   maxShifts: number;
-  /** Whether this elf will take the night slot (drunken elves won't). */
-  canWorkNight: boolean;
+  /**
+   * Shift slots this elf REFUSES to work (ids from shiftsConfig, e.g.
+   * ["night"] or ["afternoon", "evening"]). Omitted/empty = works any slot.
+   * Lets you make elves tied to specific shifts.
+   */
+  blockedSlots?: string[];
 };
 
 export const elfTypes: ElfTypeDef[] = [
@@ -96,7 +100,7 @@ export const elfTypes: ElfTypeDef[] = [
     mistakeChance: 0.4,
     breakChance: 0.006,
     maxShifts: 2,
-    canWorkNight: false,
+    blockedSlots: ["night"], // too busy getting drunk
     role: "worker",
   },
   {
@@ -111,7 +115,6 @@ export const elfTypes: ElfTypeDef[] = [
     mistakeChance: 0.25,
     breakChance: 0.004,
     maxShifts: 2,
-    canWorkNight: true,
     role: "worker",
   },
   {
@@ -126,7 +129,6 @@ export const elfTypes: ElfTypeDef[] = [
     mistakeChance: 0.12,
     breakChance: 0.003,
     maxShifts: 3,
-    canWorkNight: true,
     role: "worker",
   },
   {
@@ -141,7 +143,6 @@ export const elfTypes: ElfTypeDef[] = [
     mistakeChance: 0.08,
     breakChance: 0.0015,
     maxShifts: 2,
-    canWorkNight: true,
     role: "worker",
   },
   {
@@ -156,7 +157,6 @@ export const elfTypes: ElfTypeDef[] = [
     mistakeChance: 0.015,
     breakChance: 0.0003,
     maxShifts: 2,
-    canWorkNight: true,
     role: "worker",
   },
 
@@ -177,7 +177,6 @@ export const elfTypes: ElfTypeDef[] = [
     breakChance: 0,
     repairTime: 20,
     maxShifts: 2,
-    canWorkNight: true,
   },
   {
     id: "mechanic",
@@ -193,7 +192,6 @@ export const elfTypes: ElfTypeDef[] = [
     breakChance: 0,
     repairTime: 10,
     maxShifts: 2,
-    canWorkNight: true,
   },
   {
     id: "master_mech",
@@ -209,7 +207,6 @@ export const elfTypes: ElfTypeDef[] = [
     breakChance: 0,
     repairTime: 5,
     maxShifts: 2,
-    canWorkNight: true,
   },
 
   // ─── Repair Crew — menders that turn broken toys back into finished ───────
@@ -229,7 +226,6 @@ export const elfTypes: ElfTypeDef[] = [
     breakChance: 0,
     refurbishTime: 8,
     maxShifts: 2,
-    canWorkNight: true,
   },
   {
     id: "mender",
@@ -245,7 +241,6 @@ export const elfTypes: ElfTypeDef[] = [
     breakChance: 0,
     refurbishTime: 4,
     maxShifts: 2,
-    canWorkNight: true,
   },
 ];
 

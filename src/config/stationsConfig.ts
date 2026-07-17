@@ -2,11 +2,13 @@
  * Station (pipeline step) tuning — breakdowns & repair.
  *
  * Elves can break the station they work on (elfTypesConfig breakChance). A
- * broken station halts until the player pays to repair it in the Factory tab.
+ * broken station halts until it's repaired: either the player press-and-holds
+ * the repair button for REPAIR_HOLD_SECONDS, or on-shift mechanics auto-repair
+ * it over time (Maintenance line).
  */
 
-/** Flat cost to repair one broken station manually. */
-export const STATION_REPAIR_COST = 40;
+/** How long the player must hold the repair button to fix one station (seconds). */
+export const REPAIR_HOLD_SECONDS = 5;
 
 /**
  * The virtual "step" mechanics are scheduled to. It isn't a production line —
