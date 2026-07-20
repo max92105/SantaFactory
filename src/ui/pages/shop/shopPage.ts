@@ -261,11 +261,22 @@ function buildElfRow(ctx: GameContext, def: ElfTypeDef): HTMLDivElement {
       <span class="elf-stat-value break">${formatPct(def.breakChance)}</span>
     </div>`;
 
+  // Special work rules get loud, readable chips right on the hiring card.
+  const traits: string[] = [];
+  if (def.managerMult) traits.push(t("trait.manager", { mult: def.managerMult }));
+  if (def.shy) traits.push(t("trait.shy"));
+  if (def.dayOffChance) traits.push(t("trait.dayOff", { pct: Math.round(def.dayOffChance * 100) }));
+  if (def.mistakeChance === 0 && !def.managerMult && def.role === "worker") traits.push(t("trait.perfect"));
+  const traitsHtml = traits.length
+    ? `<div class="elf-traits">${traits.map((tr) => `<span class="elf-trait">${tr}</span>`).join("")}</div>`
+    : "";
+
   row.innerHTML = `
     <div class="shop-row-icon">${def.icon}</div>
     <div class="elf-main">
       <div class="shop-row-title">${elfName(def.id)}</div>
       <div class="shop-row-sub">${elfDesc(def.id)}</div>
+      ${traitsHtml}
     </div>
     ${wageStat}
     ${midStats}

@@ -25,6 +25,8 @@ import {
   assignElves as assignElvesToStep,
   removeElves as removeElvesFromState,
   activeOnStep,
+  activeProducersOnStep,
+  stepCrewSpeedMult,
   activeMechanics,
   activeMenders,
   slotMistakeChance,
@@ -104,11 +106,12 @@ export function createPipelineSystem() {
   function getStepOutputPerSecond(state: GameState, step: PipelineStepDef, mods: Modifiers): number {
     if (isStationBroken(state, step.id)) return 0;
     const slot = currentShiftSlot(state.time.dayProgress);
-    const elves = activeOnStep(state, step.id, slot);
-    if (elves <= 0) return 0;
-    const effectiveTime = step.baseTime / mods.producerSpeedMult;
+    // Managers don't build — they multiply the speed of those who do.
+    const producers = activeProducersOnStep(state, step.id, slot).length;
+    if (producers <= 0) return 0;
+    const effectiveTime = step.baseTime / (mods.producerSpeedMult * stepCrewSpeedMult(state, step.id, slot));
     const successRate = 1 - Math.min(1, slotMistakeChance(state, step.id, slot) * mods.mistakeMult);
-    return (elves / effectiveTime) * mods.producerOutputMult * successRate;
+    return (producers / effectiveTime) * mods.producerOutputMult * successRate;
   }
 
   function update(state: GameState, mods: Modifiers, dtSeconds: number): void {
@@ -120,12 +123,12 @@ export function createPipelineSystem() {
       if (step.toyType && !isToyUnlocked(state, step.toyType)) continue;
       if (isStationBroken(state, step.id)) continue;
 
-      const elves = activeOnStep(state, step.id, slot);
-      if (elves <= 0) continue;
+      const producers = activeProducersOnStep(state, step.id, slot).length;
+      if (producers <= 0) continue;
       if (!hasInput(state, step)) continue;
 
-      const effectiveTime = step.baseTime / mods.producerSpeedMult;
-      const rawProduction = (elves / effectiveTime) * dtSeconds * mods.producerOutputMult;
+      const effectiveTime = step.baseTime / (mods.producerSpeedMult * stepCrewSpeedMult(state, step.id, slot));
+      const rawProduction = (producers / effectiveTime) * dtSeconds * mods.producerOutputMult;
 
       progressAccum[step.id] = (progressAccum[step.id] ?? 0) + rawProduction;
 

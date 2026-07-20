@@ -200,6 +200,7 @@ export function createSaveSystem() {
           step: typeof e?.step === "string" ? e.step : null,
           slots: Array.isArray(e?.slots) ? e.slots.map(String) : [],
           spent: !!e?.spent,
+          dayOff: !!e?.dayOff,
         });
         nextId = Math.max(nextId, id + 1);
       }

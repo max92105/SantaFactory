@@ -40,11 +40,12 @@ import {
   scheduledOnStep,
   activeMechanics,
   activeMenders,
-  canWorkSlot,
-  allowedSlots,
   requiredShifts,
+  slotRestriction,
+  stepCrewSpeedMult,
   crewGroups,
   type CrewGroup,
+  type SlotRestriction,
 } from "../../../helpers/workforceHelpers";
 import { isStationBroken, brokenStationCount, brokenStepIds } from "../../../helpers/stationHelpers";
 import { REPAIR_HOLD_SECONDS, MAINTENANCE_STEP, REPAIR_STEP } from "../../../config/stationsConfig";
@@ -72,6 +73,32 @@ function roleText(role: ElfRole): {
     assignHead: t(`factory.assignHead${cap}`),
     pickerEmpty: t(`factory.pickerEmpty${cap}`),
   };
+}
+
+/** One-line description of a specialist type's work rules (empty = no quirks). */
+function elfTraitText(typeId: string): string {
+  const def = getElfType(typeId);
+  if (!def) return "";
+  const bits: string[] = [];
+  if (def.managerMult) bits.push(t("trait.manager", { mult: def.managerMult }));
+  if (def.shy) bits.push(t("trait.shy"));
+  if (def.dayOffChance) bits.push(t("trait.dayOff", { pct: Math.round(def.dayOffChance * 100) }));
+  if (def.mistakeChance === 0 && !def.managerMult && def.role === "worker") bits.push(t("trait.perfect"));
+  return bits.join(" · ");
+}
+
+/** Why a slot button is disabled in the assign panel. */
+function restrictionText(r: SlotRestriction): string {
+  switch (r) {
+    case "blocked":
+      return t("factory.wontWork");
+    case "manager_taken":
+      return t("factory.slotManagerTaken");
+    case "shy_mixed":
+      return t("factory.slotShyMixed");
+    case "shy_blocked":
+      return t("factory.slotShyBlocked");
+  }
 }
 
 function statusOf(view: StepProgress | undefined, scheduled: number): Status {
@@ -261,6 +288,14 @@ export function createFactoryPage(): Page {
         if (ruin) ruin.textContent = `${Math.round((view?.mistakeChance ?? 0) * 100)}%`;
         const pbar = block.querySelector<HTMLElement>('[data-detail="progress"]');
         if (pbar) pbar.style.width = `${Math.floor((view?.progress ?? 0) * 100)}%`;
+
+        // Manager boost this slot: ×1.25 in green when a manager is on shift.
+        const mgr = block.querySelector<HTMLElement>('[data-detail="mgr"]');
+        if (mgr) {
+          const mult = stepCrewSpeedMult(state, id, slot);
+          mgr.textContent = mult > 1 ? `👔 ×${mult}` : "—";
+          mgr.classList.toggle("boosted", mult > 1);
+        }
 
         // Broken? show this station's mechanic auto-repair progress inline.
         const repairFill = block.querySelector<HTMLElement>("[data-repair]");
@@ -491,6 +526,7 @@ function buildStepControl(ctx: GameContext, step: PipelineStepDef): HTMLElement 
     <div class="detail-stat"><span>${t("factory.output")}</span><strong data-detail="rate">0.00/s</strong></div>
     <div class="detail-stat"><span>${t("factory.ruinRate")}</span><strong data-detail="ruin">0%</strong></div>
     <div class="detail-stat"><span>${t("factory.baseTime")}</span><strong>${step.baseTime}s</strong></div>
+    <div class="detail-stat"><span>${t("factory.managerStat")}</span><strong data-detail="mgr">—</strong></div>
     <div class="detail-progress"><div class="detail-progress-fill" data-detail="progress"></div></div>
   `;
   block.appendChild(meta);
@@ -836,10 +872,11 @@ function buildScheduler(ctx: GameContext, stepId: string, role: ElfRole): HTMLEl
 
 /** A crew group (same type + same shifts): shows the count; ✕ opens batch remove. */
 function buildCrewGroupCard(ctx: GameContext, group: CrewGroup): HTMLElement {
+  const state = ctx.getState();
   const def = getElfType(group.type);
   const count = group.ids.length;
   const card = document.createElement("div");
-  card.className = "elf-card";
+  card.className = "elf-card" + (def?.managerMult ? " manager" : "");
 
   const pips = shiftSlots
     .map((s) => {
@@ -848,10 +885,17 @@ function buildCrewGroupCard(ctx: GameContext, group: CrewGroup): HTMLElement {
     })
     .join("");
 
+  // Manager: show the boost right on the card. Workaholics: show today's no-shows.
+  const managerBadge = def?.managerMult
+    ? ` <span class="elf-card-badge">${t("factory.managerBadge", { mult: def.managerMult })}</span>`
+    : "";
+  const offToday = group.ids.filter((id) => state.workforce.elves.find((e) => e.id === id)?.dayOff).length;
+  const offBadge = offToday > 0 ? ` <span class="elf-card-off">${t("factory.dayOffBadge", { n: offToday })}</span>` : "";
+
   card.innerHTML = `
     <span class="elf-card-icon">${def?.icon ?? "🧝"}</span>
     <div class="elf-card-info">
-      <span class="elf-card-name">${elfName(group.type)}${count > 1 ? ` <span class="elf-card-count">×${count}</span>` : ""}</span>
+      <span class="elf-card-name">${elfName(group.type)}${count > 1 ? ` <span class="elf-card-count">×${count}</span>` : ""}${managerBadge}${offBadge}</span>
       <span class="elf-card-slots">${pips}</span>
     </div>
   `;
@@ -910,7 +954,11 @@ function buildAssignPanel(
         })}</span>`;
         btn.onclick = () => {
           selectedType = elf.id;
-          selectedSlots = allowedSlots(elf.id).slice(0, requiredShifts(elf.id)); // sensible default
+          // Sensible default: the first slots this type can actually take here.
+          const open = shiftSlots
+            .filter((s) => slotRestriction(ctx.getState(), elf.id, stepId, s.id) === null)
+            .map((s) => s.id);
+          selectedSlots = open.slice(0, Math.min(requiredShifts(elf.id), open.length));
           qty = 1;
           render();
         };
@@ -920,25 +968,43 @@ function buildAssignPanel(
 
       // Step 2: choose the shifts + how many
       if (selectedType) {
-        const need = requiredShifts(selectedType);
+        const def = getElfType(selectedType);
+
+        // A special-rule elf explains itself right where you're assigning it.
+        const traitText = elfTraitText(selectedType);
+        if (traitText) {
+          const trait = document.createElement("div");
+          trait.className = "assign-trait";
+          trait.textContent = traitText;
+          panel.appendChild(trait);
+        }
+
+        // Slots this type can take ON THIS STATION (its own rules + who's
+        // already scheduled here: one manager per shift, shy crews stay shy).
+        const openSlots = shiftSlots.filter((s) => slotRestriction(state, selectedType!, stepId, s.id) === null);
+        const need = Math.min(requiredShifts(selectedType), openSlots.length);
+        selectedSlots = selectedSlots.filter((s) => openSlots.some((o) => o.id === s));
         const idle = idleOfType(state, selectedType);
-        qty = Math.max(1, Math.min(qty, idle));
+        // Managers are one-per-shift, so batching several is never valid.
+        const maxQty = def?.managerMult ? Math.min(1, idle) : idle;
+        qty = Math.max(1, Math.min(qty, maxQty));
 
         const shiftHead = document.createElement("div");
         shiftHead.className = "assign-shift-head";
-        shiftHead.textContent = t("factory.chooseShifts", { n: need, sel: selectedSlots.length });
+        shiftHead.textContent =
+          need > 0 ? t("factory.chooseShifts", { n: need, sel: selectedSlots.length }) : t("factory.noOpenShifts");
         panel.appendChild(shiftHead);
 
         const slotRow = document.createElement("div");
         slotRow.className = "assign-slots";
         for (const slot of shiftSlots) {
-          const allowed = canWorkSlot(selectedType, slot.id);
+          const restriction = slotRestriction(state, selectedType, stepId, slot.id);
           const on = selectedSlots.includes(slot.id);
           const btn = document.createElement("button");
           btn.className = "assign-slot" + (on ? " on" : "");
-          btn.disabled = !allowed;
+          btn.disabled = restriction !== null;
           btn.innerHTML = `${slot.icon}<small>${slotName(slot.id)}</small>`;
-          if (!allowed) btn.title = t("factory.wontWork");
+          if (restriction) btn.title = restrictionText(restriction);
           btn.onclick = () => {
             if (on) selectedSlots = selectedSlots.filter((s) => s !== slot.id);
             else if (selectedSlots.length < need) selectedSlots = [...selectedSlots, slot.id];
@@ -952,12 +1018,12 @@ function buildAssignPanel(
         const qtyRow = document.createElement("div");
         qtyRow.className = "assign-qty";
         qtyRow.append(
-          stepper(qty, 1, idle, (v) => {
+          stepper(qty, 1, maxQty, (v) => {
             qty = v;
             render();
           }),
           maxBtn(() => {
-            qty = idle;
+            qty = maxQty;
             render();
           }),
           note(t("factory.ofIdle", { n: idle }))
@@ -966,8 +1032,13 @@ function buildAssignPanel(
       }
     }
 
-    // Footer
-    const ready = !!selectedType && selectedSlots.length === (selectedType ? requiredShifts(selectedType) : 0);
+    // Footer — needs a full valid slot selection for THIS station.
+    const ready = (() => {
+      if (!selectedType) return false;
+      const openCount = shiftSlots.filter((s) => slotRestriction(ctx.getState(), selectedType!, stepId, s.id) === null).length;
+      const need = Math.min(requiredShifts(selectedType), openCount);
+      return need > 0 && selectedSlots.length === need;
+    })();
     const footer = document.createElement("div");
     footer.className = "assign-footer";
     const assign = document.createElement("button");

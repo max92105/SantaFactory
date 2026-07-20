@@ -264,6 +264,25 @@
   min-width: 0;
 }
 
+/* Special work rules (manager boost, shy, day-off odds, never-fails) */
+.elf-traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.elf-trait {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: #fcd34d;
+  white-space: nowrap;
+}
+
 .elf-stat {
   display: flex;
   flex-direction: column;

@@ -11,7 +11,8 @@ import type { FrameViews, GameContext, Systems } from "./GameContext";
 import type { GameState } from "../state/GameState";
 import { SEASON_DAYS } from "../config/timeConfig";
 import { brokenStationCount } from "../helpers/stationHelpers";
-import { resetSpentShifts } from "../helpers/workforceHelpers";
+import { resetSpentShifts, rollDayOffs } from "../helpers/workforceHelpers";
+import { t } from "../ui/i18n/i18n";
 
 import { createTimeSystem } from "../systems/TimeSystem";
 import { createEconomySystem } from "../systems/EconomySystem";
@@ -226,8 +227,10 @@ export function createGame(opts: CreateGameOptions): Game {
       state.dayStats.ruined = 0;
       state.dayStats.moneyStart = state.resources.money;
 
-      // New day: spent shifts free up again
+      // New day: spent shifts free up again, and workaholics roll burnout
       resetSpentShifts(state);
+      const offToday = rollDayOffs(state);
+      if (offToday > 0) state.pendingAlerts.push(t("sys.dayOffs", { n: offToday }));
 
       // Random events: expire yesterday's timed mods, then maybe fire a new one
       // (which pauses the game until the player chooses).

@@ -55,19 +55,36 @@ export function scheduledOnStep(state: GameState, stepId: string): number {
   return elvesOnStep(state, stepId).length;
 }
 
-/** Elves working a step during a specific slot. */
+/** Elves working a step during a specific slot (day-off elves don't work). */
 export function activeElvesOnStep(state: GameState, stepId: string, slotId: string): ElfInstance[] {
-  return state.workforce.elves.filter((e) => e.step === stepId && e.slots.includes(slotId));
+  return state.workforce.elves.filter((e) => e.step === stepId && e.slots.includes(slotId) && !e.dayOff);
 }
 
 export function activeOnStep(state: GameState, stepId: string, slotId: string): number {
   return activeElvesOnStep(state, stepId, slotId).length;
 }
 
+/**
+ * Elves actually PRODUCING on a step this slot — managers are excluded (they
+ * boost the crew but build nothing themselves).
+ */
+export function activeProducersOnStep(state: GameState, stepId: string, slotId: string): ElfInstance[] {
+  return activeElvesOnStep(state, stepId, slotId).filter((e) => !getElfType(e.type)?.managerMult);
+}
+
+/** Crew speed multiplier from a manager on this station+shift (1 = none). */
+export function stepCrewSpeedMult(state: GameState, stepId: string, slotId: string): number {
+  for (const e of activeElvesOnStep(state, stepId, slotId)) {
+    const mult = getElfType(e.type)?.managerMult;
+    if (mult) return mult; // only one manager per station+shift can exist
+  }
+  return 1;
+}
+
 /** Total elves on shift across all steps during a slot. */
 export function onShiftCount(state: GameState, slotId: string): number {
   return state.workforce.elves.reduce(
-    (n, e) => n + (e.step !== null && e.slots.includes(slotId) ? 1 : 0),
+    (n, e) => n + (e.step !== null && e.slots.includes(slotId) && !e.dayOff ? 1 : 0),
     0
   );
 }
@@ -78,6 +95,7 @@ export function activeMechanics(state: GameState, slotId: string): ElfInstance[]
     (e) =>
       e.step === MAINTENANCE_STEP &&
       e.slots.includes(slotId) &&
+      !e.dayOff &&
       getElfType(e.type)?.role === "mechanic"
   );
 }
@@ -88,6 +106,7 @@ export function activeMenders(state: GameState, slotId: string): ElfInstance[] {
     (e) =>
       e.step === REPAIR_STEP &&
       e.slots.includes(slotId) &&
+      !e.dayOff &&
       getElfType(e.type)?.role === "mender"
   );
 }
@@ -109,6 +128,47 @@ export function requiredShifts(typeId: string): number {
   return Math.min(max, allowedSlots(typeId).length);
 }
 
+/**
+ * Why can't this elf type take this slot on this step? (null = it can.)
+ *  - "blocked":        the type refuses this slot (blockedSlots).
+ *  - "manager_taken":  a manager already runs this station+shift (max one).
+ *  - "shy_mixed":      a shy elf can't join non-shy crew on this shift.
+ *  - "shy_blocked":    a non-shy elf can't join a shy crew on this shift.
+ * Structural rules — they look at everyone SCHEDULED on the slot (day-off
+ * elves still hold their spot).
+ */
+export type SlotRestriction = "blocked" | "manager_taken" | "shy_mixed" | "shy_blocked";
+export function slotRestriction(
+  state: GameState,
+  typeId: string,
+  stepId: string,
+  slotId: string
+): SlotRestriction | null {
+  if (!canWorkSlot(typeId, slotId)) return "blocked";
+  const def = getElfType(typeId);
+  const crew = elvesOnStep(state, stepId).filter((e) => e.slots.includes(slotId));
+
+  if (def?.managerMult && crew.some((e) => getElfType(e.type)?.managerMult)) return "manager_taken";
+  if (def?.shy && crew.some((e) => !getElfType(e.type)?.shy)) return "shy_mixed";
+  if (!def?.shy && crew.some((e) => getElfType(e.type)?.shy)) return "shy_blocked";
+  return null;
+}
+
+/**
+ * A new morning: every elf with a dayOffChance rolls whether they show up.
+ * Day-off elves KEEP their schedule — they just don't work until tomorrow.
+ * Returns how many are off today (for the morning alert).
+ */
+export function rollDayOffs(state: GameState): number {
+  let off = 0;
+  for (const e of state.workforce.elves) {
+    const chance = getElfType(e.type)?.dayOffChance ?? 0;
+    e.dayOff = chance > 0 && Math.random() < chance;
+    if (e.dayOff) off += 1;
+  }
+  return off;
+}
+
 // ── Mutations ──────────────────────────────────────────────────────────────
 export function addElf(state: GameState, typeId: string): ElfInstance {
   const elf: ElfInstance = { id: state.workforce.nextId++, type: typeId, step: null, slots: [], spent: false };
@@ -118,11 +178,12 @@ export function addElf(state: GameState, typeId: string): ElfInstance {
 
 /**
  * Schedule one idle elf of a type onto a step, covering `slots`. Returns the
- * assigned elf, or null if none idle. `slots` should be a valid selection
- * (respecting allowedSlots / requiredShifts — the UI enforces this).
+ * assigned elf, or null if none idle. Slots that violate a restriction
+ * (blocked shift, manager already there, shy/non-shy mixing) are dropped —
+ * the UI surfaces these same rules up front via slotRestriction.
  */
 export function assignElf(state: GameState, typeId: string, stepId: string, slots: string[]): ElfInstance | null {
-  const valid = slots.filter((s) => canWorkSlot(typeId, s));
+  const valid = slots.filter((s) => slotRestriction(state, typeId, stepId, s) === null);
   if (valid.length === 0) return null;
   const elf = state.workforce.elves.find((e) => e.type === typeId && isIdle(e));
   if (!elf) return null;
@@ -201,14 +262,15 @@ export function removeOneOfType(state: GameState, typeId: string): boolean {
   return true;
 }
 
-// ── Per-slot mistake / break chance (weighted by elves working that slot) ──
+// ── Per-slot mistake / break chance (weighted by PRODUCING elves that slot —
+//    managers oversee, they don't touch the toys) ──────────────────────────
 function weightedChance(
   state: GameState,
   stepId: string,
   slotId: string,
   pick: (def: ElfTypeDef) => number
 ): number {
-  const on = activeElvesOnStep(state, stepId, slotId);
+  const on = activeProducersOnStep(state, stepId, slotId);
   if (on.length === 0) return 0;
   let sum = 0;
   for (const e of on) sum += pick(getElfType(e.type) ?? ({} as ElfTypeDef));

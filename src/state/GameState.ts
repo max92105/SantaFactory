@@ -33,6 +33,9 @@ export type ElfInstance = {
   step: string | null;
   slots: string[];
   spent: boolean;
+  /** Skipping today entirely (workaholics burn out — rolled each morning).
+   *  Keeps its schedule; just doesn't work until tomorrow. */
+  dayOff?: boolean;
 };
 
 /** One toy line within an order: deliver `quantity` finished `toyType`. */

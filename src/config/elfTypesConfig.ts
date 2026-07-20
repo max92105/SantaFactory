@@ -29,6 +29,11 @@ export const elfCategories: ElfCategoryDef[] = [
     description: "Cheap, general-purpose elves — the backbone of the workshop.",
   },
   {
+    id: "special",
+    name: "Specialist Elves",
+    description: "Quirky hires with their own work rules — read the fine print.",
+  },
+  {
     id: "maintenance",
     name: "Maintenance Crew",
     description: "Mechanics that automatically repair broken stations while on shift.",
@@ -85,6 +90,17 @@ export type ElfTypeDef = {
    * Lets you make elves tied to specific shifts.
    */
   blockedSlots?: string[];
+
+  // ── Specialist quirks (see workforceHelpers.slotRestriction + PipelineSystem) ──
+  /**
+   * MANAGER: doesn't build toys itself — everyone else on its station+shift
+   * works this much faster (×1.25). Only ONE manager per station per shift.
+   */
+  managerMult?: number;
+  /** SHY: will only share a station+shift with other shy elves. */
+  shy?: boolean;
+  /** Chance (0..1) each morning that this elf takes the whole day off. */
+  dayOffChance?: number;
 };
 
 export const elfTypes: ElfTypeDef[] = [
@@ -158,6 +174,96 @@ export const elfTypes: ElfTypeDef[] = [
     breakChance: 0.0003,
     maxShifts: 2,
     role: "worker",
+  },
+
+  // ─── Specialist Elves — quirky hires with unique work rules ──────────────
+  {
+    id: "shy",
+    name: "Shy Elf",
+    icon: "🙈",
+    description: "A fine worker — but only alongside other Shy Elves. Strangers freeze them up.",
+    category: "special",
+    role: "worker",
+    baseCost: 20,
+    costGrowth: 1.13,
+    dailyWage: 1.5,
+    mistakeChance: 0.12,
+    breakChance: 0.002,
+    maxShifts: 2,
+    shy: true,
+  },
+  {
+    id: "antisocial",
+    name: "Antisocial Elf",
+    icon: "🌙",
+    description: "Refuses daylight — only takes the evening and night shifts.",
+    category: "special",
+    role: "worker",
+    baseCost: 40,
+    costGrowth: 1.14,
+    dailyWage: 2.5,
+    mistakeChance: 0.07,
+    breakChance: 0.0012,
+    maxShifts: 2,
+    blockedSlots: ["morning", "afternoon"],
+  },
+  {
+    id: "retired",
+    name: "Almost-Retired Elf",
+    icon: "👴",
+    description: "Decades of craftsmanship, one shift of energy per day.",
+    category: "special",
+    role: "worker",
+    baseCost: 60,
+    costGrowth: 1.14,
+    dailyWage: 2,
+    mistakeChance: 0.03,
+    breakChance: 0.0005,
+    maxShifts: 1,
+  },
+  {
+    id: "workaholic",
+    name: "Workaholic Elf",
+    icon: "☕",
+    description: "Works all four shifts — except the days they burn out and don't show up at all.",
+    category: "special",
+    role: "worker",
+    baseCost: 150,
+    costGrowth: 1.16,
+    dailyWage: 7,
+    mistakeChance: 0.1,
+    breakChance: 0.002,
+    maxShifts: 4,
+    dayOffChance: 0.25,
+  },
+  {
+    id: "perfectionist",
+    name: "Perfectionist Elf",
+    icon: "🧐",
+    description: "Measured, meticulous — has never ruined a toy in their life.",
+    category: "special",
+    role: "worker",
+    baseCost: 400,
+    costGrowth: 1.18,
+    dailyWage: 12,
+    mistakeChance: 0,
+    breakChance: 0.0002,
+    maxShifts: 2,
+  },
+  {
+    id: "manager",
+    name: "Manager Elf",
+    icon: "👔",
+    description: "Builds nothing — but the whole crew on their shift works 25% faster. One per station per shift.",
+    category: "special",
+    role: "worker",
+    baseCost: 1200,
+    costGrowth: 1.2,
+    dailyWage: 15,
+    mistakeChance: 0,
+    breakChance: 0,
+    maxShifts: 2,
+    managerMult: 1.25,
   },
 
   // ─── Maintenance Crew — mechanics that auto-repair broken stations ───────
