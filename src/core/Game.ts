@@ -13,6 +13,7 @@ import { SEASON_DAYS } from "../config/timeConfig";
 import { brokenStationCount } from "../helpers/stationHelpers";
 import { resetSpentShifts, rollDayOffs } from "../helpers/workforceHelpers";
 import { t } from "../ui/i18n/i18n";
+import { isNotifyEnabled } from "../ui/settings";
 
 import { createTimeSystem } from "../systems/TimeSystem";
 import { createEconomySystem } from "../systems/EconomySystem";
@@ -150,14 +151,17 @@ export function createGame(opts: CreateGameOptions): Game {
   }
 
   /**
-   * Is the player mid-interaction with a transient widget (an open assign
-   * panel, a confirm popup, or the deliver modal)? While one is open we must
-   * not rebuild the lists out from under them.
+   * Is the player mid-interaction with a transient widget (the crew-assign
+   * window, a confirm popup, or the deliver modal)? While one is open we must
+   * not rebuild the lists out from under them. None of these set
+   * meta.isPaused, so the factory keeps ticking behind them either way —
+   * this only defers UI REBUILDS (not the simulation) until they close.
    */
   function isUserBusy(): boolean {
     return (
-      document.querySelector(".assign-panel, .confirm-pop, .deliver-overlay, .detail-broken.holding, .detail-repairs.holding") !==
-      null
+      document.querySelector(
+        ".crew-modal-overlay, .confirm-pop, .deliver-overlay, .detail-broken.holding, .detail-repairs.holding"
+      ) !== null
     );
   }
 
@@ -230,7 +234,7 @@ export function createGame(opts: CreateGameOptions): Game {
       // New day: spent shifts free up again, and workaholics roll burnout
       resetSpentShifts(state);
       const offToday = rollDayOffs(state);
-      if (offToday > 0) state.pendingAlerts.push(t("sys.dayOffs", { n: offToday }));
+      if (offToday > 0 && isNotifyEnabled("dayOff")) state.pendingAlerts.push(t("sys.dayOffs", { n: offToday }));
 
       // Random events: expire yesterday's timed mods, then maybe fire a new one
       // (which pauses the game until the player chooses).

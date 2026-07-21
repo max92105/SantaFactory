@@ -4,7 +4,7 @@
  * so newly-added content still renders. Keys live in messages.ts.
  */
 
-import { tOr } from "./i18n";
+import { tOr, t } from "./i18n";
 import { getToyType } from "../../config/toyTypesConfig";
 import { getElfType, elfCategories } from "../../config/elfTypesConfig";
 import { getPipelineStep, PRODUCTION_STAGES } from "../../config/pipelineConfig";
@@ -39,6 +39,27 @@ export function elfCategoryName(id: string): string {
 }
 export function elfCategoryDesc(id: string): string {
   return tOr(`elfCat.${id}.desc`, elfCategories.find((c) => c.id === id)?.description ?? "");
+}
+/**
+ * Short, scannable chips describing a specialist elf type's work rules — shown
+ * on hiring cards and in the crew-assign window so constraints are visible
+ * BEFORE you commit to hiring/assigning. Empty array for elves with no quirks.
+ * `includeBlockedSlots` also chips the shifts a type refuses (e.g. antisocial
+ * elves skipping daylight) — omitted on the hiring card, where that's already
+ * shown by the Shifts stat, but included in the assign window, which isn't.
+ */
+export function elfTraitChips(id: string, opts?: { includeBlockedSlots?: boolean }): string[] {
+  const def = getElfType(id);
+  if (!def) return [];
+  const chips: string[] = [];
+  if (def.managerMult) chips.push(t("trait.manager", { mult: def.managerMult }));
+  if (def.shy) chips.push(t("trait.shy"));
+  if (def.dayOffChance) chips.push(t("trait.dayOff", { pct: Math.round(def.dayOffChance * 100) }));
+  if (def.mistakeChance === 0 && !def.managerMult && def.role === "worker") chips.push(t("trait.perfect"));
+  if (opts?.includeBlockedSlots && def.blockedSlots?.length) {
+    chips.push(t("trait.blockedSlots", { slots: def.blockedSlots.map((s) => slotName(s)).join(", ") }));
+  }
+  return chips;
 }
 
 // ── Pipeline steps + stages ──

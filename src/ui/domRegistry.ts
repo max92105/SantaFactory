@@ -28,6 +28,7 @@ export type DomRefs = {
   menuPanel: HTMLDivElement;
   saveBtn: HTMLButtonElement;
   muteBtn: HTMLButtonElement;
+  notifyBtn: HTMLButtonElement;
   mainMenuBtn: HTMLButtonElement;
   langSelect: HTMLElement;
 
@@ -147,6 +148,7 @@ export function getDomRefs(): DomRefs {
     menuPanel: mustGet("menuPanel"),
     saveBtn: mustGet("saveBtn"),
     muteBtn: mustGet("muteBtn"),
+    notifyBtn: mustGet("notifyBtn"),
     mainMenuBtn: mustGet("mainMenuBtn"),
     langSelect: mustGet("langSelect"),
 

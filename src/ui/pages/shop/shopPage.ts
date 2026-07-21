@@ -31,6 +31,7 @@ import {
   upgradeName,
   upgradeDesc,
   slotName,
+  elfTraitChips,
 } from "../../i18n/localize";
 
 type Category = "toys" | "hiring" | "upgrades";
@@ -262,11 +263,8 @@ function buildElfRow(ctx: GameContext, def: ElfTypeDef): HTMLDivElement {
     </div>`;
 
   // Special work rules get loud, readable chips right on the hiring card.
-  const traits: string[] = [];
-  if (def.managerMult) traits.push(t("trait.manager", { mult: def.managerMult }));
-  if (def.shy) traits.push(t("trait.shy"));
-  if (def.dayOffChance) traits.push(t("trait.dayOff", { pct: Math.round(def.dayOffChance * 100) }));
-  if (def.mistakeChance === 0 && !def.managerMult && def.role === "worker") traits.push(t("trait.perfect"));
+  // (blockedSlots isn't chipped here — the Shifts stat below already shows it.)
+  const traits = elfTraitChips(def.id);
   const traitsHtml = traits.length
     ? `<div class="elf-traits">${traits.map((tr) => `<span class="elf-trait">${tr}</span>`).join("")}</div>`
     : "";

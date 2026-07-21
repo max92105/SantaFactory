@@ -36,6 +36,7 @@ import { netWorth, scaledGifts } from "../helpers/progressHelpers";
 import { formatInt, formatMoney } from "../helpers/formatHelpers";
 import { t } from "../ui/i18n/i18n";
 import { toyName } from "../ui/i18n/localize";
+import { isNotifyEnabled } from "../ui/settings";
 
 /** Quiet cooldown after a heist (and the initial warm-up), in in-game seconds. */
 const COOLDOWN_SECONDS = GRINCH_MIN_GAP_DAYS * SECONDS_PER_GAME_DAY;
@@ -98,7 +99,13 @@ export function createGrinchSystem() {
       taunt: tauntKey,
     };
 
-    state.pendingAlerts.push(t("grinch.status.alert", { taunt: t(tauntKey) }));
+    // The grinch card itself is the persistent, unmissable cue; the toast is
+    // the noisy part players can mute (☰ menu → Notifications). His steal/
+    // foiled outcomes below stay unconditional — those are one-off results,
+    // not a recurring ping.
+    if (isNotifyEnabled("grinch")) {
+      state.pendingAlerts.push(t("grinch.status.alert", { taunt: t(tauntKey) }));
+    }
     state.meta.statusText = t("grinch.status.arrive");
     return true;
   }

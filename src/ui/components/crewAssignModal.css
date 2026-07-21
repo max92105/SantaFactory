@@ -1,0 +1,360 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   CREW ASSIGN MODAL — the dedicated, step-by-step "assign elves" window.
+   Non-blocking (the factory keeps running behind it). Logic: crewAssignModal.ts
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.crew-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, 0.6);
+  animation: crew-modal-fade 0.12s ease;
+}
+
+@keyframes crew-modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.crew-modal-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 620px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+
+.crew-modal-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--divider);
+  position: sticky;
+  top: 0;
+  background: var(--bg-panel);
+  z-index: 1;
+}
+
+.crew-modal-icon {
+  font-size: 30px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.crew-modal-head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.crew-modal-title {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.crew-modal-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.crew-modal-close {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.crew-modal-close:hover {
+  color: var(--text);
+}
+
+.crew-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+}
+
+/* ── Steps ─────────────────────────────────────────────────────────────── */
+.crew-step-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: var(--space-sm);
+}
+
+.crew-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.crew-empty-state {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: var(--space-sm) 0;
+}
+
+/* ── Step 1: type grid ─────────────────────────────────────────────────── */
+.crew-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-sm);
+}
+
+.crew-type-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  text-align: left;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.crew-type-card:hover {
+  border-color: var(--border-light);
+}
+
+.crew-type-card.active {
+  border-color: var(--accent);
+  background: rgba(74, 158, 255, 0.12);
+}
+
+.crew-type-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.crew-type-icon {
+  font-size: 26px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.crew-type-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.crew-type-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.crew-type-idle {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.crew-type-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.crew-chip {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: #fcd34d;
+  white-space: nowrap;
+}
+
+/* ── Step 2: shift slots + warnings ───────────────────────────────────── */
+.crew-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: #fca5a5;
+  font-size: 12px;
+}
+
+.crew-warning.subtle {
+  background: rgba(96, 165, 250, 0.08);
+  border-color: rgba(96, 165, 250, 0.25);
+  color: #93c5fd;
+}
+
+.crew-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.crew-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 96px;
+  padding: var(--space-sm) 4px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 18px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.crew-slot-icon {
+  line-height: 1;
+}
+
+.crew-slot small {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.crew-slot:hover:not(:disabled) {
+  border-color: var(--border-light);
+}
+
+.crew-slot.on {
+  border-color: var(--accent);
+  background: rgba(74, 158, 255, 0.14);
+}
+
+.crew-slot:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.crew-slot-lock {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 11px;
+}
+
+/* ── Step 3: quantity ──────────────────────────────────────────────────── */
+.crew-qty-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.crew-qty-note {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+/* ── Footer ────────────────────────────────────────────────────────────── */
+.crew-modal-foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-top: 1px solid var(--divider);
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-panel);
+}
+
+.crew-summary {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.crew-modal-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.crew-confirm,
+.crew-cancel {
+  flex: 1;
+  padding: var(--space-md);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.crew-confirm {
+  background: var(--success);
+  color: #06220f;
+}
+
+.crew-confirm:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.crew-confirm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.crew-cancel {
+  flex: 0 0 auto;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-inset);
+  color: var(--text);
+}
+
+/* ── Responsive: bottom sheet on phones ───────────────────────────────── */
+@media (max-width: 640px) {
+  .crew-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .crew-modal-sheet {
+    max-width: none;
+    max-height: 94vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    animation: crew-modal-rise 0.18s ease;
+  }
+  .crew-slot {
+    width: calc(25% - var(--space-sm) * 0.75);
+  }
+}
+
+@keyframes crew-modal-rise {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}

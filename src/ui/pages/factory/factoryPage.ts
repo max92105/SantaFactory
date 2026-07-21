@@ -40,29 +40,26 @@ import {
   scheduledOnStep,
   activeMechanics,
   activeMenders,
-  requiredShifts,
-  slotRestriction,
   stepCrewSpeedMult,
   crewGroups,
   type CrewGroup,
-  type SlotRestriction,
 } from "../../../helpers/workforceHelpers";
 import { isStationBroken, brokenStationCount, brokenStepIds } from "../../../helpers/stationHelpers";
 import { REPAIR_HOLD_SECONDS, MAINTENANCE_STEP, REPAIR_STEP } from "../../../config/stationsConfig";
 import { formatInt, formatCost } from "../../../helpers/formatHelpers";
 import { t } from "../../i18n/i18n";
 import { toyName, elfName, stepName, stepDesc, slotName } from "../../i18n/localize";
+import { openCrewAssignModal } from "../../components/crewAssignModal";
 
 type Status = { cls: string; label: string };
 
-/** Per-role, localized wording for the crew scheduler / assign panel. */
+/** Per-role, localized wording for the inline crew scheduler (the assign FLOW
+ *  itself lives in its own window — see components/crewAssignModal.ts). */
 function roleText(role: ElfRole): {
   crewTitle: string;
   addBtn: string;
   noneHired: string;
   crewEmpty: string;
-  assignHead: string;
-  pickerEmpty: string;
 } {
   const cap = role === "mechanic" ? "Mech" : role === "mender" ? "Mender" : "Worker";
   return {
@@ -70,35 +67,7 @@ function roleText(role: ElfRole): {
     addBtn: t(role === "mechanic" ? "factory.assignMech" : role === "mender" ? "factory.assignMender" : "factory.assignElf"),
     noneHired: t(role === "mechanic" ? "factory.noMechanics" : role === "mender" ? "factory.noMenders" : "factory.noWorkers"),
     crewEmpty: t(`factory.crewEmpty${cap}`),
-    assignHead: t(`factory.assignHead${cap}`),
-    pickerEmpty: t(`factory.pickerEmpty${cap}`),
   };
-}
-
-/** One-line description of a specialist type's work rules (empty = no quirks). */
-function elfTraitText(typeId: string): string {
-  const def = getElfType(typeId);
-  if (!def) return "";
-  const bits: string[] = [];
-  if (def.managerMult) bits.push(t("trait.manager", { mult: def.managerMult }));
-  if (def.shy) bits.push(t("trait.shy"));
-  if (def.dayOffChance) bits.push(t("trait.dayOff", { pct: Math.round(def.dayOffChance * 100) }));
-  if (def.mistakeChance === 0 && !def.managerMult && def.role === "worker") bits.push(t("trait.perfect"));
-  return bits.join(" · ");
-}
-
-/** Why a slot button is disabled in the assign panel. */
-function restrictionText(r: SlotRestriction): string {
-  switch (r) {
-    case "blocked":
-      return t("factory.wontWork");
-    case "manager_taken":
-      return t("factory.slotManagerTaken");
-    case "shy_mixed":
-      return t("factory.slotShyMixed");
-    case "shy_blocked":
-      return t("factory.slotShyBlocked");
-  }
 }
 
 function statusOf(view: StepProgress | undefined, scheduled: number): Status {
@@ -856,18 +825,22 @@ function buildScheduler(ctx: GameContext, stepId: string, role: ElfRole): HTMLEl
   addBtn.className = "assign-open";
   addBtn.textContent = T.addBtn;
   addBtn.onclick = () => {
-    if (wrap.querySelector(".assign-panel")) return; // one panel at a time
-    addBtn.disabled = true;
-    wrap.appendChild(
-      buildAssignPanel(ctx, stepId, role, () => {
-        wrap.querySelector(".assign-panel")?.remove();
-        addBtn.disabled = false;
-      })
-    );
+    const meta = stationMeta(stepId);
+    openCrewAssignModal(ctx, { stepId, role, icon: meta.icon, label: meta.label });
   };
   wrap.appendChild(addBtn);
 
   return wrap;
+}
+
+/** Icon + display label for a station (toy line, shared step, or virtual
+ *  Maintenance/Repair line) — used to header the crew-assign window. */
+function stationMeta(stepId: string): { icon: string; label: string } {
+  if (stepId === MAINTENANCE_STEP) return { icon: "🔧", label: t("factory.maintenance") };
+  if (stepId === REPAIR_STEP) return { icon: "🪡", label: t("factory.repairBench") };
+  const step = getPipelineStep(stepId);
+  const toy = step?.toyType ? getToyType(step.toyType) : null;
+  return { icon: toy ? toy.icon : "⚙️", label: stepName(stepId) };
 }
 
 /** A crew group (same type + same shifts): shows the count; ✕ opens batch remove. */
@@ -910,158 +883,6 @@ function buildCrewGroupCard(ctx: GameContext, group: CrewGroup): HTMLElement {
   return card;
 }
 
-/**
- * Assign flow: pick an idle elf type, then choose ALL of its shift slots, then
- * confirm. The elf works exactly its type's shift count (drunken skips night).
- */
-function buildAssignPanel(
-  ctx: GameContext,
-  stepId: string,
-  role: ElfRole,
-  onClose: () => void
-): HTMLElement {
-  const panel = document.createElement("div");
-  panel.className = "assign-panel";
-
-  let selectedType: string | null = null;
-  let selectedSlots: string[] = [];
-  let qty = 1;
-
-  function render(): void {
-    const state = ctx.getState();
-    const options = ownedElfTypes(state).filter((t) => t.role === role && idleOfType(state, t.id) > 0);
-    panel.innerHTML = "";
-
-    const head = document.createElement("div");
-    head.className = "assign-title";
-    head.textContent = roleText(role).assignHead;
-    panel.appendChild(head);
-
-    if (options.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "picker-empty";
-      empty.textContent = roleText(role).pickerEmpty;
-      panel.appendChild(empty);
-    } else {
-      // Step 1: pick elf type
-      const typeRow = document.createElement("div");
-      typeRow.className = "assign-types";
-      for (const elf of options) {
-        const btn = document.createElement("button");
-        btn.className = "assign-type" + (selectedType === elf.id ? " active" : "");
-        btn.innerHTML = `<span>${elf.icon} ${elfName(elf.id)}</span><span class="picker-free">${t("factory.idleCount", {
-          n: idleOfType(state, elf.id),
-        })}</span>`;
-        btn.onclick = () => {
-          selectedType = elf.id;
-          // Sensible default: the first slots this type can actually take here.
-          const open = shiftSlots
-            .filter((s) => slotRestriction(ctx.getState(), elf.id, stepId, s.id) === null)
-            .map((s) => s.id);
-          selectedSlots = open.slice(0, Math.min(requiredShifts(elf.id), open.length));
-          qty = 1;
-          render();
-        };
-        typeRow.appendChild(btn);
-      }
-      panel.appendChild(typeRow);
-
-      // Step 2: choose the shifts + how many
-      if (selectedType) {
-        const def = getElfType(selectedType);
-
-        // A special-rule elf explains itself right where you're assigning it.
-        const traitText = elfTraitText(selectedType);
-        if (traitText) {
-          const trait = document.createElement("div");
-          trait.className = "assign-trait";
-          trait.textContent = traitText;
-          panel.appendChild(trait);
-        }
-
-        // Slots this type can take ON THIS STATION (its own rules + who's
-        // already scheduled here: one manager per shift, shy crews stay shy).
-        const openSlots = shiftSlots.filter((s) => slotRestriction(state, selectedType!, stepId, s.id) === null);
-        const need = Math.min(requiredShifts(selectedType), openSlots.length);
-        selectedSlots = selectedSlots.filter((s) => openSlots.some((o) => o.id === s));
-        const idle = idleOfType(state, selectedType);
-        // Managers are one-per-shift, so batching several is never valid.
-        const maxQty = def?.managerMult ? Math.min(1, idle) : idle;
-        qty = Math.max(1, Math.min(qty, maxQty));
-
-        const shiftHead = document.createElement("div");
-        shiftHead.className = "assign-shift-head";
-        shiftHead.textContent =
-          need > 0 ? t("factory.chooseShifts", { n: need, sel: selectedSlots.length }) : t("factory.noOpenShifts");
-        panel.appendChild(shiftHead);
-
-        const slotRow = document.createElement("div");
-        slotRow.className = "assign-slots";
-        for (const slot of shiftSlots) {
-          const restriction = slotRestriction(state, selectedType, stepId, slot.id);
-          const on = selectedSlots.includes(slot.id);
-          const btn = document.createElement("button");
-          btn.className = "assign-slot" + (on ? " on" : "");
-          btn.disabled = restriction !== null;
-          btn.innerHTML = `${slot.icon}<small>${slotName(slot.id)}</small>`;
-          if (restriction) btn.title = restrictionText(restriction);
-          btn.onclick = () => {
-            if (on) selectedSlots = selectedSlots.filter((s) => s !== slot.id);
-            else if (selectedSlots.length < need) selectedSlots = [...selectedSlots, slot.id];
-            render();
-          };
-          slotRow.appendChild(btn);
-        }
-        panel.appendChild(slotRow);
-
-        // Quantity stepper
-        const qtyRow = document.createElement("div");
-        qtyRow.className = "assign-qty";
-        qtyRow.append(
-          stepper(qty, 1, maxQty, (v) => {
-            qty = v;
-            render();
-          }),
-          maxBtn(() => {
-            qty = maxQty;
-            render();
-          }),
-          note(t("factory.ofIdle", { n: idle }))
-        );
-        panel.appendChild(qtyRow);
-      }
-    }
-
-    // Footer — needs a full valid slot selection for THIS station.
-    const ready = (() => {
-      if (!selectedType) return false;
-      const openCount = shiftSlots.filter((s) => slotRestriction(ctx.getState(), selectedType!, stepId, s.id) === null).length;
-      const need = Math.min(requiredShifts(selectedType), openCount);
-      return need > 0 && selectedSlots.length === need;
-    })();
-    const footer = document.createElement("div");
-    footer.className = "assign-footer";
-    const assign = document.createElement("button");
-    assign.className = "assign-confirm";
-    assign.textContent = ready ? t("factory.assignN", { n: qty }) : t("factory.assign");
-    assign.disabled = !ready;
-    assign.onclick = () => {
-      if (!selectedType) return;
-      ctx.systems.pipeline.assignElves(ctx.getState(), selectedType, stepId, selectedSlots, qty);
-      ctx.rebuildUI();
-    };
-    const cancel = document.createElement("button");
-    cancel.className = "assign-cancel";
-    cancel.textContent = t("factory.cancel");
-    cancel.onclick = () => onClose();
-    footer.append(assign, cancel);
-    panel.appendChild(footer);
-  }
-
-  render();
-  return panel;
-}
-
 /** A small − N + stepper. */
 function stepper(value: number, min: number, max: number, onChange: (v: number) => void): HTMLElement {
   const wrap = document.createElement("div");
@@ -1079,14 +900,6 @@ function stepper(value: number, min: number, max: number, onChange: (v: number) 
   inc.onclick = () => onChange(Math.min(max, value + 1));
   wrap.append(dec, val, inc);
   return wrap;
-}
-
-function maxBtn(onClick: () => void): HTMLElement {
-  const b = document.createElement("button");
-  b.className = "qty-max";
-  b.textContent = t("factory.max");
-  b.onclick = onClick;
-  return b;
 }
 
 function note(text: string): HTMLElement {

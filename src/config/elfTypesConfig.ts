@@ -11,6 +11,11 @@
  *
  * Cost scales per type: baseCost * costGrowth^(current count of that type),
  * so losing a type's elves makes rehiring them cheaper again.
+ *
+ * breakChance tuning: all values are ~40% of their original numbers (a ~60%
+ * cut) — breakdowns were firing too often, especially at high headcount where
+ * a whole crew rolls the chance on every single item. Keep new elf types in
+ * that same reduced range (drunken 0.0025 down to veteran 0.00012).
  */
 
 /** Elves are grouped into categories in the Hiring UI. */
@@ -114,7 +119,7 @@ export const elfTypes: ElfTypeDef[] = [
     costGrowth: 1.12,
     dailyWage: 1,
     mistakeChance: 0.4,
-    breakChance: 0.006,
+    breakChance: 0.0025,
     maxShifts: 2,
     blockedSlots: ["night"], // too busy getting drunk
     role: "worker",
@@ -129,7 +134,7 @@ export const elfTypes: ElfTypeDef[] = [
     costGrowth: 1.13,
     dailyWage: 1.5,
     mistakeChance: 0.25,
-    breakChance: 0.004,
+    breakChance: 0.0016,
     maxShifts: 2,
     role: "worker",
   },
@@ -143,7 +148,7 @@ export const elfTypes: ElfTypeDef[] = [
     costGrowth: 1.16,
     dailyWage: 4,
     mistakeChance: 0.12,
-    breakChance: 0.003,
+    breakChance: 0.0012,
     maxShifts: 3,
     role: "worker",
   },
@@ -157,7 +162,7 @@ export const elfTypes: ElfTypeDef[] = [
     costGrowth: 1.15,
     dailyWage: 3,
     mistakeChance: 0.08,
-    breakChance: 0.0015,
+    breakChance: 0.0006,
     maxShifts: 2,
     role: "worker",
   },
@@ -171,7 +176,7 @@ export const elfTypes: ElfTypeDef[] = [
     costGrowth: 1.18,
     dailyWage: 9,
     mistakeChance: 0.015,
-    breakChance: 0.0003,
+    breakChance: 0.00012,
     maxShifts: 2,
     role: "worker",
   },
@@ -188,7 +193,7 @@ export const elfTypes: ElfTypeDef[] = [
     costGrowth: 1.13,
     dailyWage: 1.5,
     mistakeChance: 0.12,
-    breakChance: 0.002,
+    breakChance: 0.0008,
     maxShifts: 2,
     shy: true,
   },
@@ -203,7 +208,7 @@ export const elfTypes: ElfTypeDef[] = [
     costGrowth: 1.14,
     dailyWage: 2.5,
     mistakeChance: 0.07,
-    breakChance: 0.0012,
+    breakChance: 0.0005,
     maxShifts: 2,
     blockedSlots: ["morning", "afternoon"],
   },
@@ -218,7 +223,7 @@ export const elfTypes: ElfTypeDef[] = [
     costGrowth: 1.14,
     dailyWage: 2,
     mistakeChance: 0.03,
-    breakChance: 0.0005,
+    breakChance: 0.0002,
     maxShifts: 1,
   },
   {
@@ -232,7 +237,7 @@ export const elfTypes: ElfTypeDef[] = [
     costGrowth: 1.16,
     dailyWage: 7,
     mistakeChance: 0.1,
-    breakChance: 0.002,
+    breakChance: 0.0008,
     maxShifts: 4,
     dayOffChance: 0.25,
   },
@@ -247,7 +252,7 @@ export const elfTypes: ElfTypeDef[] = [
     costGrowth: 1.18,
     dailyWage: 12,
     mistakeChance: 0,
-    breakChance: 0.0002,
+    breakChance: 0.0001,
     maxShifts: 2,
   },
   {

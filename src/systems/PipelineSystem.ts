@@ -37,6 +37,7 @@ import { MAINTENANCE_STEP, REPAIR_STEP } from "../config/stationsConfig";
 import { getElfType } from "../config/elfTypesConfig";
 import { t } from "../ui/i18n/i18n";
 import { stepName, elfName, slotName } from "../ui/i18n/localize";
+import { isNotifyEnabled } from "../ui/settings";
 import type { Modifiers } from "./ModifierSystem";
 
 export type StepProgress = {
@@ -141,7 +142,11 @@ export function createPipelineSystem() {
           setStationBroken(state, step.id, true);
           progressAccum[step.id] = 0;
           repairProgress[step.id] = 0;
-          state.pendingAlerts.push(t("sys.stationBroke", { name: stepName(step.id) }));
+          // The factory badge + broken banner already flag this; the toast is
+          // the noisy part players can mute (☰ menu → Notifications).
+          if (isNotifyEnabled("stationBroke")) {
+            state.pendingAlerts.push(t("sys.stationBroke", { name: stepName(step.id) }));
+          }
           break;
         }
 

@@ -36,6 +36,7 @@ import { deliverableToLine, orderRemaining, isOrderComplete } from "../helpers/o
 import { formatMoney } from "../helpers/formatHelpers";
 import { t } from "../ui/i18n/i18n";
 import { toyName, grandOrderName } from "../ui/i18n/localize";
+import { isNotifyEnabled } from "../ui/settings";
 
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -239,9 +240,13 @@ export function createOrdersSystem() {
         state.orders.offers.push(order);
 
         const summary = linesText(order);
-        state.pendingAlerts.push(
-          t("sys.rushAlert", { lines: summary, secs: Math.round(order.secondsLeft), reward: formatMoney(order.reward) })
-        );
+        // The Orders tab badge already flags rush offers; the toast is the
+        // noisy part players can mute (☰ menu → Notifications).
+        if (isNotifyEnabled("rushOrder")) {
+          state.pendingAlerts.push(
+            t("sys.rushAlert", { lines: summary, secs: Math.round(order.secondsLeft), reward: formatMoney(order.reward) })
+          );
+        }
         state.meta.statusText = t("sys.rushIn", { lines: summary });
         changed = true;
       }

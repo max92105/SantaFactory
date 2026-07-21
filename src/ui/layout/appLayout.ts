@@ -18,6 +18,7 @@ import { spawnCelebration } from "../components/celebration";
 import { showEventModal, removeEventModal, eventModalOpen } from "../components/eventModal";
 import { showGrinchCard, updateGrinchCard, removeGrinchCard, grinchCardOpen } from "../components/grinchCard";
 import { createLangSelect } from "../components/langSelect";
+import { openNotifySettingsModal } from "../components/notifySettingsModal";
 import { t, applyTranslations } from "../i18n/i18n";
 import { toyLabel, elfName } from "../i18n/localize";
 import { isMuted, toggleMute, playCash } from "../audio";
@@ -119,6 +120,12 @@ export function bindAppLayout(ctx: GameContext): void {
     e.stopPropagation();
     toggleMute();
     dom.muteBtn.textContent = muteLabel();
+  };
+
+  dom.notifyBtn.onclick = (e) => {
+    e.stopPropagation();
+    closeMenu();
+    openNotifySettingsModal();
   };
 
   dom.mainMenuBtn.onclick = () => {

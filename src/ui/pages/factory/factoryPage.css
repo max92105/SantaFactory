@@ -573,133 +573,17 @@
   cursor: default;
 }
 
-.assign-panel {
-  margin-top: var(--space-md);
-  padding: var(--space-md);
-  background: var(--bg-panel-hover);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-}
-
-.assign-title,
-.assign-shift-head {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-bottom: var(--space-sm);
-}
-
-/* Special-rule note for the selected elf type in the assign panel */
-.assign-trait {
-  margin-top: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-sm);
-  background: rgba(251, 191, 36, 0.08);
-  border: 1px solid rgba(251, 191, 36, 0.25);
-  color: #fcd34d;
-  font-size: 12px;
-}
-
 /* Manager-boost stat lights up when active */
 .detail-stat strong.boosted {
   color: #fbbf24;
 }
 
-.assign-shift-head {
-  margin-top: var(--space-md);
-}
-
-.assign-types {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.assign-type {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: 6px 10px;
-  background: var(--bg-inset);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  font-size: 13px;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.assign-type:hover {
-  border-color: var(--border-light);
-}
-
-.assign-type.active {
-  border-color: var(--accent);
-  background: rgba(74, 158, 255, 0.12);
-}
-
-.picker-free {
-  font-size: 11px;
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-}
-
-.picker-empty {
-  font-size: 12px;
-  color: var(--text-muted);
-  padding: 4px 0;
-}
-
-.assign-slots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.assign-slot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  width: 84px;
-  padding: 6px 0;
-  background: var(--bg-inset);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  font-size: 16px;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.assign-slot small {
-  font-size: 10px;
-  color: var(--text-dim);
-}
-
-.assign-slot:hover:not(:disabled) {
-  border-color: var(--border-light);
-}
-
-.assign-slot.on {
-  border-color: var(--accent);
-  background: rgba(74, 158, 255, 0.14);
-}
-
-.assign-slot:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-/* Quantity stepper (assign panel + batch remove confirm) */
-.assign-qty,
+/* Quantity stepper (batch remove confirm — the assign flow has its own,
+   bigger stepper in components/crewAssignModal.css) */
 .confirm-qty {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  margin-top: var(--space-md);
-}
-
-.confirm-qty {
   margin: var(--space-sm) 0;
 }
 
@@ -745,57 +629,10 @@
   font-size: 14px;
 }
 
-.qty-max {
-  padding: 4px 10px;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.qty-max:hover {
-  color: var(--text);
-  border-color: var(--accent);
-}
-
 .qty-note {
   font-size: 11px;
   color: var(--text-dim);
   font-family: var(--font-mono);
-}
-
-.assign-footer {
-  display: flex;
-  gap: var(--space-sm);
-  margin-top: var(--space-md);
-}
-
-.assign-confirm {
-  padding: 6px 16px;
-  background: var(--accent);
-  border: none;
-  border-radius: var(--radius-sm);
-  color: #fff;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.assign-confirm:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.assign-cancel {
-  padding: 6px 14px;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  font-size: 13px;
-  cursor: pointer;
 }
 
 /* Inline confirm popover on remove */
