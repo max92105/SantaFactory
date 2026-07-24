@@ -1,9 +1,10 @@
 /**
- * clickPage — the "Click" tab: pick a toy type and hand-craft it.
+ * clickPage — the "Click" tab: pick a toy, then hand-craft it in the arena.
+ *
+ * The interactive surface (buttons, golden bonus, combo, overlap-triggering,
+ * persisted positions) lives in components clickArena.ts; this page owns the
+ * toy picker + the stats readout and just drives the arena each frame.
  * Markup: clickPage.html · Styles: clickPage.css
- * Logic: ProductionSystem (gifts per click, click action).
- * The toy picker only shows unlocked toys and scrolls, so it scales to
- * any number of toy types.
  */
 
 import clickPageHtml from "./clickPage.html?raw";
@@ -15,35 +16,30 @@ import { getClickableToyTypes } from "../../../helpers/unlockHelpers";
 import { getToyType } from "../../../config/toyTypesConfig";
 import { ensureInventory } from "../../../helpers/inventoryHelpers";
 import { formatInt, formatMoneyPrecise } from "../../../helpers/formatHelpers";
-import { spawnClickFloat } from "../../components/floatingText";
 import { t } from "../../i18n/i18n";
 import { toyName } from "../../i18n/localize";
+import { createClickArena, type ClickArena } from "./clickArena";
 
 export function createClickPage(): Page {
+  let arena: ClickArena | null = null;
+
   return {
     mount(container) {
       container.insertAdjacentHTML("beforeend", clickPageHtml);
     },
 
     bind(ctx) {
-      ctx.dom.makeGiftBtn.onclick = () => {
-        const state = ctx.getState();
-        const mods = ctx.systems.modifier.getModifiers(state);
-
-        const amount = ctx.systems.production.makeClick(state, mods);
-        // Pop the "+N" where the button is NOW (it's about to dart away).
-        const btn = ctx.dom.makeGiftBtn;
-        spawnClickFloat(ctx.dom.floatLayer, `+${amount}`, { x: btn.offsetLeft, y: btn.offsetTop });
-
-        // Catch me if you can — the button darts to a new spot every click.
-        moveToRandomSpot(btn);
-
-        ctx.rebuildUI();
-      };
+      arena = createClickArena(ctx, {
+        arena: ctx.dom.clickArea,
+        mainBtn: ctx.dom.makeGiftBtn,
+        floatLayer: ctx.dom.floatLayer,
+        combo: ctx.dom.clickCombo,
+      });
     },
 
     rebuild(ctx) {
       buildToySelector(ctx);
+      arena?.refresh(); // button set + sizes may have changed (upgrade bought)
     },
 
     renderFrame(ctx, views: FrameViews) {
@@ -52,39 +48,17 @@ export function createClickPage(): Page {
 
       const selectedToy = getToyType(state.selectedClickToyType);
       if (selectedToy) {
-        ctx.dom.makeGiftBtn.textContent = selectedToy.icon;
         ctx.dom.clickToyName.textContent = toyName(selectedToy.id);
         ctx.dom.clickToyValue.textContent = t("click.each", { value: formatMoneyPrecise(selectedToy.baseSellValue) });
         ctx.dom.clickStock.textContent = formatInt(ensureInventory(state, selectedToy.id).finished);
       }
+
+      arena?.update(); // golden lifecycle, combo decay, icons, button positions
     },
   };
 }
 
-/**
- * Jump a button to a random spot inside its arena (its offsetParent, i.e.
- * .click-area). Positions are CENTER coordinates via --btn-x/--btn-y, clamped
- * to half the button's size on every edge — it can never leave the arena, and
- * the arena itself always fits the viewport. Written per-button so future
- * bonus buttons can share it.
- */
-function moveToRandomSpot(btn: HTMLElement): void {
-  const arena = btn.offsetParent as HTMLElement | null;
-  if (!arena) return;
-
-  const aw = arena.clientWidth;
-  const ah = arena.clientHeight;
-  const halfW = btn.offsetWidth / 2;
-  const halfH = btn.offsetHeight / 2;
-  if (aw <= halfW * 2 || ah <= halfH * 2) return; // arena too small (hidden tab) — stay put
-
-  const x = halfW + Math.random() * (aw - halfW * 2);
-  const y = halfH + Math.random() * (ah - halfH * 2);
-  btn.style.setProperty("--btn-x", `${Math.round(x)}px`);
-  btn.style.setProperty("--btn-y", `${Math.round(y)}px`);
-}
-
-/** One tray slot per hand-craftable toy; clicking selects what the big button crafts. */
+/** One tray slot per hand-craftable toy; clicking selects what the buttons craft. */
 function buildToySelector(ctx: GameContext): void {
   const state = ctx.getState();
   const clickable = getClickableToyTypes(ctx.getState());

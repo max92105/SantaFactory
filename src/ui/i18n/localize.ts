@@ -6,10 +6,12 @@
 
 import { tOr, t } from "./i18n";
 import { getToyType } from "../../config/toyTypesConfig";
+import { getToyCategory } from "../../config/toyCategoriesConfig";
 import { getElfType, elfCategories } from "../../config/elfTypesConfig";
 import { getPipelineStep, PRODUCTION_STAGES } from "../../config/pipelineConfig";
 import { getShiftSlot } from "../../config/shiftsConfig";
-import { getUpgrade } from "../../config/upgradesConfig";
+import { getUpgrade, CATEGORY_UNLOCK_IDS } from "../../config/upgradesConfig";
+import { toyCategories } from "../../config/toyCategoriesConfig";
 import { getOrderTemplate } from "../../config/ordersConfig";
 import { gameEvents } from "../../config/eventsConfig";
 import { getRandomEvent } from "../../config/randomEventsConfig";
@@ -79,11 +81,34 @@ export function slotName(id: string): string {
   return tOr(`tod.${raw}`, raw);
 }
 
-// ── Upgrades ──
+// ── Toy categories + specialties ──
+export function toyCategoryLabel(catId: string): string {
+  return tOr(`toyCat.${catId}.name`, getToyCategory(catId)?.name ?? catId);
+}
+export function specialtyLabel(specialty: string): string {
+  return tOr(`specialty.${specialty}`, specialty);
+}
+
+// ── Upgrades (the generated category-unlock + hand-build ones are templated,
+//    so a new toy/category needs no new upgrade strings) ──
 export function upgradeName(id: string): string {
+  if (id.startsWith("handbuild_")) {
+    return t("upgrade.handbuild.name", { name: toyName(id.slice("handbuild_".length)) });
+  }
+  if (CATEGORY_UNLOCK_IDS.has(id)) {
+    const cat = toyCategories.find((c) => c.unlockUpgrade === id);
+    return t("upgrade.catUnlock.name", { name: cat ? toyCategoryLabel(cat.id) : id });
+  }
   return tOr(`upgrade.${id}.name`, getUpgrade(id)?.name ?? id);
 }
 export function upgradeDesc(id: string): string {
+  if (id.startsWith("handbuild_")) {
+    return t("upgrade.handbuild.desc", { name: toyName(id.slice("handbuild_".length)) });
+  }
+  if (CATEGORY_UNLOCK_IDS.has(id)) {
+    const cat = toyCategories.find((c) => c.unlockUpgrade === id);
+    return t("upgrade.catUnlock.desc", { name: cat ? toyCategoryLabel(cat.id) : id });
+  }
   return tOr(`upgrade.${id}.desc`, getUpgrade(id)?.description ?? "");
 }
 

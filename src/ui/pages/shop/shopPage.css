@@ -239,6 +239,18 @@
   color: var(--text-muted);
 }
 
+/* Locked-category note in a toy group header */
+.shop-group-lock {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--warning);
+}
+
+/* Toy rows whose category is still locked read as unavailable */
+.shop-row.locked {
+  opacity: 0.6;
+}
+
 /* Elf row: icon · name/desc · Wage · Ruins · Breaks · Shifts · Hire */
 .elf-row {
   display: grid;

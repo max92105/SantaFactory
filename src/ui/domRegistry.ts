@@ -48,8 +48,10 @@ export type DomRefs = {
   fxLayer: HTMLDivElement;
 
   // Click page
+  clickArea: HTMLElement;
   makeGiftBtn: HTMLButtonElement;
   floatLayer: HTMLDivElement;
+  clickCombo: HTMLElement;
   clickGpc: HTMLElement;
   clickStock: HTMLElement;
   clickToyName: HTMLElement;
@@ -168,8 +170,10 @@ export function getDomRefs(): DomRefs {
     fxLayer: mustGet("fxLayer"),
 
     // Click page
+    clickArea: document.querySelector<HTMLElement>(".click-area")!,
     makeGiftBtn: mustGet("makeGiftBtn"),
     floatLayer: mustGet("floatLayer"),
+    clickCombo: mustGet("clickCombo"),
     clickGpc: mustGet("clickGpc"),
     clickStock: mustGet("clickStock"),
     clickToyName: mustGet("clickToyName"),

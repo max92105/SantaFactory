@@ -7,7 +7,8 @@ import type { GameState } from "../state/GameState";
 export type UnlockRule =
   | { type: "always" }
   | { type: "producer_owned"; producerId: string; count: number }
-  | { type: "toy_unlocked"; toyId: string };
+  | { type: "toy_unlocked"; toyId: string }
+  | { type: "upgrade_owned"; upgradeId: string };
 
 /** Whether an unlock rule is currently satisfied (controls shop visibility). */
 export function isUnlockRuleMet(state: GameState, rule: UnlockRule): boolean {
@@ -16,6 +17,8 @@ export function isUnlockRuleMet(state: GameState, rule: UnlockRule): boolean {
       return true;
     case "toy_unlocked":
       return !!state.owned.toys[rule.toyId];
+    case "upgrade_owned":
+      return !!state.owned.upgrades[rule.upgradeId];
     case "producer_owned":
       return true; // not used yet — don't hide
     default:

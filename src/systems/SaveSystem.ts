@@ -126,6 +126,10 @@ export function createSaveSystem() {
           toys: { ...fresh.owned.toys, ...(parsed.owned?.toys ?? {}) },
         },
         meta: { ...fresh.meta, ...(parsed.meta ?? {}) },
+        clicker: {
+          positions:
+            parsed.clicker?.positions && typeof parsed.clicker.positions === "object" ? parsed.clicker.positions : {},
+        },
         derived: { ...fresh.derived, ...(parsed.derived ?? {}) },
       };
 

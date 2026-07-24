@@ -21,14 +21,18 @@ export function createProductionSystem() {
     return Math.max(1, Math.floor(raw));
   }
 
-  /** Click produces finished items of the selected toy type (bootstrap mechanism). */
-  function makeClick(state: GameState, mods: Modifiers): number {
+  /**
+   * Click produces finished items of the selected toy type. `mult` folds in the
+   * click combo (and, for a golden burst, the golden multiplier) — the caller
+   * computes it so the base gifts-per-click stays a clean, displayable number.
+   */
+  function makeClick(state: GameState, mods: Modifiers, mult = 1): number {
     const toyType = state.selectedClickToyType || "plushy";
     if (!isToyClickable(state, toyType)) {
       state.meta.statusText = t("click.status.locked", { name: toyName(toyType) });
       return 0;
     }
-    const amount = getGiftsPerClick(state, mods);
+    const amount = Math.max(1, Math.floor(getGiftsPerClick(state, mods) * mult));
     // addToStage with "finished" auto-increments lifetimeGifts + dayStats.giftsMade
     addToStage(state, toyType, "finished", amount);
     state.meta.statusText = t("click.status.made", { n: amount });

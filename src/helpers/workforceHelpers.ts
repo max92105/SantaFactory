@@ -9,8 +9,9 @@
  */
 
 import type { GameState, ElfInstance } from "../state/GameState";
-import { elfTypes, getElfType, type ElfTypeDef } from "../config/elfTypesConfig";
+import { elfTypes, getElfType, type ElfTypeDef, type ElfRole } from "../config/elfTypesConfig";
 import { shiftSlots } from "../config/shiftsConfig";
+import { getPipelineStep } from "../config/pipelineConfig";
 import { MAINTENANCE_STEP, REPAIR_STEP } from "../config/stationsConfig";
 
 // ── Reads ────────────────────────────────────────────────────────────────
@@ -111,6 +112,37 @@ export function activeMenders(state: GameState, slotId: string): ElfInstance[] {
   );
 }
 
+// ── Step eligibility (role + specialty) ───────────────────────────────────
+/** Which elf role a step needs: mechanic (Maintenance), mender (Repair
+ *  Bench), or worker (every production step). */
+export function stepRole(stepId: string): ElfRole {
+  if (stepId === MAINTENANCE_STEP) return "mechanic";
+  if (stepId === REPAIR_STEP) return "mender";
+  return "worker";
+}
+
+/** The elf specialty a step requires (specialist stations only; else undefined). */
+export function stepRequiredSpecialty(stepId: string): string | undefined {
+  return getPipelineStep(stepId)?.requiredSpecialty;
+}
+
+/**
+ * Can this elf TYPE work this step at all? Role must match, and for production
+ * steps the specialty must match exactly — generalist workers (no specialty)
+ * only do craft/QC/packaging, specialists ONLY do their specialty station.
+ */
+export function canElfTypeWorkStep(def: ElfTypeDef | undefined, stepId: string): boolean {
+  if (!def) return false;
+  if (def.role !== stepRole(stepId)) return false;
+  if (def.role !== "worker") return true;
+  return (def.specialty ?? null) === (stepRequiredSpecialty(stepId) ?? null);
+}
+
+/** Owned elf types that are allowed to staff this step (by role + specialty). */
+export function eligibleElfTypesForStep(state: GameState, stepId: string): ElfTypeDef[] {
+  return ownedElfTypes(state).filter((d) => canElfTypeWorkStep(d, stepId));
+}
+
 // ── Shift eligibility ─────────────────────────────────────────────────────
 /** Can this elf type work the given slot? (false if it's in its blockedSlots.) */
 export function canWorkSlot(typeId: string, slotId: string): boolean {
@@ -183,6 +215,7 @@ export function addElf(state: GameState, typeId: string): ElfInstance {
  * the UI surfaces these same rules up front via slotRestriction.
  */
 export function assignElf(state: GameState, typeId: string, stepId: string, slots: string[]): ElfInstance | null {
+  if (!canElfTypeWorkStep(getElfType(typeId), stepId)) return null; // wrong role/specialty for this station
   const valid = slots.filter((s) => slotRestriction(state, typeId, stepId, s) === null);
   if (valid.length === 0) return null;
   const elf = state.workforce.elves.find((e) => e.type === typeId && isIdle(e));

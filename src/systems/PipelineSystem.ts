@@ -18,7 +18,7 @@ import {
   removeBroken,
 } from "../helpers/inventoryHelpers";
 import { pipelineSteps, type PipelineStepDef, type ProductionStage } from "../config/pipelineConfig";
-import { toyTypes } from "../config/toyTypesConfig";
+import { toyTypes, toyCategoryId, type ToyTypeDef } from "../config/toyTypesConfig";
 import { currentShiftSlot } from "../config/shiftsConfig";
 import { isToyUnlocked } from "../helpers/unlockHelpers";
 import {
@@ -65,29 +65,41 @@ export function createPipelineSystem() {
   /** Round-robin cursor per shared step for "balanced" mode (not saved). */
   const rrCursor: Record<string, number> = {};
 
+  /**
+   * The toys a SHARED step may process: a specialist station handles only its
+   * own category's toys (crucial — Tuning and Connect both consume `wip1`, so
+   * Tuning must not grab an Electronics toy waiting to be connected); QC and
+   * Packaging handle every toy.
+   */
+  function stepToys(step: PipelineStepDef): ToyTypeDef[] {
+    if (!step.categoryId) return toyTypes;
+    return toyTypes.filter((t) => toyCategoryId(t) === step.categoryId);
+  }
+
   function hasInput(state: GameState, step: PipelineStepDef): boolean {
     if (!step.inputStage) return true; // creates from nothing
     if (step.toyType) return getStageCount(state, step.toyType, step.inputStage) >= 1;
-    return toyTypes.some((t) => getStageCount(state, t.id, step.inputStage!) >= 1);
+    return stepToys(step).some((t) => getStageCount(state, t.id, step.inputStage!) >= 1);
   }
 
   /** "order" mode: first toy (config order) with input available. */
-  function pickInOrder(state: GameState, inputStage: ProductionStage): string | null {
-    for (const t of toyTypes) {
+  function pickInOrder(state: GameState, step: PipelineStepDef, inputStage: ProductionStage): string | null {
+    for (const t of stepToys(step)) {
       if (getStageCount(state, t.id, inputStage) >= 1) return t.id;
     }
     return null;
   }
 
   /** "balanced" mode: next toy with input, rotating so all queues advance. */
-  function pickBalanced(state: GameState, stepId: string, inputStage: ProductionStage): string | null {
-    const n = toyTypes.length;
-    const start = rrCursor[stepId] ?? 0;
+  function pickBalanced(state: GameState, step: PipelineStepDef, inputStage: ProductionStage): string | null {
+    const toys = stepToys(step);
+    const n = toys.length;
+    const start = rrCursor[step.id] ?? 0;
     for (let i = 0; i < n; i++) {
       const idx = (start + i) % n;
-      const t = toyTypes[idx];
+      const t = toys[idx];
       if (getStageCount(state, t.id, inputStage) >= 1) {
-        rrCursor[stepId] = (idx + 1) % n; // resume after this toy next time
+        rrCursor[step.id] = (idx + 1) % n; // resume after this toy next time
         return t.id;
       }
     }
@@ -97,11 +109,17 @@ export function createPipelineSystem() {
   /** Pick which toy a SHARED step works next, per its queue mode. */
   function pickTargetType(state: GameState, step: PipelineStepDef, inputStage: ProductionStage): string | null {
     const setting = getQueueMode(state, step.id);
-    if (setting.mode === "balanced") return pickBalanced(state, step.id, inputStage);
-    if (setting.mode === "focus" && setting.focus && getStageCount(state, setting.focus, inputStage) >= 1) {
+    if (setting.mode === "balanced") return pickBalanced(state, step, inputStage);
+    // "focus" only applies when the focused toy belongs to this step's toys.
+    if (
+      setting.mode === "focus" &&
+      setting.focus &&
+      stepToys(step).some((t) => t.id === setting.focus) &&
+      getStageCount(state, setting.focus, inputStage) >= 1
+    ) {
       return setting.focus; // focused toy first; falls through to order when empty
     }
-    return pickInOrder(state, inputStage);
+    return pickInOrder(state, step, inputStage);
   }
 
   function getStepOutputPerSecond(state: GameState, step: PipelineStepDef, mods: Modifiers): number {

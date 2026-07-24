@@ -20,6 +20,9 @@ export type Modifiers = {
   mistakeMult: number;
   /** Multiplies end-of-day wages (0 = free day). Event-driven. */
   wageMult: number;
+
+  /** Click button size multiplier (Bigger Button upgrades). */
+  clickButtonScale: number;
 };
 
 const DEFAULT_MODS: Modifiers = {
@@ -33,6 +36,8 @@ const DEFAULT_MODS: Modifiers = {
   sellRateMult: 1,
   mistakeMult: 1,
   wageMult: 1,
+
+  clickButtonScale: 1,
 };
 
 export function createModifierSystem() {
@@ -63,6 +68,10 @@ export function createModifierSystem() {
 
         case "sell_rate_mult":
           mods.sellRateMult *= e.amount;
+          break;
+
+        case "click_button_scale":
+          mods.clickButtonScale *= e.amount;
           break;
 
         case "unlock":

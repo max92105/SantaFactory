@@ -22,15 +22,16 @@ import type { ElfRole } from "../../config/elfTypesConfig";
 import { getElfType } from "../../config/elfTypesConfig";
 import { shiftSlots } from "../../config/shiftsConfig";
 import {
-  ownedElfTypes,
   idleOfType,
   requiredShifts,
   slotRestriction,
+  eligibleElfTypesForStep,
+  stepRequiredSpecialty,
   type SlotRestriction,
 } from "../../helpers/workforceHelpers";
 import { createStepper } from "./stepper";
 import { t } from "../i18n/i18n";
-import { elfName, slotName, elfTraitChips } from "../i18n/localize";
+import { elfName, slotName, elfTraitChips, specialtyLabel } from "../i18n/localize";
 
 const OVERLAY_CLASS = "crew-modal-overlay";
 
@@ -44,7 +45,16 @@ export type CrewAssignTarget = {
   label: string;
 };
 
-function roleCopy(role: ElfRole): { sub: string; empty: string } {
+function roleCopy(role: ElfRole, stepId: string): { sub: string; empty: string } {
+  // Specialist stations override the generic worker copy with a clear
+  // "only <specialty> elves can staff this" message, both up top and when empty.
+  const specialty = stepRequiredSpecialty(stepId);
+  if (specialty) {
+    return {
+      sub: t("assignModal.subSpecialist", { specialty: specialtyLabel(specialty) }),
+      empty: t("assignModal.emptySpecialist", { specialty: specialtyLabel(specialty) }),
+    };
+  }
   if (role === "mechanic") return { sub: t("assignModal.subMech"), empty: t("factory.pickerEmptyMech") };
   if (role === "mender") return { sub: t("assignModal.subMender"), empty: t("factory.pickerEmptyMender") };
   return { sub: t("assignModal.subWorker"), empty: t("factory.pickerEmptyWorker") };
@@ -105,7 +115,7 @@ export function openCrewAssignModal(ctx: GameContext, target: CrewAssignTarget):
 
   function render(): void {
     const state = ctx.getState();
-    const copy = roleCopy(role);
+    const copy = roleCopy(role, stepId);
     sheet.innerHTML = "";
 
     // ── Header ──
@@ -131,8 +141,8 @@ export function openCrewAssignModal(ctx: GameContext, target: CrewAssignTarget):
     body.className = "crew-modal-body";
     sheet.appendChild(body);
 
-    // ── Step 1 — pick a type ──
-    const options = ownedElfTypes(state).filter((d) => d.role === role && idleOfType(state, d.id) > 0);
+    // ── Step 1 — pick a type ── (eligible = right role AND right specialty)
+    const options = eligibleElfTypesForStep(state, stepId).filter((d) => idleOfType(state, d.id) > 0);
     const step1 = document.createElement("div");
     step1.className = "crew-step";
     step1.innerHTML = `<div class="crew-step-label"><span class="crew-step-num">1</span>${t("assignModal.pickType")}</div>`;

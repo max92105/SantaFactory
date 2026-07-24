@@ -13,13 +13,14 @@ import "./shopPage.css";
 
 import type { Page } from "../Page";
 import type { GameContext } from "../../../core/GameContext";
-import { toyTypes } from "../../../config/toyTypesConfig";
+import { toyTypes, toyCategoryId, type ToyTypeDef } from "../../../config/toyTypesConfig";
+import { toyCategories } from "../../../config/toyCategoriesConfig";
 import { elfTypes, elfCategories, type ElfTypeDef } from "../../../config/elfTypesConfig";
 import { upgrades, describeUpgradeEffect } from "../../../config/upgradesConfig";
 import { isUnlockRuleMet } from "../../../config/unlockRules";
 import { getElfCost } from "../../../helpers/costHelpers";
 import { countOfType } from "../../../helpers/workforceHelpers";
-import { isToyUnlocked } from "../../../helpers/unlockHelpers";
+import { isToyUnlocked, isCategoryUnlocked } from "../../../helpers/unlockHelpers";
 import { formatCost, formatMoneyPrecise } from "../../../helpers/formatHelpers";
 import { t } from "../../i18n/i18n";
 import {
@@ -32,6 +33,8 @@ import {
   upgradeDesc,
   slotName,
   elfTraitChips,
+  toyCategoryLabel,
+  specialtyLabel,
 } from "../../i18n/localize";
 
 type Category = "toys" | "hiring" | "upgrades";
@@ -149,33 +152,92 @@ function buildShopRow(opts: {
   return row;
 }
 
-/** One row per toy line: unlocked ones show as owned, locked ones are buyable. */
+/**
+ * Toys grouped by category. Each category shows a header; a locked category
+ * (its unlock upgrade not yet owned) grays its toys and points the player at
+ * the Upgrades tab — teaching the one gate that opens the toys, the specialist
+ * elves and the station together.
+ */
 function buildToysList(ctx: GameContext): void {
   const state = ctx.getState();
   ctx.dom.toysList.innerHTML = "";
 
-  for (const def of toyTypes) {
-    const unlocked = isToyUnlocked(state, def.id);
+  for (const cat of toyCategories) {
+    const toys = toyTypes.filter((toy) => toyCategoryId(toy) === cat.id);
+    if (toys.length === 0) continue;
+    const catLocked = !isCategoryUnlocked(state, cat.id);
 
-    const row = buildShopRow({
-      icon: def.icon,
-      title: toyName(def.id),
-      tag: unlocked ? t("shop.unlocked") : undefined,
-      sub: unlocked ? t("shop.inProduction") : t("shop.unlockToy"),
-      meta: t("shop.sellsFor", { value: formatMoneyPrecise(def.baseSellValue) }),
-      searchKey: `${toyName(def.id)} ${def.name}`,
-      buttonLabel: unlocked ? t("shop.unlockedBtn") : t("shop.unlockBtn", { cost: formatCost(def.unlockCost) }),
-      disabled: unlocked || state.resources.money < def.unlockCost,
-      onBuy: unlocked
+    const header = document.createElement("div");
+    header.className = "shop-group";
+    // Small "needs X station + Y elves" hint so the extra steps are visible up front.
+    const stepHint = cat.specialistSteps.length
+      ? `<span class="shop-group-desc">${t("shop.categorySteps", {
+          steps: cat.specialistSteps.map((s) => `${s.icon} ${stepLabel(s.id)}`).join(" → "),
+          specialty: cat.specialistSteps.map((s) => specialtyLabel(s.specialty)).filter((v, i, a) => a.indexOf(v) === i).join(", "),
+        })}</span>`
+      : "";
+    const lockNote = catLocked
+      ? `<span class="shop-group-lock">🔒 ${t("shop.categoryLockedNote", { name: toyCategoryLabel(cat.id) })}</span>`
+      : "";
+    header.innerHTML = `<span class="shop-group-name">${cat.icon} ${toyCategoryLabel(cat.id)}</span>${stepHint}${lockNote}`;
+    ctx.dom.toysList.appendChild(header);
+
+    for (const def of toys) {
+      ctx.dom.toysList.appendChild(buildToyRow(ctx, def, catLocked));
+    }
+  }
+}
+
+/** Localized name of a specialist station (Tuning, Connect, …) for the shop hint. */
+function stepLabel(stepId: string): string {
+  // Reuse the pipeline step name key (step.<id>.name), falling back to the id.
+  return t(`step.${stepId}.name`);
+}
+
+/** One toy row: owned → in production; category locked → grayed with a reason;
+ *  else buyable. Non-basic owned toys hint that clicking needs a hand-build. */
+function buildToyRow(ctx: GameContext, def: ToyTypeDef, catLocked: boolean): HTMLDivElement {
+  const state = ctx.getState();
+  const unlocked = isToyUnlocked(state, def.id);
+  const isSpecial = toyCategoryId(def) !== "basic";
+
+  let sub: string;
+  if (unlocked) sub = isSpecial ? t("shop.inProductionHandbuild") : t("shop.inProduction");
+  else if (catLocked) sub = t("shop.unlockCategoryFirst");
+  else sub = t("shop.unlockToy");
+
+  let buttonLabel: string;
+  let disabled: boolean;
+  if (unlocked) {
+    buttonLabel = t("shop.unlockedBtn");
+    disabled = true;
+  } else if (catLocked) {
+    buttonLabel = t("shop.categoryLockedBtn");
+    disabled = true;
+  } else {
+    buttonLabel = t("shop.unlockBtn", { cost: formatCost(def.unlockCost) });
+    disabled = state.resources.money < def.unlockCost;
+  }
+
+  const row = buildShopRow({
+    icon: def.icon,
+    title: toyName(def.id),
+    tag: unlocked ? t("shop.unlocked") : catLocked ? t("shop.locked") : undefined,
+    sub,
+    meta: t("shop.sellsFor", { value: formatMoneyPrecise(def.baseSellValue) }),
+    searchKey: `${toyName(def.id)} ${def.name} ${toyCategoryLabel(toyCategoryId(def))}`,
+    buttonLabel,
+    disabled,
+    onBuy:
+      unlocked || catLocked
         ? undefined
         : () => {
             ctx.systems.shop.buyToyUnlock(ctx.getState(), def.id);
             ctx.rebuildUI();
           },
-    });
-
-    ctx.dom.toysList.appendChild(row);
-  }
+  });
+  if (catLocked && !unlocked) row.classList.add("locked");
+  return row;
 }
 
 /** Format a small probability as a percentage (keeps precision for tiny odds). */

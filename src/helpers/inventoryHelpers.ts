@@ -9,13 +9,15 @@ import type { ProductionStage } from "../config/pipelineConfig";
 /** Get a toy's inventory, creating an empty one if the toy is new. */
 export function ensureInventory(state: GameState, toyType: string): ToyInventory {
   if (!state.inventory[toyType]) {
-    state.inventory[toyType] = { parts: 0, raw: 0, assembled: 0, finished: 0, broken: 0 };
+    state.inventory[toyType] = { wip1: 0, wip2: 0, raw: 0, assembled: 0, finished: 0, broken: 0 };
   }
-  // Backfill fields added after a save was written (e.g. `broken`, `parts`)
-  const inv = state.inventory[toyType];
-  if (typeof inv.broken !== "number") inv.broken = 0;
-  if (typeof inv.parts !== "number") inv.parts = 0;
-  return inv;
+  // Backfill stage fields added after a save was written (older saves had a
+  // `parts` field, dropped in the category overhaul; its value is discarded).
+  const inv = state.inventory[toyType] as Partial<ToyInventory>;
+  for (const k of ["wip1", "wip2", "raw", "assembled", "finished", "broken"] as const) {
+    if (typeof inv[k] !== "number") inv[k] = 0;
+  }
+  return state.inventory[toyType];
 }
 
 /** Record a ruined item for a toy type (kept in the broken tally). */

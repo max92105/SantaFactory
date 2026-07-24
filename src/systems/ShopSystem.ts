@@ -11,7 +11,7 @@ import { getUpgrade } from "../config/upgradesConfig";
 import { getToyType } from "../config/toyTypesConfig";
 import { getElfCost } from "../helpers/costHelpers";
 import { addElf, countOfType } from "../helpers/workforceHelpers";
-import { isToyUnlocked } from "../helpers/unlockHelpers";
+import { isToyUnlocked, isToyCategoryUnlocked } from "../helpers/unlockHelpers";
 import { t } from "../ui/i18n/i18n";
 import { elfName, upgradeName, toyName } from "../ui/i18n/localize";
 
@@ -61,6 +61,12 @@ export function createShopSystem() {
     const def = getToyType(toyTypeId);
     if (!def) return false;
     if (isToyUnlocked(state, toyTypeId)) return false;
+
+    // A non-basic toy's line can't be bought until its category is unlocked.
+    if (!isToyCategoryUnlocked(state, toyTypeId)) {
+      state.meta.statusText = t("sys.toyCategoryLocked", { name: toyName(toyTypeId) });
+      return false;
+    }
 
     if (state.resources.money < def.unlockCost) {
       state.meta.statusText = t("sys.notEnoughToy", { name: toyName(toyTypeId) });

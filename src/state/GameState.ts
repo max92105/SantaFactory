@@ -12,11 +12,19 @@ import { GRINCH_MIN_GAP_DAYS } from "../config/grinchConfig";
 import { SECONDS_PER_GAME_DAY } from "../config/timeConfig";
 
 /**
- * Per-toy-type item counts. `raw`/`assembled`/`finished` are the production
- * stages; `broken` holds items ruined by elf mistakes (kept, not a stage —
- * may be sellable-for-less or repairable later).
+ * Per-toy-type item counts. `wip1`/`wip2`/`raw`/`assembled`/`finished` are the
+ * production stages (wip1/wip2 only used by categories with specialist steps);
+ * `broken` holds items ruined by elf mistakes (kept, not a flow stage — may be
+ * sellable-for-less or repairable later). See config/pipelineConfig.ts.
  */
-export type ToyInventory = { parts: number; raw: number; assembled: number; finished: number; broken: number };
+export type ToyInventory = {
+  wip1: number;
+  wip2: number;
+  raw: number;
+  assembled: number;
+  finished: number;
+  broken: number;
+};
 
 /**
  * One physical elf. The elf is the unit of assignment: when scheduled it works
@@ -285,6 +293,13 @@ export type GameState = {
   /** Which toy type the player clicks to produce. */
   selectedClickToyType: string;
 
+  /** Click-arena persistence: where each persistent button sits, as a fraction
+   *  (0..1) of the arena, so it lands in the same spot after a reload regardless
+   *  of arena size. Missing id = centered. (config/clickConfig.ts) */
+  clicker: {
+    positions: Record<string, { x: number; y: number }>;
+  };
+
   derived: {
     baseGpc: number;
   };
@@ -294,7 +309,7 @@ export function createInitialState(): GameState {
   const inventory: Record<string, ToyInventory> = {};
   const toys: Record<string, boolean> = {};
   for (const t of toyTypes) {
-    inventory[t.id] = { parts: 0, raw: 0, assembled: 0, finished: 0, broken: 0 };
+    inventory[t.id] = { wip1: 0, wip2: 0, raw: 0, assembled: 0, finished: 0, broken: 0 };
     toys[t.id] = t.unlockCost <= 0; // free toys start unlocked
   }
 
@@ -382,6 +397,8 @@ export function createInitialState(): GameState {
     },
 
     selectedClickToyType: toyTypes[0]?.id ?? "plushy",
+
+    clicker: { positions: {} },
 
     derived: {
       baseGpc: BASE_GIFTS_PER_CLICK,

@@ -29,7 +29,8 @@ import {
 import { getToyType, type ToyTypeDef } from "../../../config/toyTypesConfig";
 import { getElfType, type ElfRole } from "../../../config/elfTypesConfig";
 import { shiftSlots } from "../../../config/shiftsConfig";
-import { getUnlockedToyTypes } from "../../../helpers/unlockHelpers";
+import { getSpecialistStep } from "../../../config/toyCategoriesConfig";
+import { getUnlockedToyTypes, getUnlockedToysInCategory, isCategoryActive } from "../../../helpers/unlockHelpers";
 import { ensureInventory, getBrokenStock, getTotalBroken } from "../../../helpers/inventoryHelpers";
 import {
   totalElves,
@@ -41,6 +42,8 @@ import {
   activeMechanics,
   activeMenders,
   stepCrewSpeedMult,
+  eligibleElfTypesForStep,
+  stepRequiredSpecialty,
   crewGroups,
   type CrewGroup,
 } from "../../../helpers/workforceHelpers";
@@ -48,7 +51,7 @@ import { isStationBroken, brokenStationCount, brokenStepIds } from "../../../hel
 import { REPAIR_HOLD_SECONDS, MAINTENANCE_STEP, REPAIR_STEP } from "../../../config/stationsConfig";
 import { formatInt, formatCost } from "../../../helpers/formatHelpers";
 import { t } from "../../i18n/i18n";
-import { toyName, elfName, stepName, stepDesc, slotName } from "../../i18n/localize";
+import { toyName, elfName, stepName, stepDesc, slotName, specialtyLabel } from "../../i18n/localize";
 import { openCrewAssignModal } from "../../components/crewAssignModal";
 
 type Status = { cls: string; label: string };
@@ -344,8 +347,11 @@ function buildRail(ctx: GameContext, selectedId: string | null, onSelect: (id: s
     }
   }
 
-  // Processing: shared steps that handle every toy (Quality Control, Packaging).
-  const shared = getOrderedSteps().filter((s) => !s.toyType);
+  // Processing: shared stations. Specialist stations (Tuning, Connect, …) only
+  // appear once their category has an unlocked toy; QC + Packaging are always shown.
+  const shared = getOrderedSteps().filter(
+    (s) => !s.toyType && (!s.categoryId || isCategoryActive(state, s.categoryId))
+  );
   appendRailGroup(rail, t("factory.processing"), shared, selectedId, onSelect);
 
   // Virtual Maintenance line (mechanics auto-repair broken stations)
@@ -394,12 +400,14 @@ function appendRailGroup(
 
   for (const step of steps) {
     const toy = step.toyType ? getToyType(step.toyType) : null;
+    const specialist = getSpecialistStep(step.id);
+    const icon = toy ? toy.icon : specialist ? specialist.icon : "⚙️";
     const item = document.createElement("button");
     item.className = "rail-item" + (step.id === selectedId ? " active" : "");
     item.dataset.stepId = step.id;
     item.innerHTML = `
       <span class="rail-status status-idle"></span>
-      <span class="rail-icon">${toy ? toy.icon : "⚙️"}</span>
+      <span class="rail-icon">${icon}</span>
       <span class="rail-name">${stepName(step.id)}</span>
     `;
     item.onclick = () => onSelect(step.id);
@@ -458,12 +466,19 @@ function buildToyLineDetail(ctx: GameContext, toy: ToyTypeDef): void {
   for (const step of steps) detail.appendChild(buildStepControl(ctx, step));
 }
 
-/** A shared processing step (Quality Control / Packaging): its control + queue mode. */
+/** A shared processing step (QC / Packaging / a specialist station): its control
+ *  + a queue-mode picker over the toys IT handles (all toys, or just a category's). */
 function buildSharedStepDetail(ctx: GameContext, step: PipelineStepDef): void {
   const detail = ctx.dom.factoryDetail;
   detail.appendChild(buildStepControl(ctx, step));
-  if (!step.toyType && step.inputStage && getUnlockedToyTypes(ctx.getState()).length > 1) {
-    detail.appendChild(buildQueueMode(ctx, step.id));
+
+  // Which toys this station chooses between: a category for a specialist step,
+  // all unlocked toys for QC/Packaging.
+  const toys = step.categoryId
+    ? getUnlockedToysInCategory(ctx.getState(), step.categoryId)
+    : getUnlockedToyTypes(ctx.getState());
+  if (!step.toyType && step.inputStage && toys.length > 1) {
+    detail.appendChild(buildQueueMode(ctx, step.id, toys));
   }
 }
 
@@ -471,12 +486,18 @@ function buildSharedStepDetail(ctx: GameContext, step: PipelineStepDef): void {
 function buildStepControl(ctx: GameContext, step: PipelineStepDef): HTMLElement {
   const state = ctx.getState();
   const toy = step.toyType ? getToyType(step.toyType) : null;
-  const icon = toy ? toy.icon : "⚙️";
+  const specialist = getSpecialistStep(step.id);
+  const icon = toy ? toy.icon : specialist ? specialist.icon : "⚙️";
   const broken = isStationBroken(state, step.id);
 
   const block = document.createElement("div");
   block.className = "detail-step";
   block.dataset.stepId = step.id;
+
+  // Specialist stations get a clear "only <specialty> elves" sub-line.
+  const sub = step.requiredSpecialty
+    ? t("factory.specialistSub", { specialty: specialtyLabel(step.requiredSpecialty) })
+    : stepDesc(step.id);
 
   const header = document.createElement("div");
   header.className = "detail-header";
@@ -484,7 +505,7 @@ function buildStepControl(ctx: GameContext, step: PipelineStepDef): HTMLElement 
     <span class="detail-icon">${icon}</span>
     <div class="detail-title-wrap">
       <div class="detail-title">${stepName(step.id)} <span class="detail-status status-idle">${t("status.unstaffed")}</span></div>
-      <div class="detail-sub">${stepDesc(step.id)}</div>
+      <div class="detail-sub">${sub}</div>
     </div>
   `;
   block.appendChild(header);
@@ -512,11 +533,17 @@ function buildStepControl(ctx: GameContext, step: PipelineStepDef): HTMLElement 
   return block;
 }
 
-/** Queue-mode picker for a shared/virtual step: how it chooses which toy next. */
-function buildQueueMode(ctx: GameContext, stepId: string, titleText = t("factory.queueTitle")): HTMLElement {
+/** Queue-mode picker for a shared/virtual step: how it chooses which toy next.
+ *  `toys` is the set the station may work (all unlocked, or one category's). */
+function buildQueueMode(
+  ctx: GameContext,
+  stepId: string,
+  toys: ToyTypeDef[],
+  titleText = t("factory.queueTitle")
+): HTMLElement {
   const state = ctx.getState();
   const setting = ctx.systems.pipeline.getQueueMode(state, stepId);
-  const unlocked = getUnlockedToyTypes(state);
+  const unlocked = toys;
 
   const wrap = document.createElement("div");
   wrap.className = "queue-mode";
@@ -783,7 +810,7 @@ function buildRepairDetail(ctx: GameContext): void {
 
   // Same order / balanced / focus modes as Quality Control/Packaging, over broken piles.
   if (getUnlockedToyTypes(state).length > 1) {
-    root.appendChild(buildQueueMode(ctx, REPAIR_STEP, t("factory.queueTitleMend")));
+    root.appendChild(buildQueueMode(ctx, REPAIR_STEP, getUnlockedToyTypes(state), t("factory.queueTitleMend")));
   }
 
   detail.appendChild(root);
@@ -802,11 +829,14 @@ function buildScheduler(ctx: GameContext, stepId: string, role: ElfRole): HTMLEl
   title.textContent = T.crewTitle;
   wrap.appendChild(title);
 
-  const ownedOfRole = ownedElfTypes(state).filter((e) => e.role === role);
-  if (ownedOfRole.length === 0) {
+  // If the player owns no elves ELIGIBLE for this station, say so — and, for a
+  // specialist station, name the specialty they need to hire.
+  const eligible = eligibleElfTypesForStep(state, stepId);
+  if (eligible.length === 0) {
+    const specialty = stepRequiredSpecialty(stepId);
     const hint = document.createElement("div");
     hint.className = "detail-empty";
-    hint.textContent = T.noneHired;
+    hint.textContent = specialty ? t("factory.noSpecialists", { specialty: specialtyLabel(specialty) }) : T.noneHired;
     wrap.appendChild(hint);
     return wrap;
   }
@@ -976,7 +1006,12 @@ function buildFlow(ctx: GameContext, step: PipelineStepDef): HTMLElement {
 
   const inStage = step.inputStage ? PRODUCTION_STAGES.find((s) => s.id === step.inputStage) : null;
   const outStage = PRODUCTION_STAGES.find((s) => s.id === step.outputStage)!;
-  const toys = getUnlockedToyTypes(state).filter((toy) => !step.toyType || toy.id === step.toyType);
+  // Craft: this toy only. Specialist station: its category's toys. QC/Packaging: all.
+  const toys = step.toyType
+    ? getUnlockedToyTypes(state).filter((toy) => toy.id === step.toyType)
+    : step.categoryId
+    ? getUnlockedToysInCategory(state, step.categoryId)
+    : getUnlockedToyTypes(state);
 
   for (const toy of toys) {
     const row = document.createElement("div");
