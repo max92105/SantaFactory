@@ -21,6 +21,7 @@ import { createLangSelect } from "../components/langSelect";
 import { openNotifySettingsModal } from "../components/notifySettingsModal";
 import { t, applyTranslations } from "../i18n/i18n";
 import { toyLabel, elfName } from "../i18n/localize";
+import { elfIconHtml } from "../elfIcons";
 import { isMuted, toggleMute, playCash } from "../audio";
 import { formatInt, formatMoney } from "../../helpers/formatHelpers";
 
@@ -178,7 +179,7 @@ export function renderAppLayout(ctx: GameContext, views: FrameViews): void {
     for (const elf of owned) {
       const item = document.createElement("div");
       item.className = "dropdown-item";
-      item.innerHTML = `<span>${elf.icon} ${elfName(elf.id)}</span><strong>${formatInt(countOfType(state, elf.id))}</strong>`;
+      item.innerHTML = `<span>${elfIconHtml(elf.id, elf.icon)} ${elfName(elf.id)}</span><strong>${formatInt(countOfType(state, elf.id))}</strong>`;
       dom.elvesDropdown.appendChild(item);
     }
     const slot = currentShiftSlot(state.time.dayProgress);

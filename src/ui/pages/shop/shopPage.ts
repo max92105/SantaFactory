@@ -21,6 +21,7 @@ import { isUnlockRuleMet } from "../../../config/unlockRules";
 import { getElfCost } from "../../../helpers/costHelpers";
 import { countOfType } from "../../../helpers/workforceHelpers";
 import { isToyUnlocked, isCategoryUnlocked } from "../../../helpers/unlockHelpers";
+import { elfIconHtml } from "../../elfIcons";
 import { formatCost, formatMoneyPrecise } from "../../../helpers/formatHelpers";
 import { t } from "../../i18n/i18n";
 import {
@@ -332,7 +333,7 @@ function buildElfRow(ctx: GameContext, def: ElfTypeDef): HTMLDivElement {
     : "";
 
   row.innerHTML = `
-    <div class="shop-row-icon">${def.icon}</div>
+    <div class="shop-row-icon">${elfIconHtml(def.id, def.icon)}</div>
     <div class="elf-main">
       <div class="shop-row-title">${elfName(def.id)}</div>
       <div class="shop-row-sub">${elfDesc(def.id)}</div>

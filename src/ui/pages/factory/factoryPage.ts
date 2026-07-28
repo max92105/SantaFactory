@@ -53,6 +53,7 @@ import { formatInt, formatCost } from "../../../helpers/formatHelpers";
 import { t } from "../../i18n/i18n";
 import { toyName, elfName, stepName, stepDesc, slotName, specialtyLabel } from "../../i18n/localize";
 import { openCrewAssignModal } from "../../components/crewAssignModal";
+import { elfIconHtml } from "../../elfIcons";
 
 type Status = { cls: string; label: string };
 
@@ -314,7 +315,7 @@ function buildIdleChips(ctx: GameContext): void {
     const chip = document.createElement("span");
     chip.className = "elf-chip";
     chip.title = `${elfName(elf.id)} — ${t("factory.idleCount", { n: idleOfType(state, elf.id) })}`;
-    chip.innerHTML = `${elf.icon} <strong>${formatInt(idleOfType(state, elf.id))}</strong>`;
+    chip.innerHTML = `${elfIconHtml(elf.id, elf.icon)} <strong>${formatInt(idleOfType(state, elf.id))}</strong>`;
     host.appendChild(chip);
   }
 }
@@ -896,7 +897,7 @@ function buildCrewGroupCard(ctx: GameContext, group: CrewGroup): HTMLElement {
   const offBadge = offToday > 0 ? ` <span class="elf-card-off">${t("factory.dayOffBadge", { n: offToday })}</span>` : "";
 
   card.innerHTML = `
-    <span class="elf-card-icon">${def?.icon ?? "🧝"}</span>
+    <span class="elf-card-icon">${elfIconHtml(group.type, def?.icon ?? "🧝")}</span>
     <div class="elf-card-info">
       <span class="elf-card-name">${elfName(group.type)}${count > 1 ? ` <span class="elf-card-count">×${count}</span>` : ""}${managerBadge}${offBadge}</span>
       <span class="elf-card-slots">${pips}</span>

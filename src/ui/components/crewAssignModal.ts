@@ -32,6 +32,7 @@ import {
 import { createStepper } from "./stepper";
 import { t } from "../i18n/i18n";
 import { elfName, slotName, elfTraitChips, specialtyLabel } from "../i18n/localize";
+import { elfIconHtml } from "../elfIcons";
 
 const OVERLAY_CLASS = "crew-modal-overlay";
 
@@ -163,7 +164,7 @@ export function openCrewAssignModal(ctx: GameContext, target: CrewAssignTarget):
         card.className = "crew-type-card" + (selectedType === def.id ? " active" : "");
         card.innerHTML = `
           <div class="crew-type-head">
-            <span class="crew-type-icon">${def.icon}</span>
+            <span class="crew-type-icon">${elfIconHtml(def.id, def.icon)}</span>
             <div class="crew-type-text">
               <span class="crew-type-name">${elfName(def.id)}</span>
               <span class="crew-type-idle">${t("factory.idleCount", { n: idleOfType(state, def.id) })}</span>

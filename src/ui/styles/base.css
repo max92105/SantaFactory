@@ -164,3 +164,23 @@ button {
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+/* Elf portrait icon — a real photo drop-in wherever an elf emoji used to be.
+   Sized in `em` so it scales with each container's font-size (shop rows, crew
+   cards, idle chips, the HUD dropdown) and lines up with adjacent text like an
+   emoji would.
+
+   The portraits have baked-in backgrounds (some light, some dark). To keep them
+   from reading as white/boxed tiles on the dark UI, we crop to a circle and
+   dissolve the outer rim with a radial mask, so whatever the background colour
+   is, the edge fades into the page instead of showing a hard disc. */
+.elf-icon {
+  display: inline-block;
+  width: 2.15em;
+  height: 2.15em;
+  object-fit: cover;
+  vertical-align: -0.66em;
+  flex-shrink: 0;
+  -webkit-mask-image: radial-gradient(circle at 50% 46%, #000 58%, rgba(0, 0, 0, 0.55) 74%, transparent 86%);
+  mask-image: radial-gradient(circle at 50% 46%, #000 58%, rgba(0, 0, 0, 0.55) 74%, transparent 86%);
+}

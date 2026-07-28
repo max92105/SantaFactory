@@ -154,7 +154,7 @@
 
 .shop-row-icon {
   font-size: 28px;
-  width: 40px;
+  width: 54px;
   text-align: center;
   flex-shrink: 0;
 }
@@ -251,17 +251,19 @@
   opacity: 0.6;
 }
 
-/* Elf row: icon · name/desc · Wage · Ruins · Breaks · Shifts · Hire */
+/* Elf row: icon · name/desc · Wage · Ruins · Breaks · Shifts · Hire
+   First track holds the portrait (~51px) with room to breathe, and the grid gap
+   keeps the name/description clear of it. */
 .elf-row {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 86px 94px 108px 84px auto;
+  grid-template-columns: 72px minmax(0, 1fr) 86px 94px 108px 84px auto;
   align-items: center;
-  gap: var(--space-md);
+  gap: var(--space-lg);
 }
 
 /* Mechanics have one fewer stat (Repairs in) instead of Ruins + Breaks */
 .elf-row.mechanic {
-  grid-template-columns: 40px minmax(0, 1fr) 86px 110px 84px auto;
+  grid-template-columns: 72px minmax(0, 1fr) 86px 110px 84px auto;
 }
 
 .elf-stat-value.repair {
@@ -270,6 +272,9 @@
 
 .elf-row .shop-row-icon {
   font-size: 30px;
+  /* Let the portrait size itself (see .elf-icon) and centre in its track/flex
+     slot rather than being boxed to the base emoji column width. */
+  width: auto;
 }
 
 .elf-main {
@@ -339,9 +344,12 @@
   color: var(--danger);
 }
 
-/* Narrow: let the stat columns + button wrap instead of overflowing */
-@media (max-width: 860px) {
-  .elf-row {
+/* Below ~1024px the 7-column stat grid gets too tight next to the rail, so the
+   row switches to a wrapping layout: portrait + name/desc on top, stats and the
+   Hire button flowing onto the next line instead of overflowing/clipping. */
+@media (max-width: 1024px) {
+  .elf-row,
+  .elf-row.mechanic {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
