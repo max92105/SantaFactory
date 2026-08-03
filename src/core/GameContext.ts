@@ -18,6 +18,7 @@ import type { OrdersSystem } from "../systems/OrdersSystem";
 import type { EventSystem } from "../systems/EventSystem";
 import type { GrinchSystem } from "../systems/GrinchSystem";
 import type { ChristmasSystem, ChristmasView } from "../systems/ChristmasSystem";
+import type { StorageView } from "../helpers/storageHelpers";
 import type { GameEvent } from "../config/eventsConfig";
 
 /** All game systems, wired once in core/Game.ts. */
@@ -46,6 +47,9 @@ export type FrameViews = {
   wageRuleText: string;
   activeEvent: GameEvent | null;
   christmas: ChristmasView;
+  /** Warehouse space (helpers/storageHelpers.ts) — read by the HUD meter,
+   *  the Storage page and the factory's "no room" banner. */
+  storage: StorageView;
 };
 
 /** Everything a UI page needs to read state, trigger game actions, and refresh the screen. */

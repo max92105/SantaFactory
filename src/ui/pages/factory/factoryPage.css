@@ -158,6 +158,8 @@
 .status-working { background: var(--success); }
 .status-scheduled { background: var(--accent); }
 .status-starved { background: var(--warning); }
+/* Warehouse full — the craft step has nowhere to put a new item. */
+.status-jammed { background: var(--danger); }
 .status-broken { background: var(--danger); }
 .status-idle { background: rgba(255, 255, 255, 0.2); }
 

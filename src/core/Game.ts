@@ -11,6 +11,7 @@ import type { FrameViews, GameContext, Systems } from "./GameContext";
 import type { GameState } from "../state/GameState";
 import { SEASON_DAYS } from "../config/timeConfig";
 import { brokenStationCount } from "../helpers/stationHelpers";
+import { storageView } from "../helpers/storageHelpers";
 import { resetSpentShifts, rollDayOffs } from "../helpers/workforceHelpers";
 import { t } from "../ui/i18n/i18n";
 import { isNotifyEnabled } from "../ui/settings";
@@ -123,6 +124,7 @@ export function createGame(opts: CreateGameOptions): Game {
       wageRuleText: systems.wage.getWageRuleText(),
       activeEvent: systems.orders.currentEvent(state) ?? null,
       christmas: systems.christmas.getView(state),
+      storage: storageView(state, mods),
     };
   }
 

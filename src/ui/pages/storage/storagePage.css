@@ -54,6 +54,72 @@
   gap: var(--space-md);
 }
 
+/* ── Warehouse capacity meter ───────────────────────────────────────────── */
+.storage-capacity {
+  --cap-color: var(--accent, #7dd3fc);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cap-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.cap-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.cap-value {
+  font-size: 16px;
+  font-family: var(--font-mono);
+  color: var(--cap-color);
+}
+
+.cap-meter {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: hidden;
+}
+
+.cap-meter-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--cap-color);
+  transition: width 0.2s ease, background-color 0.2s ease;
+}
+
+.cap-note {
+  font-size: 12px;
+  color: var(--text-dim);
+  min-height: 1.2em;
+}
+
+.storage-capacity.near {
+  --cap-color: #fbbf24;
+}
+.storage-capacity.full {
+  --cap-color: #f87171;
+}
+.storage-capacity.full .cap-note {
+  color: var(--cap-color);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cap-meter-fill {
+    transition: none;
+  }
+}
+
 .storage-search {
   width: 220px;
   padding: 7px var(--space-md);

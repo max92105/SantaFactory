@@ -1,13 +1,14 @@
 /**
  * Upgrades tuning — used by ShopSystem (buying) and ModifierSystem (effects).
  *
- * Most upgrades are hand-authored below. Two families are GENERATED so the toy
- * catalog + categories stay the single source of truth:
+ * Most upgrades are hand-authored below. Three families are GENERATED so the toy
+ * catalog + categories + storage tuning stay the single source of truth:
  *   - category unlocks   — one per non-basic category (unlocks its toys,
  *                          specialist elves and station together).
  *   - hand-build upgrades — one per non-basic toy (gates hand-clicking it).
+ *   - warehouse expansions — one per storage tier (config/storageConfig.ts).
  * Their display names/descriptions are templated in i18n (see localize.ts), so
- * adding a toy/category needs zero new upgrade strings.
+ * adding a toy/category/tier needs zero new upgrade strings.
  *
  * To add a plain upgrade:
  *   1. Add an entry to `handAuthored` below.
@@ -19,6 +20,7 @@
 import type { UnlockRule } from "./unlockRules";
 import { toyTypes, toyCategoryId } from "./toyTypesConfig";
 import { toyCategories } from "./toyCategoriesConfig";
+import { STORAGE_TIER_COUNT, STORAGE_TIER_CAP_MULT, capacityForTiers, storageTierCost } from "./storageConfig";
 
 export type UpgradeEffect =
   | { type: "gpc_flat"; amount: number } // +N gifts per click
@@ -28,6 +30,7 @@ export type UpgradeEffect =
   | { type: "producer_speed_mult"; amount: number } // pipeline speed xN
   | { type: "sell_rate_mult"; amount: number } // sell price xN
   | { type: "click_button_scale"; amount: number } // click button size xN
+  | { type: "storage_cap_mult"; amount: number } // warehouse capacity xN
   | { type: "unlock" }; // pure gate — owning it enables a feature (no modifier)
 
 export type UpgradeDef = {
@@ -152,7 +155,19 @@ const handbuilds: UpgradeDef[] = toyTypes
     unlock: { type: "toy_unlocked" as const, toyId: t.id },
   }));
 
-export const upgrades: UpgradeDef[] = [...categoryUnlocks, ...handAuthored, ...handbuilds];
+// ── Generated: the warehouse expansion chain (config/storageConfig.ts) ──────
+// Each tier doubles total capacity. They're chained so only the NEXT one you
+// can buy is ever listed — 16 rows at once would drown the Upgrades tab.
+const warehouseTiers: UpgradeDef[] = Array.from({ length: STORAGE_TIER_COUNT }, (_, i) => ({
+  id: `warehouse_${i + 1}`,
+  name: `Warehouse Expansion ${i + 1}`,
+  description: `More shelf space: the warehouse holds ${capacityForTiers(i + 1).toLocaleString()} items.`,
+  cost: storageTierCost(i),
+  effect: { type: "storage_cap_mult" as const, amount: STORAGE_TIER_CAP_MULT },
+  unlock: i === 0 ? { type: "always" as const } : { type: "upgrade_owned" as const, upgradeId: `warehouse_${i}` },
+}));
+
+export const upgrades: UpgradeDef[] = [...categoryUnlocks, ...handAuthored, ...warehouseTiers, ...handbuilds];
 
 export function getUpgrade(id: string): UpgradeDef | undefined {
   return upgrades.find((u) => u.id === id);
@@ -160,6 +175,14 @@ export function getUpgrade(id: string): UpgradeDef | undefined {
 
 /** Set of the generated category-unlock upgrade ids (for shop/localize logic). */
 export const CATEGORY_UNLOCK_IDS = new Set(categoryUnlocks.map((u) => u.id));
+
+/** Set of the generated warehouse-expansion upgrade ids (for localize logic). */
+export const WAREHOUSE_UPGRADE_IDS = new Set(warehouseTiers.map((u) => u.id));
+
+/** 1-based tier number of a warehouse upgrade id, or 0 if it isn't one. */
+export function warehouseTierNumber(id: string): number {
+  return WAREHOUSE_UPGRADE_IDS.has(id) ? Number(id.slice("warehouse_".length)) : 0;
+}
 
 /** Short human-readable summary of an effect, shown in the shop. */
 export function describeUpgradeEffect(effect: UpgradeEffect): string {
@@ -178,6 +201,8 @@ export function describeUpgradeEffect(effect: UpgradeEffect): string {
       return `x${effect.amount} Global GPS`;
     case "click_button_scale":
       return `x${effect.amount} Button Size`;
+    case "storage_cap_mult":
+      return `x${effect.amount} Storage`;
     case "unlock":
       return "Unlocks a feature";
   }

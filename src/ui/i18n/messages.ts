@@ -31,8 +31,11 @@ export const messages: Record<Locale, Record<string, string>> = {
     "hud.gifts": "Gifts",
     "hud.money": "Money",
     "hud.elves": "Elves",
+    "hud.storage": "Storage",
     "hud.giftsInStock": "Gifts in stock",
     "hud.elvesByType": "Elves by type",
+    "hud.storageHint": "Warehouse space — room for {free} more items (every stage counts, broken included).",
+    "hud.storageFullHint": "Warehouse full — crafting and clicking are halted. Sell, deliver, salvage, or expand.",
     "hud.noElves": "No elves hired yet",
     "hud.onShiftIdle": "{on} on shift now · {idle} idle",
     "clock.day": "Day",
@@ -59,6 +62,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     "notify.rushOrder.desc": "A limited-time order pops up.",
     "notify.grinch.label": "Grinch arrives",
     "notify.grinch.desc": "The Grinch shows up to shake you down.",
+    "notify.storageFull.label": "Warehouse full",
+    "notify.storageFull.desc": "Production jams because there's no room left.",
     "notify.on": "On",
     "notify.off": "Off",
     "notify.done": "Done",
@@ -79,6 +84,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     "click.status.made": "Made {n} gifts by hand.",
     "click.status.golden": "🌟 GOLDEN! +{n} gifts!",
     "click.status.locked": "{name} can't be hand-made — build it on the line (or buy its hand-build upgrade).",
+    "click.status.storageFull": "📦 Warehouse full — nowhere to put a new gift. Sell, deliver or expand first.",
     "click.combo": "🔥 {n} combo · ×{mult}",
 
     // ═══ Toys ═══
@@ -366,6 +372,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     "upgrade.catUnlock.desc": "Unlock the {name} category: buy its toys, hire its specialist elves, and open its station.",
     "upgrade.handbuild.name": "Hand-build {name}",
     "upgrade.handbuild.desc": "Learn to hand-build {name} so you can craft it with the click button.",
+    "upgrade.warehouse.name": "Warehouse Expansion {n}",
+    "upgrade.warehouse.desc": "More shelf space: the warehouse holds {to} items instead of {from}.",
     "upgrade.effect.unlock": "Unlocks a feature",
 
     // ═══ Order templates + calendar events ═══
@@ -637,6 +645,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     "status.working": "Working",
     "status.broken": "Broken",
     "status.noInput": "No input",
+    "status.noRoom": "No room",
     "status.offShift": "Off shift",
     "status.unstaffed": "Unstaffed",
     "status.repairing": "Repairing {n}",
@@ -727,6 +736,9 @@ export const messages: Record<Locale, Record<string, string>> = {
     "storage.salvageSub": "{n} broken in stock · {rate} each",
     "storage.salvageYouGet": "You'll get",
     "storage.salvageN": "Salvage {n}",
+    "storage.capacity": "Warehouse space",
+    "storage.capFree": "Room for {n} more items. Counts every stage plus broken units — not just finished gifts.",
+    "storage.capFull": "⛔ Full — crafting and clicking are halted. Sell, deliver, salvage, or buy a Warehouse Expansion.",
 
     // ═══ Shop page ═══
     "shop.toys": "New Toys",
@@ -812,6 +824,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     "sys.sentHome": "Sent {n} elves home — idle until tomorrow.",
     "sys.dayOffs": "😴 {n} elf(ves) burned out and took the day off.",
     "sys.stationBroke": "🔧 {name} broke down! Repair it or let a mechanic fix it.",
+    "sys.storageFull": "📦 Warehouse full — crafting has stopped. Sell, deliver or salvage to free space.",
     "sys.mechRepaired": "{name} repaired by your mechanics.",
     "sys.repaired": "{name} repaired. 🟢",
     "sys.queueSet": "{name} queue set to {mode}.",
@@ -862,8 +875,11 @@ export const messages: Record<Locale, Record<string, string>> = {
     "hud.gifts": "Cadeaux",
     "hud.money": "Argent",
     "hud.elves": "Lutins",
+    "hud.storage": "Entrepôt",
     "hud.giftsInStock": "Cadeaux en stock",
     "hud.elvesByType": "Lutins par type",
+    "hud.storageHint": "Espace d'entrepôt — place pour {free} articles de plus (toutes les étapes comptent, cassés inclus).",
+    "hud.storageFullHint": "Entrepôt plein — la fabrication et les clics sont arrêtés. Vendez, livrez, récupérez ou agrandissez.",
     "hud.noElves": "Aucun lutin embauché",
     "hud.onShiftIdle": "{on} en poste · {idle} dispo",
     "clock.day": "Jour",
@@ -890,6 +906,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     "notify.rushOrder.desc": "Une commande à durée limitée apparaît.",
     "notify.grinch.label": "Arrivée du Grinch",
     "notify.grinch.desc": "Le Grinch débarque pour vous faire chanter.",
+    "notify.storageFull.label": "Entrepôt plein",
+    "notify.storageFull.desc": "La production se bloque faute de place.",
     "notify.on": "Activé",
     "notify.off": "Désactivé",
     "notify.done": "Terminé",
@@ -910,6 +928,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     "click.status.made": "{n} cadeaux fabriqués à la main.",
     "click.status.golden": "🌟 DORÉ ! +{n} cadeaux !",
     "click.status.locked": "{name} ne se fabrique pas à la main — produisez-le sur la ligne (ou achetez son amélioration).",
+    "click.status.storageFull": "📦 Entrepôt plein — nulle part où ranger un nouveau cadeau. Vendez, livrez ou agrandissez.",
     "click.combo": "🔥 combo {n} · ×{mult}",
 
     // ═══ Jouets ═══
@@ -1196,6 +1215,8 @@ export const messages: Record<Locale, Record<string, string>> = {
     "upgrade.catUnlock.desc": "Débloque la catégorie {name} : achetez ses jouets, embauchez ses lutins spécialistes et ouvrez sa station.",
     "upgrade.handbuild.name": "Fabriquer {name} à la main",
     "upgrade.handbuild.desc": "Apprenez à fabriquer {name} à la main pour le produire au clic.",
+    "upgrade.warehouse.name": "Agrandissement d'entrepôt {n}",
+    "upgrade.warehouse.desc": "Plus de rayonnages : l'entrepôt contient {to} articles au lieu de {from}.",
     "upgrade.effect.unlock": "Débloque une fonctionnalité",
 
     // ═══ Modèles de commande + événements du calendrier ═══
@@ -1467,6 +1488,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     "status.working": "En marche",
     "status.broken": "En panne",
     "status.noInput": "Sans matière",
+    "status.noRoom": "Sans place",
     "status.offShift": "Hors quart",
     "status.unstaffed": "Sans personnel",
     "status.repairing": "Réparation {n}",
@@ -1557,6 +1579,9 @@ export const messages: Record<Locale, Record<string, string>> = {
     "storage.salvageSub": "{n} cassés en stock · {rate} pièce",
     "storage.salvageYouGet": "Vous obtiendrez",
     "storage.salvageN": "Récupérer {n}",
+    "storage.capacity": "Espace d'entrepôt",
+    "storage.capFree": "Place pour {n} articles de plus. Compte toutes les étapes et les articles cassés — pas seulement les cadeaux finis.",
+    "storage.capFull": "⛔ Plein — la fabrication et les clics sont arrêtés. Vendez, livrez, récupérez ou achetez un agrandissement.",
 
     // ═══ Page Améliorations ═══
     "shop.toys": "Nouveaux jouets",
@@ -1642,6 +1667,7 @@ export const messages: Record<Locale, Record<string, string>> = {
     "sys.sentHome": "Renvoyé {n} lutins — indisponibles jusqu'à demain.",
     "sys.dayOffs": "😴 {n} lutin(s) épuisé(s) ont pris congé aujourd'hui.",
     "sys.stationBroke": "🔧 {name} est tombé en panne ! Réparez-le ou laissez un mécanicien le faire.",
+    "sys.storageFull": "📦 Entrepôt plein — la fabrication est arrêtée. Vendez, livrez ou récupérez pour libérer de la place.",
     "sys.mechRepaired": "{name} réparé par vos mécaniciens.",
     "sys.repaired": "{name} réparé. 🟢",
     "sys.queueSet": "File de {name} réglée sur {mode}.",

@@ -10,7 +10,9 @@ import { getToyCategory } from "../../config/toyCategoriesConfig";
 import { getElfType, elfCategories } from "../../config/elfTypesConfig";
 import { getPipelineStep, PRODUCTION_STAGES } from "../../config/pipelineConfig";
 import { getShiftSlot } from "../../config/shiftsConfig";
-import { getUpgrade, CATEGORY_UNLOCK_IDS } from "../../config/upgradesConfig";
+import { getUpgrade, CATEGORY_UNLOCK_IDS, warehouseTierNumber } from "../../config/upgradesConfig";
+import { capacityForTiers } from "../../config/storageConfig";
+import { formatInt } from "../../helpers/formatHelpers";
 import { toyCategories } from "../../config/toyCategoriesConfig";
 import { getOrderTemplate } from "../../config/ordersConfig";
 import { gameEvents } from "../../config/eventsConfig";
@@ -89,8 +91,8 @@ export function specialtyLabel(specialty: string): string {
   return tOr(`specialty.${specialty}`, specialty);
 }
 
-// ── Upgrades (the generated category-unlock + hand-build ones are templated,
-//    so a new toy/category needs no new upgrade strings) ──
+// ── Upgrades (the generated category-unlock, hand-build and warehouse ones are
+//    templated, so a new toy/category/storage tier needs no new strings) ──
 export function upgradeName(id: string): string {
   if (id.startsWith("handbuild_")) {
     return t("upgrade.handbuild.name", { name: toyName(id.slice("handbuild_".length)) });
@@ -99,6 +101,8 @@ export function upgradeName(id: string): string {
     const cat = toyCategories.find((c) => c.unlockUpgrade === id);
     return t("upgrade.catUnlock.name", { name: cat ? toyCategoryLabel(cat.id) : id });
   }
+  const tier = warehouseTierNumber(id);
+  if (tier > 0) return t("upgrade.warehouse.name", { n: tier });
   return tOr(`upgrade.${id}.name`, getUpgrade(id)?.name ?? id);
 }
 export function upgradeDesc(id: string): string {
@@ -108,6 +112,13 @@ export function upgradeDesc(id: string): string {
   if (CATEGORY_UNLOCK_IDS.has(id)) {
     const cat = toyCategories.find((c) => c.unlockUpgrade === id);
     return t("upgrade.catUnlock.desc", { name: cat ? toyCategoryLabel(cat.id) : id });
+  }
+  const tier = warehouseTierNumber(id);
+  if (tier > 0) {
+    return t("upgrade.warehouse.desc", {
+      from: formatInt(capacityForTiers(tier - 1)),
+      to: formatInt(capacityForTiers(tier)),
+    });
   }
   return tOr(`upgrade.${id}.desc`, getUpgrade(id)?.description ?? "");
 }

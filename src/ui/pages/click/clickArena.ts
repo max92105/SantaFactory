@@ -132,14 +132,18 @@ export function createClickArena(ctx: GameContext, els: ClickArenaEls): ClickAre
     const mods = ctx.systems.modifier.getModifiers(state);
     const at = { x: b.el.offsetLeft, y: b.el.offsetTop };
 
+    // A blocked click (locked toy, full warehouse) makes nothing — skip the
+    // float so it doesn't read as "+0"; makeClick already set the reason text.
     if (b.kind === "golden") {
       const amount = ctx.systems.production.makeClick(state, mods, mult * GOLDEN.giftMult);
-      spawnClickFloat(floatLayer, `🌟 +${amount}`, at);
-      state.meta.statusText = t("click.status.golden", { n: amount });
+      if (amount > 0) {
+        spawnClickFloat(floatLayer, `🌟 +${amount}`, at);
+        state.meta.statusText = t("click.status.golden", { n: amount });
+      }
       removeGolden(b);
     } else {
       const amount = ctx.systems.production.makeClick(state, mods, mult);
-      spawnClickFloat(floatLayer, `+${amount}`, at);
+      if (amount > 0) spawnClickFloat(floatLayer, `+${amount}`, at);
       moveButton(b); // permanent buttons dart to a new spot
     }
   }

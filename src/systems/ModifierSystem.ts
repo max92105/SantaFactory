@@ -23,6 +23,10 @@ export type Modifiers = {
 
   /** Click button size multiplier (Bigger Button upgrades). */
   clickButtonScale: number;
+
+  /** Warehouse capacity multiplier over BASE_STORAGE_CAPACITY (Warehouse
+   *  Expansion upgrades). Read through helpers/storageHelpers.ts. */
+  storageCapMult: number;
 };
 
 const DEFAULT_MODS: Modifiers = {
@@ -38,6 +42,7 @@ const DEFAULT_MODS: Modifiers = {
   wageMult: 1,
 
   clickButtonScale: 1,
+  storageCapMult: 1,
 };
 
 export function createModifierSystem() {
@@ -72,6 +77,10 @@ export function createModifierSystem() {
 
         case "click_button_scale":
           mods.clickButtonScale *= e.amount;
+          break;
+
+        case "storage_cap_mult":
+          mods.storageCapMult *= e.amount;
           break;
 
         case "unlock":

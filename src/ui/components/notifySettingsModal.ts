@@ -20,6 +20,7 @@ const ROWS: { key: NotifyKey; icon: string }[] = [
   { key: "dayOff", icon: "😴" },
   { key: "rushOrder", icon: "⚡" },
   { key: "grinch", icon: "😈" },
+  { key: "storageFull", icon: "📦" },
 ];
 
 export function openNotifySettingsModal(): void {

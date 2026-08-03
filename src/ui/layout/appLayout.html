@@ -56,6 +56,21 @@
       <div class="res-foot"></div>
     </div>
 
+    <!-- Warehouse space: a live fill meter. Turns amber when nearly full and
+         red when production has actually jammed (see helpers/storageHelpers). -->
+    <div class="res res-storage" id="storageResource">
+      <div class="res-main">
+        <span class="res-icon">📦</span>
+        <div class="res-info">
+          <span class="res-label" data-i18n="hud.storage">Storage</span>
+          <strong class="res-value" id="hudStorage">0 / 250</strong>
+        </div>
+      </div>
+      <div class="res-foot">
+        <div class="storage-meter"><div id="hudStorageFill" class="storage-meter-fill"></div></div>
+      </div>
+    </div>
+
     <div class="res res-elves" id="elvesResource">
       <div class="res-main">
         <span class="res-icon">🧝</span>

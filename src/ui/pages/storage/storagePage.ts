@@ -16,6 +16,7 @@ import type { ToyTypeDef } from "../../../config/toyTypesConfig";
 import { getUnlockedToyTypes } from "../../../helpers/unlockHelpers";
 import { getSellableStock, getBrokenStock, ensureInventory, getTotalBroken } from "../../../helpers/inventoryHelpers";
 import { BROKEN_SALVAGE_RATE } from "../../../config/stationsConfig";
+import { STORAGE_WARN_PCT } from "../../../config/storageConfig";
 import { formatInt, formatMoneyPrecise } from "../../../helpers/formatHelpers";
 import { spawnSellFloat } from "../../components/floatingText";
 import { createStepper } from "../../components/stepper";
@@ -318,6 +319,17 @@ export function createStoragePage(): Page {
       ctx.dom.storageTotalValue.textContent = formatMoneyPrecise(totalValue);
       ctx.dom.storageTotalBroken.textContent = formatInt(getTotalBroken(state));
       ctx.dom.sellAllBtn.disabled = totalStock <= 0;
+
+      // Warehouse meter. `stored` is every item held — including WIP on the line
+      // and broken units — so it can exceed the sellable "in stock" total above.
+      const cap = views.storage;
+      ctx.dom.storageCapValue.textContent = `${formatInt(cap.stored)} / ${formatInt(cap.capacity)}`;
+      ctx.dom.storageCapFill.style.width = `${Math.floor(cap.fillPct * 100)}%`;
+      ctx.dom.storageCapacity.classList.toggle("near", !cap.full && cap.fillPct >= STORAGE_WARN_PCT);
+      ctx.dom.storageCapacity.classList.toggle("full", cap.full);
+      ctx.dom.storageCapNote.textContent = cap.full
+        ? t("storage.capFull")
+        : t("storage.capFree", { n: formatInt(cap.free) });
     },
   };
 }

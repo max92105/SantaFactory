@@ -10,7 +10,7 @@
  * status text / badges, which are unaffected.
  */
 
-export type NotifyKey = "stationBroke" | "dayOff" | "rushOrder" | "grinch";
+export type NotifyKey = "stationBroke" | "dayOff" | "rushOrder" | "grinch" | "storageFull";
 
 const STORAGE_KEY = "santa_factory_notify_settings";
 
@@ -19,6 +19,7 @@ const DEFAULTS: Record<NotifyKey, boolean> = {
   dayOff: true,
   rushOrder: true,
   grinch: true,
+  storageFull: true,
 };
 
 function load(): Record<NotifyKey, boolean> {

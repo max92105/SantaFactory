@@ -15,6 +15,9 @@ export type DomRefs = {
   elvesResource: HTMLElement;
   elvesToggle: HTMLButtonElement;
   elvesDropdown: HTMLElement;
+  storageResource: HTMLElement;
+  hudStorage: HTMLElement;
+  hudStorageFill: HTMLDivElement;
 
   // Header — season clock
   hudDay: HTMLElement;
@@ -83,6 +86,10 @@ export type DomRefs = {
   storageTotalStock: HTMLElement;
   storageTotalValue: HTMLElement;
   storageTotalBroken: HTMLElement;
+  storageCapacity: HTMLElement;
+  storageCapValue: HTMLElement;
+  storageCapFill: HTMLDivElement;
+  storageCapNote: HTMLElement;
   sellAllBtn: HTMLButtonElement;
   sellFloatLayer: HTMLDivElement;
 
@@ -137,6 +144,9 @@ export function getDomRefs(): DomRefs {
     elvesResource: mustGet("elvesResource"),
     elvesToggle: mustGet("elvesToggle"),
     elvesDropdown: mustGet("elvesDropdown"),
+    storageResource: mustGet("storageResource"),
+    hudStorage: mustGet("hudStorage"),
+    hudStorageFill: mustGet("hudStorageFill"),
 
     // Header — season clock
     hudDay: mustGet("hudDay"),
@@ -205,6 +215,10 @@ export function getDomRefs(): DomRefs {
     storageTotalStock: mustGet("storageTotalStock"),
     storageTotalValue: mustGet("storageTotalValue"),
     storageTotalBroken: mustGet("storageTotalBroken"),
+    storageCapacity: mustGet("storageCapacity"),
+    storageCapValue: mustGet("storageCapValue"),
+    storageCapFill: mustGet("storageCapFill"),
+    storageCapNote: mustGet("storageCapNote"),
     sellAllBtn: mustGet("sellAllBtn"),
     sellFloatLayer: mustGet("sellFloatLayer"),
 

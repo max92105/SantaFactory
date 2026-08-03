@@ -33,6 +33,7 @@ import {
   slotBreakChance,
 } from "../helpers/workforceHelpers";
 import { isStationBroken, setStationBroken, brokenStepIds } from "../helpers/stationHelpers";
+import { freeSpace } from "../helpers/storageHelpers";
 import { MAINTENANCE_STEP, REPAIR_STEP } from "../config/stationsConfig";
 import { getElfType } from "../config/elfTypesConfig";
 import { t } from "../ui/i18n/i18n";
@@ -48,11 +49,15 @@ export type StepProgress = {
   mistakeChance: number;
   broken: boolean;
   isBottlenecked: boolean;
+  /** Craft step idled because the warehouse has no room for a new item. */
+  isStorageBlocked: boolean;
 };
 
 export type PipelineView = {
   activeSlot: string;
   steps: StepProgress[];
+  /** Warehouse is at capacity — every craft step (and the click button) is halted. */
+  storageFull: boolean;
 };
 
 export function createPipelineSystem() {
@@ -64,6 +69,9 @@ export function createPipelineSystem() {
   const refurbishAccum: Record<string, number> = {};
   /** Round-robin cursor per shared step for "balanced" mode (not saved). */
   const rrCursor: Record<string, number> = {};
+  /** Was the warehouse full last tick? Edge-triggers the "full" toast so it
+   *  fires once when the line jams, not every frame (not saved). */
+  let wasStorageFull = false;
 
   /**
    * The toys a SHARED step may process: a specialist station handles only its
@@ -124,6 +132,8 @@ export function createPipelineSystem() {
 
   function getStepOutputPerSecond(state: GameState, step: PipelineStepDef, mods: Modifiers): number {
     if (isStationBroken(state, step.id)) return 0;
+    // Craft steps materialize NEW items, so a full warehouse stops them dead.
+    if (step.inputStage === null && freeSpace(state, mods) <= 0) return 0;
     const slot = currentShiftSlot(state.time.dayProgress);
     // Managers don't build — they multiply the speed of those who do.
     const producers = activeProducersOnStep(state, step.id, slot).length;
@@ -138,9 +148,20 @@ export function createPipelineSystem() {
 
     const slot = currentShiftSlot(state.time.dayProgress);
 
+    // Room left in the warehouse. Only craft steps consume it — every other step
+    // takes one item off a stage and puts one back on the next, so the running
+    // total can't change underneath us and one reading per tick stays accurate.
+    let free = freeSpace(state, mods);
+    const storageFull = free <= 0;
+    if (storageFull && !wasStorageFull && isNotifyEnabled("storageFull")) {
+      state.pendingAlerts.push(t("sys.storageFull"));
+    }
+    wasStorageFull = storageFull;
+
     for (const step of pipelineSteps) {
       if (step.toyType && !isToyUnlocked(state, step.toyType)) continue;
       if (isStationBroken(state, step.id)) continue;
+      if (step.inputStage === null && free <= 0) continue; // nowhere to put a new item
 
       const producers = activeProducersOnStep(state, step.id, slot).length;
       if (producers <= 0) continue;
@@ -155,6 +176,9 @@ export function createPipelineSystem() {
       const breakChance = slotBreakChance(state, step.id, slot);
 
       while (progressAccum[step.id] >= 1) {
+        // The shelves filled up mid-batch — stop crafting until space is freed.
+        if (step.inputStage === null && free <= 0) break;
+
         // Elf mistake breaks the station? Halt it and alert the player.
         if (Math.random() < breakChance) {
           setStationBroken(state, step.id, true);
@@ -183,6 +207,8 @@ export function createPipelineSystem() {
         }
 
         // Elf mistake? Ruin the item (kept in the broken tally) instead of output.
+        // Either way one item exists where there was none, so a craft step has
+        // spent a shelf — a ruined toy takes up space until it's salvaged.
         if (Math.random() < mistakeChance) {
           addBroken(state, targetType, 1);
           state.dayStats.ruined += 1;
@@ -190,6 +216,7 @@ export function createPipelineSystem() {
         } else {
           addToStage(state, targetType, step.outputStage, 1);
         }
+        if (step.inputStage === null) free -= 1;
 
         progressAccum[step.id] -= 1;
       }
@@ -331,10 +358,12 @@ export function createPipelineSystem() {
 
   function getView(state: GameState, mods: Modifiers): PipelineView {
     const slot = currentShiftSlot(state.time.dayProgress);
+    const storageFull = freeSpace(state, mods) <= 0;
     const steps: StepProgress[] = pipelineSteps.map((step) => {
       const elvesAssigned = activeOnStep(state, step.id, slot);
       const broken = isStationBroken(state, step.id);
       const progress = elvesAssigned > 0 && !broken ? (progressAccum[step.id] ?? 0) : 0;
+      const storageBlocked = storageFull && step.inputStage === null;
 
       return {
         stepId: step.id,
@@ -343,11 +372,12 @@ export function createPipelineSystem() {
         outputPerSecond: getStepOutputPerSecond(state, step, mods),
         mistakeChance: slotMistakeChance(state, step.id, slot),
         broken,
-        isBottlenecked: !broken && !hasInput(state, step) && elvesAssigned > 0,
+        isBottlenecked: !broken && !storageBlocked && !hasInput(state, step) && elvesAssigned > 0,
+        isStorageBlocked: storageBlocked && elvesAssigned > 0,
       };
     });
 
-    return { activeSlot: slot, steps };
+    return { activeSlot: slot, steps, storageFull };
   }
 
   return {

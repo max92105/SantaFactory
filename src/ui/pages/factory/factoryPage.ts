@@ -77,6 +77,8 @@ function roleText(role: ElfRole): {
 function statusOf(view: StepProgress | undefined, scheduled: number): Status {
   if (!view) return { cls: "idle", label: t("status.unstaffed") };
   if (view.broken) return { cls: "broken", label: t("status.broken") };
+  // A jam is more actionable than a starve, so it wins the label.
+  if (view.isStorageBlocked) return { cls: "jammed", label: t("status.noRoom") };
   if (view.elvesAssigned > 0 && view.isBottlenecked) return { cls: "starved", label: t("status.noInput") };
   if (view.elvesAssigned > 0) return { cls: "working", label: t("status.working") };
   if (scheduled > 0) return { cls: "scheduled", label: t("status.offShift") };
@@ -116,14 +118,17 @@ function toyLineStatus(
   let broken = false;
   let working = false;
   let starved = false;
+  let jammed = false;
   let scheduled = false;
   for (const s of getOrderedSteps().filter((st) => st.toyType === toyId)) {
     const v = viewById.get(s.id);
     if (v?.broken) broken = true;
+    else if (v?.isStorageBlocked) jammed = true;
     else if (v && v.elvesAssigned > 0) v.isBottlenecked ? (starved = true) : (working = true);
     if (scheduledOnStep(state, s.id) > 0) scheduled = true;
   }
   if (broken) return { cls: "broken", label: t("status.broken") };
+  if (jammed) return { cls: "jammed", label: t("status.noRoom") };
   if (working) return { cls: "working", label: t("status.working") };
   if (starved) return { cls: "starved", label: t("status.noInput") };
   if (scheduled) return { cls: "scheduled", label: t("status.offShift") };

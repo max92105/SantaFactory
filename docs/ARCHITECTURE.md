@@ -20,6 +20,7 @@ src/
 │  ├─ producersConfig.ts       Hire packages (cost, elves)
 │  ├─ upgradesConfig.ts        Upgrades (cost, effect, description)
 │  ├─ wagesConfig.ts           Per-elf daily wage + what happens when payroll fails
+│  ├─ storageConfig.ts         Warehouse capacity + the expansion tier ramp
 │  ├─ saveConfig.ts            localStorage save key
 │  └─ unlockRules.ts           Shared unlock-rule type (not evaluated yet)
 ├─ core/
@@ -40,6 +41,7 @@ src/
 │  └─ DailySummarySystem.ts    End-of-day recap (built, not wired in yet)
 ├─ helpers/                    Shared calculations & formatting (one source each)
 │  ├─ inventoryHelpers.ts      Stage counts, add/remove, sellable stock
+│  ├─ storageHelpers.ts        Warehouse fill/capacity/free space (the cap)
 │  ├─ costHelpers.ts           Producer price formula (scales with CURRENT elves)
 │  ├─ unlockHelpers.ts         Which toy lines are unlocked
 │  ├─ formatHelpers.ts         formatInt / formatMoney / formatMoneyPrecise / formatCost
@@ -93,6 +95,13 @@ effect type, extend `UpgradeEffect` there and follow the compiler errors
 
 **A new pipeline step** — add an entry in `pipelineConfig.ts` with the
 input/output stages; the factory page and pipeline system handle the rest.
+Note the warehouse cap only gates steps with `inputStage: null` (they create an
+item from nothing); a step that consumes one item and emits one is space-neutral
+and keeps running even when storage is full.
+
+**More warehouse space** — change the numbers in `storageConfig.ts`. The
+expansion upgrades, their prices, descriptions and shop rows are all generated
+from them; nothing else needs touching.
 
 **A new mechanic** — create `config/<name>Config.ts` (tuning) +
 `systems/<Name>System.ts` (logic), register it in `core/GameContext.ts`

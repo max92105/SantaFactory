@@ -62,12 +62,54 @@ Workers × $3 = **$9/day**. Net ≈ **$108/day** from one modest line.
 - Trade-off: Drunken flood cheap labour but ruin lots + never work nights;
   Coked cover a 3rd shift; Veterans are pricey but near-flawless.
 
+## Storage (config/storageConfig.ts)
+
+The warehouse holds **250 items** to start. Every physical item counts: all
+production stages (`wip1`/`wip2`/`raw`/`assembled`/`finished`) **plus the broken
+pile** — not just sellable gifts. Counting WIP is what stops the obvious dodge
+of parking a huge pile at `assembled` and burst-converting it on demand.
+
+When it's full, **craft steps and the click button halt**. Everything downstream
+(specialist stations, Quality Control, Packaging) takes one item and returns one,
+so it's space-neutral and keeps draining — the factory jams from the front while
+your elves still draw a full day's wages.
+
+**Warehouse Expansions** are 16 generated upgrade tiers, each **doubling** total
+capacity (250 → ~16.4M) for a price that grows **×3.8**:
+
+| Tier | Capacity | Cost |
+|-----:|---------:|-----:|
+| — | 250 | — |
+| 1 | 500 | $350 |
+| 2 | 1,000 | $1,330 |
+| 4 | 4,000 | $19,200 |
+| 8 | 64,000 | $4.00M |
+| 12 | 1.02M | $835M |
+| 16 | 16.4M | $174B |
+
+Price ramps faster than space on purpose: shelf room stays a real purchase
+competing with toys and elves. Only the next unbought tier is listed in the shop.
+
+Consequences worth knowing:
+
+- **Orders stop being trivial.** You can't sit on a bottomless pile and fill any
+  order instantly; you produce *into* a deadline, and multi-toy orders compete
+  for the same shelves.
+- **The Grinch bites again.** His toy ransom (`0.35` days of production) and his
+  30–50% steal are measured against a bounded buffer, not an infinite hoard.
+- **Broken items cost space,** so salvage and the Repair Workshop's menders
+  finally earn their price — a clumsy crew now clogs the warehouse as well as
+  wasting yield.
+- **Old saves** need no migration (capacity is derived from owned upgrades), but
+  a save with a big stockpile will load already over the cap and stay jammed
+  until it sells down. That's the intended new pressure, not a bug.
+
 ## Money sinks & sources
 
 - **Sources:** selling finished toys (`sell = value × sellRate upgrades`), and
   **orders** (pay `qty × value × payMult × eventMult`, i.e. **1.3–2.4×** selling).
 - **Sinks:** hiring (escalating), daily wages, toy unlocks, station repairs ($40),
-  upgrades ($25 → $400).
+  upgrades ($25 → $400), warehouse expansions ($350 → $174B).
 
 ## Orders (config/ordersConfig.ts)
 
@@ -94,4 +136,10 @@ Friday ×1.6, Christmas Rush ×1.8), some with a **featured toy** in higher dema
    assigning more elves), but it makes early automation feel slow.
 3. **Run length (~30 h)** is long for a clicker; fine as a season, but consider a
    shorter `SEASON_DAYS` or faster days if you want tighter sessions.
-4. **Broken toys aren't sellable yet** — ruined items are pure loss for now.
+4. **Broken toys** can be salvaged for `BROKEN_SALVAGE_RATE` of value or mended
+   back to finished by the Repair Crew — and they occupy warehouse shelves until
+   you do one or the other, so ignoring the pile now costs you production.
+5. **Storage tier pricing is the least-tested curve here.** The capacity ramp is
+   anchored to the Christmas Order's ~24.6M gifts/day pace; the *cost* ramp
+   (×3.8) is a first guess at late-game wealth. If expansions feel like a tax
+   rather than a choice, lower `STORAGE_TIER_COST_GROWTH` first.

@@ -18,6 +18,7 @@
           <strong id="storageTotalBroken">0</strong>
         </div>
       </div>
+
       <div class="storage-tools">
         <input id="storageSearch" class="storage-search" type="search" data-i18n-ph="storage.search" placeholder="Search toys…" autocomplete="off" />
         <div class="sell-all-wrap">
@@ -25,6 +26,17 @@
           <div id="sellFloatLayer" class="sell-float-layer"></div>
         </div>
       </div>
+    </div>
+
+    <!-- Warehouse space. Counts EVERY item held, including half-built ones still
+         on the line and the broken pile — see config/storageConfig.ts. -->
+    <div class="storage-capacity" id="storageCapacity">
+      <div class="cap-head">
+        <span class="cap-label" data-i18n="storage.capacity">Warehouse space</span>
+        <strong class="cap-value" id="storageCapValue">0 / 250</strong>
+      </div>
+      <div class="cap-meter"><div id="storageCapFill" class="cap-meter-fill"></div></div>
+      <div class="cap-note" id="storageCapNote"></div>
     </div>
 
     <!-- One row per unlocked toy (built in storagePage.ts) -->

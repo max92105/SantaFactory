@@ -12,6 +12,7 @@ import { ensureInventory, getTotalFinished } from "../../helpers/inventoryHelper
 import { getUnlockedToyTypes } from "../../helpers/unlockHelpers";
 import { totalElves, countOfType, onShiftCount, totalIdle, ownedElfTypes } from "../../helpers/workforceHelpers";
 import { currentShiftSlot } from "../../config/shiftsConfig";
+import { STORAGE_WARN_PCT } from "../../config/storageConfig";
 import { brokenStationCount } from "../../helpers/stationHelpers";
 import { spawnToast } from "../components/toast";
 import { spawnCelebration } from "../components/celebration";
@@ -23,7 +24,7 @@ import { t, applyTranslations } from "../i18n/i18n";
 import { toyLabel, elfName } from "../i18n/localize";
 import { elfIconHtml } from "../elfIcons";
 import { isMuted, toggleMute, playCash } from "../audio";
-import { formatInt, formatMoney } from "../../helpers/formatHelpers";
+import { formatCompact, formatInt, formatMoney } from "../../helpers/formatHelpers";
 
 /** Emoji for each time-of-day label (single source for the HUD clock). */
 const TIME_OF_DAY_ICON: Record<string, string> = {
@@ -147,6 +148,16 @@ export function renderAppLayout(ctx: GameContext, views: FrameViews): void {
   dom.hudGifts.textContent = formatInt(getTotalFinished(state));
   dom.hudMoney.textContent = formatMoney(state.resources.money);
   dom.hudElves.textContent = formatInt(totalElves(state));
+
+  // Warehouse meter: amber as it fills, red once production is actually jammed.
+  const store = views.storage;
+  dom.hudStorage.textContent = `${formatCompact(store.stored)} / ${formatCompact(store.capacity)}`;
+  dom.hudStorageFill.style.width = `${Math.floor(store.fillPct * 100)}%`;
+  dom.storageResource.classList.toggle("near", !store.full && store.fillPct >= STORAGE_WARN_PCT);
+  dom.storageResource.classList.toggle("full", store.full);
+  dom.storageResource.title = store.full
+    ? t("hud.storageFullHint")
+    : t("hud.storageHint", { free: formatInt(store.free) });
 
   // Gift breakdown dropdown (per unlocked toy type)
   dom.giftsDropdown.innerHTML = "";
