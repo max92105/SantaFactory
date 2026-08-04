@@ -184,3 +184,44 @@ button {
   -webkit-mask-image: radial-gradient(circle at 50% 46%, #000 58%, rgba(0, 0, 0, 0.55) 74%, transparent 86%);
   mask-image: radial-gradient(circle at 50% 46%, #000 58%, rgba(0, 0, 0, 0.55) 74%, transparent 86%);
 }
+
+/* Elf RULE CHIP — one visual vocabulary for every work rule, wherever it's
+   shown (hiring card, crew console, assign picker). The tone comes from
+   helpers/elfRules.ts so a rule always reads the same colour: green = a perk,
+   amber = a constraint to schedule around, red = a risk, blue = neutral fact.
+   Rendered by ui/i18n/localize.ts elfRuleChips(). */
+.rule-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.6;
+  padding: 1px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid transparent;
+  color: var(--text-dim);
+}
+
+.rule-chip.tone-perk {
+  background: rgba(134, 239, 172, 0.12);
+  border-color: rgba(134, 239, 172, 0.3);
+  color: #86efac;
+}
+.rule-chip.tone-limit {
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: #fcd34d;
+}
+.rule-chip.tone-risk {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #f87171;
+}
+.rule-chip.tone-info {
+  background: rgba(125, 211, 252, 0.1);
+  border-color: rgba(125, 211, 252, 0.28);
+  color: #7dd3fc;
+}

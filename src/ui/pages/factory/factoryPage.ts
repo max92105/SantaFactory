@@ -1,16 +1,19 @@
 /**
  * factoryPage — the "Factory" tab.
  *
- * Layout: a workforce bar on top, a rail of production lines on the left
+ * Layout: a workforce header on top, a rail of production lines on the left
  * (Crafting per toy, then shared Processing steps), and a focused detail panel
  * on the right for the selected line.
  *
- * The elf is the unit of scheduling. You "+ Assign elf" — pick an idle elf and
- * choose ALL of its shift slots at once — and it joins the line's crew as a
- * card. Pulling that card sends the whole elf home (idle until tomorrow), so
- * moving elves around costs you.
+ * The elf is the unit of scheduling: one elf works ONE step and covers a fixed
+ * set of shift slots. This page deliberately shows only a COMPACT crew summary
+ * per step — a headcount, per-shift coverage pips and a warning when a shift is
+ * uncovered. The full type × shift roster and all assigning happen in the Manage
+ * Crew console (components/crewManageModal.ts), because an inline card per
+ * type+shift combination hit ~30 cards on a busy line and was unreadable.
  *
  * Logic: PipelineSystem (scheduling, throughput, mistakes, breakdowns).
+ * Rules:  helpers/elfRules.ts (who may work where, and why not).
  */
 
 import factoryPageHtml from "./factoryPage.html?raw";
@@ -35,24 +38,24 @@ import { ensureInventory, getBrokenStock, getTotalBroken } from "../../../helper
 import {
   totalElves,
   totalIdle,
-  idleOfType,
+  spentCount,
   onShiftCount,
-  ownedElfTypes,
   scheduledOnStep,
   activeMechanics,
   activeMenders,
   stepCrewSpeedMult,
   eligibleElfTypesForStep,
   stepRequiredSpecialty,
-  crewGroups,
-  type CrewGroup,
+  crewMatrix,
+  stepSlotCoverage,
 } from "../../../helpers/workforceHelpers";
 import { isStationBroken, brokenStationCount, brokenStepIds } from "../../../helpers/stationHelpers";
 import { REPAIR_HOLD_SECONDS, MAINTENANCE_STEP, REPAIR_STEP } from "../../../config/stationsConfig";
 import { formatInt, formatCost } from "../../../helpers/formatHelpers";
 import { t } from "../../i18n/i18n";
 import { toyName, elfName, stepName, stepDesc, slotName, specialtyLabel } from "../../i18n/localize";
-import { openCrewAssignModal } from "../../components/crewAssignModal";
+import { openCrewManageModal } from "../../components/crewManageModal";
+import { createConveyor, updateConveyor } from "../../components/conveyor";
 import { elfIconHtml } from "../../elfIcons";
 
 type Status = { cls: string; label: string };
@@ -159,7 +162,7 @@ export function createFactoryPage(): Page {
         selectedStepId = validIds[0] ?? null;
       }
 
-      buildIdleChips(ctx);
+      buildShiftStrip(ctx);
       buildRail(ctx, selectedStepId, (id) => {
         selectedStepId = id;
         ctx.rebuildUI();
@@ -174,6 +177,17 @@ export function createFactoryPage(): Page {
       ctx.dom.totalElves.textContent = formatInt(totalElves(state));
       ctx.dom.assignedElves.textContent = formatInt(onShiftCount(state, slot));
       ctx.dom.unassignedElves.textContent = formatInt(totalIdle(state));
+      // Elves already sent home today — they're back tomorrow. Previously
+      // invisible, which made "where did my elves go?" unanswerable.
+      ctx.dom.spentElves.textContent = formatInt(spentCount(state));
+
+      // Live headcount per shift + which one is running now.
+      ctx.dom.wfShifts.querySelectorAll<HTMLElement>(".wf-shift").forEach((cell) => {
+        const n = onShiftCount(state, cell.dataset.slot!);
+        cell.classList.toggle("active-slot", cell.dataset.slot === slot);
+        cell.classList.toggle("gap", n === 0);
+        cell.querySelector<HTMLElement>(".wf-shift-n")!.textContent = formatInt(n);
+      });
 
       const viewById = new Map(views.pipeline.steps.map((s) => [s.stepId, s]));
 
@@ -260,12 +274,23 @@ export function createFactoryPage(): Page {
           badge.className = `detail-status status-${st.cls}`;
           badge.textContent = st.label;
         }
+        const perSecond = view?.outputPerSecond ?? 0;
         const rate = block.querySelector<HTMLElement>('[data-detail="rate"]');
-        if (rate) rate.textContent = `${(view?.outputPerSecond ?? 0).toFixed(2)}/s`;
+        // Big numbers lose the decimals — "1,240/s" beats "1240.00/s".
+        if (rate) rate.textContent = `${perSecond >= 100 ? formatInt(perSecond) : perSecond.toFixed(2)}/s`;
         const ruin = block.querySelector<HTMLElement>('[data-detail="ruin"]');
         if (ruin) ruin.textContent = `${Math.round((view?.mistakeChance ?? 0) * 100)}%`;
-        const pbar = block.querySelector<HTMLElement>('[data-detail="progress"]');
-        if (pbar) pbar.style.width = `${Math.floor((view?.progress ?? 0) * 100)}%`;
+
+        const belt = block.querySelector<HTMLElement>('[data-detail="conveyor"]');
+        if (belt) {
+          updateConveyor(belt, {
+            rate: perSecond,
+            progress: view?.progress ?? 0,
+            // A broken or jammed station is stopped for a reason you must fix —
+            // the belt freezes so it can't be mistaken for a running line.
+            halted: !!view && (view.broken || view.isStorageBlocked),
+          });
+        }
 
         // Manager boost this slot: ×1.25 in green when a manager is on shift.
         const mgr = block.querySelector<HTMLElement>('[data-detail="mgr"]');
@@ -305,23 +330,34 @@ export function createFactoryPage(): Page {
   };
 }
 
-/** One chip per elf type showing how many are idle (available to assign). */
-function buildIdleChips(ctx: GameContext): void {
+/**
+ * The day at a glance: one cell per shift showing how many elves are on across
+ * the WHOLE factory, with the live shift highlighted. Replaces the old row of
+ * per-type idle chips, which was mostly zeros and told you nothing actionable —
+ * this shows where your day is thin.
+ */
+function buildShiftStrip(ctx: GameContext): void {
   const state = ctx.getState();
-  const host = ctx.dom.unassignedTypes;
+  const host = ctx.dom.wfShifts;
   host.innerHTML = "";
 
-  const owned = ownedElfTypes(state);
-  if (owned.length === 0) {
-    host.innerHTML = `<span class="unassigned-hint">${t("factory.hireHint")}</span>`;
+  if (totalElves(state) === 0) {
+    host.innerHTML = `<span class="wf-hire-hint">${t("factory.hireHint")}</span>`;
     return;
   }
-  for (const elf of owned) {
-    const chip = document.createElement("span");
-    chip.className = "elf-chip";
-    chip.title = `${elfName(elf.id)} — ${t("factory.idleCount", { n: idleOfType(state, elf.id) })}`;
-    chip.innerHTML = `${elfIconHtml(elf.id, elf.icon)} <strong>${formatInt(idleOfType(state, elf.id))}</strong>`;
-    host.appendChild(chip);
+
+  for (const s of shiftSlots) {
+    const n = onShiftCount(state, s.id);
+    const cell = document.createElement("div");
+    cell.className = "wf-shift" + (n === 0 ? " gap" : "");
+    cell.dataset.slot = s.id;
+    cell.title = `${slotName(s.id)} — ${t("crew.covered", { n })}`;
+    cell.innerHTML = `
+      <span class="wf-shift-icon">${s.icon}</span>
+      <span class="wf-shift-name">${slotName(s.id)}</span>
+      <strong class="wf-shift-n">${formatInt(n)}</strong>
+    `;
+    host.appendChild(cell);
   }
 }
 
@@ -523,8 +559,12 @@ function buildStepControl(ctx: GameContext, step: PipelineStepDef): HTMLElement 
     <div class="detail-stat"><span>${t("factory.ruinRate")}</span><strong data-detail="ruin">0%</strong></div>
     <div class="detail-stat"><span>${t("factory.baseTime")}</span><strong>${step.baseTime}s</strong></div>
     <div class="detail-stat"><span>${t("factory.managerStat")}</span><strong data-detail="mgr">—</strong></div>
-    <div class="detail-progress"><div class="detail-progress-fill" data-detail="progress"></div></div>
   `;
+  // Throughput belt: a discrete fill while items take seconds, a scrolling belt
+  // (speed ∝ rate) once they don't. See components/conveyor.ts.
+  const belt = createConveyor();
+  belt.dataset.detail = "conveyor";
+  meta.appendChild(belt);
   block.appendChild(meta);
 
   // A broken station shows the repair banner, but you can STILL schedule elves
@@ -822,7 +862,12 @@ function buildRepairDetail(ctx: GameContext): void {
   detail.appendChild(root);
 }
 
-/** Crew of the line (one card per assigned elf) + an "+ Assign elf" flow. */
+/**
+ * COMPACT crew summary for a station: headcount, a face per elf type on the
+ * line, per-shift coverage pips, and one "Manage crew" button. Deliberately
+ * fixed-height — the detail per type and shift belongs in the console, not
+ * spilled across the page.
+ */
 function buildScheduler(ctx: GameContext, stepId: string, role: ElfRole): HTMLElement {
   const state = ctx.getState();
   const T = roleText(role);
@@ -847,24 +892,72 @@ function buildScheduler(ctx: GameContext, stepId: string, role: ElfRole): HTMLEl
     return wrap;
   }
 
-  const crew = document.createElement("div");
-  crew.className = "crew-list";
-  const groups = crewGroups(state, stepId);
-  if (groups.length === 0) {
-    crew.innerHTML = `<span class="crew-empty">${T.crewEmpty}</span>`;
-  } else {
-    for (const g of groups) crew.appendChild(buildCrewGroupCard(ctx, g));
-  }
-  wrap.appendChild(crew);
-
-  const addBtn = document.createElement("button");
-  addBtn.className = "assign-open";
-  addBtn.textContent = T.addBtn;
-  addBtn.onclick = () => {
+  const openManage = () => {
     const meta = stationMeta(stepId);
-    openCrewAssignModal(ctx, { stepId, role, icon: meta.icon, label: meta.label });
+    openCrewManageModal(ctx, { stepId, role, icon: meta.icon, label: meta.label });
   };
-  wrap.appendChild(addBtn);
+
+  const rows = crewMatrix(state, stepId);
+  const total = scheduledOnStep(state, stepId);
+
+  const summary = document.createElement("div");
+  summary.className = "crew-summary" + (total === 0 ? " empty" : "");
+
+  if (total === 0) {
+    summary.innerHTML = `<span class="crew-summary-empty">${T.crewEmpty}</span>`;
+  } else {
+    // Faces: one per type, with its headcount. Caps at four so a line with a
+    // dozen types still fits on one row ("+3 more" carries the rest).
+    const SHOWN = 4;
+    const faces = rows
+      .slice(0, SHOWN)
+      .map((r) => {
+        const def = getElfType(r.type);
+        return `<span class="crew-face" title="${elfName(r.type)} ×${r.total}">
+            ${elfIconHtml(r.type, def?.icon ?? "🧝")}<span class="crew-face-n">${formatInt(r.total)}</span>
+          </span>`;
+      })
+      .join("");
+    const more = rows.length > SHOWN ? `<span class="crew-more">+${rows.length - SHOWN}</span>` : "";
+
+    // Coverage pips: one per shift, filled by headcount, red when nobody is on.
+    const pips = shiftSlots
+      .map((s) => {
+        const n = stepSlotCoverage(state, stepId, s.id);
+        return `<span class="crew-pip${n === 0 ? " gap" : ""}" data-slot="${s.id}"
+                      title="${slotName(s.id)} — ${t("crew.covered", { n })}">
+            <span class="crew-pip-icon">${s.icon}</span><span class="crew-pip-n">${formatInt(n)}</span>
+          </span>`;
+      })
+      .join("");
+
+    summary.innerHTML = `
+      <span class="crew-count"><strong>${formatInt(total)}</strong> ${t("factory.onLineShort")}</span>
+      <span class="crew-faces">${faces}${more}</span>
+      <span class="crew-pips">${pips}</span>
+    `;
+
+    // An uncovered shift is a silent production hole — call it out in words.
+    const gaps = shiftSlots.filter((s) => stepSlotCoverage(state, stepId, s.id) === 0);
+    if (gaps.length > 0 && gaps.length < shiftSlots.length) {
+      const warn = document.createElement("div");
+      warn.className = "crew-gap-warn";
+      warn.textContent = t("factory.shiftGaps", { slots: gaps.map((s) => slotName(s.id)).join(", ") });
+      summary.appendChild(warn);
+    }
+  }
+
+  summary.onclick = openManage;
+  wrap.appendChild(summary);
+
+  const manageBtn = document.createElement("button");
+  manageBtn.className = "assign-open";
+  manageBtn.textContent = T.addBtn;
+  manageBtn.onclick = (e) => {
+    e.stopPropagation();
+    openManage();
+  };
+  wrap.appendChild(manageBtn);
 
   return wrap;
 }
@@ -877,126 +970,6 @@ function stationMeta(stepId: string): { icon: string; label: string } {
   const step = getPipelineStep(stepId);
   const toy = step?.toyType ? getToyType(step.toyType) : null;
   return { icon: toy ? toy.icon : "⚙️", label: stepName(stepId) };
-}
-
-/** A crew group (same type + same shifts): shows the count; ✕ opens batch remove. */
-function buildCrewGroupCard(ctx: GameContext, group: CrewGroup): HTMLElement {
-  const state = ctx.getState();
-  const def = getElfType(group.type);
-  const count = group.ids.length;
-  const card = document.createElement("div");
-  card.className = "elf-card" + (def?.managerMult ? " manager" : "");
-
-  const pips = shiftSlots
-    .map((s) => {
-      const on = group.slots.includes(s.id);
-      return `<span class="slot-pip${on ? " on" : ""}" data-slot="${s.id}" title="${slotName(s.id)}">${s.icon}</span>`;
-    })
-    .join("");
-
-  // Manager: show the boost right on the card. Workaholics: show today's no-shows.
-  const managerBadge = def?.managerMult
-    ? ` <span class="elf-card-badge">${t("factory.managerBadge", { mult: def.managerMult })}</span>`
-    : "";
-  const offToday = group.ids.filter((id) => state.workforce.elves.find((e) => e.id === id)?.dayOff).length;
-  const offBadge = offToday > 0 ? ` <span class="elf-card-off">${t("factory.dayOffBadge", { n: offToday })}</span>` : "";
-
-  card.innerHTML = `
-    <span class="elf-card-icon">${elfIconHtml(group.type, def?.icon ?? "🧝")}</span>
-    <div class="elf-card-info">
-      <span class="elf-card-name">${elfName(group.type)}${count > 1 ? ` <span class="elf-card-count">×${count}</span>` : ""}${managerBadge}${offBadge}</span>
-      <span class="elf-card-slots">${pips}</span>
-    </div>
-  `;
-
-  const remove = document.createElement("button");
-  remove.className = "elf-remove";
-  remove.textContent = "✕";
-  remove.title = t("factory.sendHome");
-  remove.onclick = () => openRemoveConfirm(ctx, card, group);
-  card.appendChild(remove);
-
-  return card;
-}
-
-/** A small − N + stepper. */
-function stepper(value: number, min: number, max: number, onChange: (v: number) => void): HTMLElement {
-  const wrap = document.createElement("div");
-  wrap.className = "qty-stepper";
-  const dec = document.createElement("button");
-  dec.textContent = "−";
-  dec.disabled = value <= min;
-  dec.onclick = () => onChange(Math.max(min, value - 1));
-  const val = document.createElement("span");
-  val.className = "qty-val";
-  val.textContent = String(value);
-  const inc = document.createElement("button");
-  inc.textContent = "+";
-  inc.disabled = value >= max;
-  inc.onclick = () => onChange(Math.min(max, value + 1));
-  wrap.append(dec, val, inc);
-  return wrap;
-}
-
-function note(text: string): HTMLElement {
-  const s = document.createElement("span");
-  s.className = "qty-note";
-  s.textContent = text;
-  return s;
-}
-
-/** Confirm before sending elves home (batch) — they're spent until tomorrow. */
-function openRemoveConfirm(ctx: GameContext, anchor: HTMLElement, group: CrewGroup): void {
-  ctx.dom.factoryDetail.querySelectorAll(".confirm-pop").forEach((p) => p.remove());
-  const total = group.ids.length;
-  let qty = total; // default: send the whole group home
-
-  const pop = document.createElement("div");
-  pop.className = "confirm-pop";
-  anchor.appendChild(pop);
-
-  const render = () => {
-    qty = Math.max(1, Math.min(qty, total));
-    pop.innerHTML = "";
-
-    const text = document.createElement("div");
-    text.className = "confirm-text";
-    const elfLabel = elfName(group.type);
-    text.textContent =
-      total > 1 ? t("factory.sendHomeQN", { name: elfLabel }) : t("factory.sendHomeQ1", { name: elfLabel });
-    pop.appendChild(text);
-
-    if (total > 1) {
-      const qtyRow = document.createElement("div");
-      qtyRow.className = "confirm-qty";
-      qtyRow.append(
-        stepper(qty, 1, total, (v) => {
-          qty = v;
-          render();
-        }),
-        note(t("factory.ofTotal", { n: total }))
-      );
-      pop.appendChild(qtyRow);
-    }
-
-    const actions = document.createElement("div");
-    actions.className = "confirm-actions";
-    const yes = document.createElement("button");
-    yes.className = "confirm-yes";
-    yes.textContent = total > 1 ? t("factory.sendNHome", { n: qty }) : t("factory.sendHome");
-    yes.onclick = () => {
-      ctx.systems.pipeline.removeElves(ctx.getState(), group.ids.slice(0, qty));
-      ctx.rebuildUI();
-    };
-    const no = document.createElement("button");
-    no.className = "confirm-no";
-    no.textContent = t("factory.cancel");
-    no.onclick = () => pop.remove();
-    actions.append(yes, no);
-    pop.appendChild(actions);
-  };
-
-  render();
 }
 
 /** Input→output flow for the step, per unlocked toy. */

@@ -8,6 +8,7 @@ import { tOr, t } from "./i18n";
 import { getToyType } from "../../config/toyTypesConfig";
 import { getToyCategory } from "../../config/toyCategoriesConfig";
 import { getElfType, elfCategories } from "../../config/elfTypesConfig";
+import { elfRules, type ElfRuleKind, type ElfRuleTone, type SlotRestriction } from "../../helpers/elfRules";
 import { getPipelineStep, PRODUCTION_STAGES } from "../../config/pipelineConfig";
 import { getShiftSlot } from "../../config/shiftsConfig";
 import { getUpgrade, CATEGORY_UNLOCK_IDS, warehouseTierNumber } from "../../config/upgradesConfig";
@@ -45,25 +46,30 @@ export function elfCategoryDesc(id: string): string {
   return tOr(`elfCat.${id}.desc`, elfCategories.find((c) => c.id === id)?.description ?? "");
 }
 /**
- * Short, scannable chips describing a specialist elf type's work rules — shown
- * on hiring cards and in the crew-assign window so constraints are visible
- * BEFORE you commit to hiring/assigning. Empty array for elves with no quirks.
- * `includeBlockedSlots` also chips the shifts a type refuses (e.g. antisocial
- * elves skipping daylight) — omitted on the hiring card, where that's already
- * shown by the Shifts stat, but included in the assign window, which isn't.
+ * Localized, scannable chips for an elf type's work rules — the ONE renderer
+ * for helpers/elfRules.ts, used by the hiring card, the crew roster and the
+ * assign panel alike. Add a rule kind in elfRules and it shows up in all three.
  */
-export function elfTraitChips(id: string, opts?: { includeBlockedSlots?: boolean }): string[] {
-  const def = getElfType(id);
-  if (!def) return [];
-  const chips: string[] = [];
-  if (def.managerMult) chips.push(t("trait.manager", { mult: def.managerMult }));
-  if (def.shy) chips.push(t("trait.shy"));
-  if (def.dayOffChance) chips.push(t("trait.dayOff", { pct: Math.round(def.dayOffChance * 100) }));
-  if (def.mistakeChance === 0 && !def.managerMult && def.role === "worker") chips.push(t("trait.perfect"));
-  if (opts?.includeBlockedSlots && def.blockedSlots?.length) {
-    chips.push(t("trait.blockedSlots", { slots: def.blockedSlots.map((s) => slotName(s)).join(", ") }));
-  }
-  return chips;
+export type ElfRuleChip = { kind: ElfRuleKind; tone: ElfRuleTone; icon: string; text: string };
+
+export function elfRuleChips(id: string): ElfRuleChip[] {
+  return elfRules(id).map((r) => ({
+    kind: r.kind,
+    tone: r.tone,
+    icon: r.icon,
+    text: t(`rule.${r.kind}`, {
+      ...(r.params ?? {}),
+      // Rules that name shifts or specialties localize them here, so elfRules
+      // itself never has to know about the i18n layer.
+      ...(r.slots ? { slots: r.slots.map((s) => slotName(s)).join(", ") } : {}),
+      ...(r.params?.specialty ? { specialty: specialtyLabel(String(r.params.specialty)) } : {}),
+    }),
+  }));
+}
+
+/** Why a shift is closed to a type — the localized `SlotRestriction`. */
+export function slotRestrictionText(r: SlotRestriction): string {
+  return t(`restriction.${r}`);
 }
 
 // ── Pipeline steps + stages ──

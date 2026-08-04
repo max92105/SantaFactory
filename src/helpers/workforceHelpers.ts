@@ -6,13 +6,32 @@
  * shift slots chosen at assignment. Pulling it clears its whole schedule and
  * marks it spent (idle only from tomorrow). So an elf's shifts move together,
  * and reshuffling has a cost.
+ *
+ * The RULES about who may work where live in helpers/elfRules.ts (pure, no
+ * state). This file supplies the roster lookups those rules need and re-exports
+ * them, so callers have one import and there's no cycle.
  */
 
 import type { GameState, ElfInstance } from "../state/GameState";
-import { elfTypes, getElfType, type ElfTypeDef, type ElfRole } from "../config/elfTypesConfig";
+import { elfTypes, getElfType, type ElfTypeDef } from "../config/elfTypesConfig";
 import { shiftSlots } from "../config/shiftsConfig";
-import { getPipelineStep } from "../config/pipelineConfig";
 import { MAINTENANCE_STEP, REPAIR_STEP } from "../config/stationsConfig";
+import { canElfTypeWorkStep, slotRestrictionFor, type SlotRestriction } from "./elfRules";
+
+// Rule helpers are re-exported so existing call sites keep one import path.
+export {
+  elfRules,
+  stepRole,
+  stepRequiredSpecialty,
+  canElfTypeWorkStep,
+  canWorkSlot,
+  allowedSlots,
+  requiredShifts,
+  type ElfRule,
+  type ElfRuleKind,
+  type ElfRuleTone,
+  type SlotRestriction,
+} from "./elfRules";
 
 // ── Reads ────────────────────────────────────────────────────────────────
 export function allElves(state: GameState): ElfInstance[] {
@@ -112,78 +131,43 @@ export function activeMenders(state: GameState, slotId: string): ElfInstance[] {
   );
 }
 
-// ── Step eligibility (role + specialty) ───────────────────────────────────
-/** Which elf role a step needs: mechanic (Maintenance), mender (Repair
- *  Bench), or worker (every production step). */
-export function stepRole(stepId: string): ElfRole {
-  if (stepId === MAINTENANCE_STEP) return "mechanic";
-  if (stepId === REPAIR_STEP) return "mender";
-  return "worker";
-}
-
-/** The elf specialty a step requires (specialist stations only; else undefined). */
-export function stepRequiredSpecialty(stepId: string): string | undefined {
-  return getPipelineStep(stepId)?.requiredSpecialty;
-}
-
-/**
- * Can this elf TYPE work this step at all? Role must match, and for production
- * steps the specialty must match exactly — generalist workers (no specialty)
- * only do craft/QC/packaging, specialists ONLY do their specialty station.
- */
-export function canElfTypeWorkStep(def: ElfTypeDef | undefined, stepId: string): boolean {
-  if (!def) return false;
-  if (def.role !== stepRole(stepId)) return false;
-  if (def.role !== "worker") return true;
-  return (def.specialty ?? null) === (stepRequiredSpecialty(stepId) ?? null);
-}
-
+// ── Step / shift eligibility (rules live in elfRules.ts) ──────────────────
 /** Owned elf types that are allowed to staff this step (by role + specialty). */
 export function eligibleElfTypesForStep(state: GameState, stepId: string): ElfTypeDef[] {
   return ownedElfTypes(state).filter((d) => canElfTypeWorkStep(d, stepId));
 }
 
-// ── Shift eligibility ─────────────────────────────────────────────────────
-/** Can this elf type work the given slot? (false if it's in its blockedSlots.) */
-export function canWorkSlot(typeId: string, slotId: string): boolean {
-  return !getElfType(typeId)?.blockedSlots?.includes(slotId);
+/** Elf types scheduled on a station during a slot — the crew a rule looks at. */
+function crewTypesOnSlot(state: GameState, stepId: string, slotId: string): string[] {
+  return elvesOnStep(state, stepId)
+    .filter((e) => e.slots.includes(slotId))
+    .map((e) => e.type);
 }
 
-/** Slots an elf type is allowed to work at all (some skip specific shifts). */
-export function allowedSlots(typeId: string): string[] {
-  return shiftSlots.filter((s) => canWorkSlot(typeId, s.id)).map((s) => s.id);
-}
-
-/** How many shift slots one elf of this type works (capped by allowed slots). */
-export function requiredShifts(typeId: string): number {
-  const max = getElfType(typeId)?.maxShifts ?? 0;
-  return Math.min(max, allowedSlots(typeId).length);
-}
-
-/**
- * Why can't this elf type take this slot on this step? (null = it can.)
- *  - "blocked":        the type refuses this slot (blockedSlots).
- *  - "manager_taken":  a manager already runs this station+shift (max one).
- *  - "shy_mixed":      a shy elf can't join non-shy crew on this shift.
- *  - "shy_blocked":    a non-shy elf can't join a shy crew on this shift.
- * Structural rules — they look at everyone SCHEDULED on the slot (day-off
- * elves still hold their spot).
- */
-export type SlotRestriction = "blocked" | "manager_taken" | "shy_mixed" | "shy_blocked";
+/** Why can't this elf type take this slot on this step? (null = it can.)
+ *  The rule itself is elfRules.slotRestrictionFor — this just feeds it the crew. */
 export function slotRestriction(
   state: GameState,
   typeId: string,
   stepId: string,
   slotId: string
 ): SlotRestriction | null {
-  if (!canWorkSlot(typeId, slotId)) return "blocked";
-  const def = getElfType(typeId);
-  const crew = elvesOnStep(state, stepId).filter((e) => e.slots.includes(slotId));
+  return slotRestrictionFor(typeId, slotId, crewTypesOnSlot(state, stepId, slotId));
+}
 
-  if (def?.managerMult && crew.some((e) => getElfType(e.type)?.managerMult)) return "manager_taken";
-  if (def?.shy && crew.some((e) => !getElfType(e.type)?.shy)) return "shy_mixed";
-  if (!def?.shy && crew.some((e) => getElfType(e.type)?.shy)) return "shy_blocked";
-  return null;
+/** Per-slot availability for a type on a station — what the assign UI renders.
+ *  One call gives every slot's verdict, so no screen re-derives the rules. */
+export type SlotAvailability = { slotId: string; restriction: SlotRestriction | null };
+
+export function slotAvailability(state: GameState, typeId: string, stepId: string): SlotAvailability[] {
+  return shiftSlots.map((s) => ({ slotId: s.id, restriction: slotRestriction(state, typeId, stepId, s.id) }));
+}
+
+/** Slots this type could actually take on this station right now. */
+export function openSlotsFor(state: GameState, typeId: string, stepId: string): string[] {
+  return slotAvailability(state, typeId, stepId)
+    .filter((a) => a.restriction === null)
+    .map((a) => a.slotId);
 }
 
 /**
@@ -264,6 +248,65 @@ export type CrewGroup = { type: string; slots: string[]; ids: number[] };
 function slotOrder(slotId: string): number {
   const i = shiftSlots.findIndex((s) => s.id === slotId);
   return i < 0 ? 99 : i;
+}
+
+/**
+ * The station's roster as a type × slot matrix — what the Manage Crew window
+ * renders. One row per elf type present, `perSlot` counting how many of that
+ * type work each shift. Rows keep config order so the table is stable.
+ */
+export type CrewRow = {
+  type: string;
+  /** Every elf of this type on the station (across all slots). */
+  total: number;
+  /** How many of them are off sick today (dayOff). */
+  dayOff: number;
+  /** slotId → how many of this type cover that slot. */
+  perSlot: Record<string, number>;
+};
+
+export function crewMatrix(state: GameState, stepId: string): CrewRow[] {
+  const rows = new Map<string, CrewRow>();
+  for (const e of elvesOnStep(state, stepId)) {
+    let row = rows.get(e.type);
+    if (!row) {
+      row = { type: e.type, total: 0, dayOff: 0, perSlot: {} };
+      for (const s of shiftSlots) row.perSlot[s.id] = 0;
+      rows.set(e.type, row);
+    }
+    row.total += 1;
+    if (e.dayOff) row.dayOff += 1;
+    for (const slotId of e.slots) {
+      if (slotId in row.perSlot) row.perSlot[slotId] += 1;
+    }
+  }
+  // Config order keeps the table from reshuffling as crews change.
+  return elfTypes.filter((d) => rows.has(d.id)).map((d) => rows.get(d.id)!);
+}
+
+/** How many elves of a type are on a station covering a given slot. */
+export function countOnStepSlot(state: GameState, stepId: string, typeId: string, slotId: string): number {
+  return elvesOnStep(state, stepId).reduce(
+    (n, e) => n + (e.type === typeId && e.slots.includes(slotId) ? 1 : 0),
+    0
+  );
+}
+
+/** Ids of elves of a type on a station covering a slot — for targeted removal. */
+export function elfIdsOnStepSlot(state: GameState, stepId: string, typeId: string, slotId: string): number[] {
+  return elvesOnStep(state, stepId)
+    .filter((e) => e.type === typeId && e.slots.includes(slotId))
+    .map((e) => e.id);
+}
+
+/** Elves sent home today, by type — "at home, back tomorrow". */
+export function spentOfType(state: GameState, typeId: string): number {
+  return state.workforce.elves.reduce((n, e) => n + (e.type === typeId && e.spent ? 1 : 0), 0);
+}
+
+/** Total elves covering a slot on ONE station (all types). */
+export function stepSlotCoverage(state: GameState, stepId: string, slotId: string): number {
+  return elvesOnStep(state, stepId).reduce((n, e) => n + (e.slots.includes(slotId) ? 1 : 0), 0);
 }
 
 /** Crew on a step grouped by identical schedule (type + slot set) — for batch UI. */

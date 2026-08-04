@@ -2,13 +2,15 @@
      The rail stays put; only the list scrolls (inside the page scroll area). -->
 <div id="tab-shop" class="tab-panel">
   <div class="shop">
-    <!-- Category rail (add more categories here as the game grows) -->
+    <!-- Two ways in: the progression MAP (toys + every upgrade, as a connected
+         tree you pan and zoom) and the Hiring LIST, which stays a plain list
+         because you buy elves repeatedly rather than unlocking them once. -->
     <aside class="shop-rail">
-      <button class="shop-cat active" data-shop="toys">
-        <span class="shop-cat-icon">🧸</span>
+      <button class="shop-cat active" data-shop="tree">
+        <span class="shop-cat-icon">🗺️</span>
         <span class="shop-cat-text">
-          <span class="shop-cat-name" data-i18n="shop.toys">New Toys</span>
-          <span class="shop-cat-sub" data-i18n="shop.catSubToys">Unlock lines to produce</span>
+          <span class="shop-cat-name" data-i18n="shop.tree">Progression</span>
+          <span class="shop-cat-sub" data-i18n="shop.catSubTree">Toys &amp; upgrades map</span>
         </span>
       </button>
       <button class="shop-cat" data-shop="hiring">
@@ -18,30 +20,20 @@
           <span class="shop-cat-sub" data-i18n="shop.catSubHiring">Grow your workforce</span>
         </span>
       </button>
-      <button class="shop-cat" data-shop="upgrades">
-        <span class="shop-cat-icon">⬆️</span>
-        <span class="shop-cat-text">
-          <span class="shop-cat-name" data-i18n="shop.upgrades">Upgrades</span>
-          <span class="shop-cat-sub" data-i18n="shop.catSubUpgrades">Permanent boosts</span>
-        </span>
-      </button>
     </aside>
 
-    <!-- Content: sticky header (title + search) over the scrolling list -->
+    <!-- Content: sticky header (title + search) over the active view -->
     <section class="shop-content">
       <div class="shop-content-head">
-        <h2 class="shop-content-title" id="shopContentTitle">New Toys</h2>
-        <input id="shopSearch" class="shop-search" type="search" data-i18n-ph="shop.searchToys" placeholder="Search toys…" autocomplete="off" />
+        <h2 class="shop-content-title" id="shopContentTitle">Progression</h2>
+        <input id="shopSearch" class="shop-search" type="search" data-i18n-ph="shop.searchElves" placeholder="Search elves…" autocomplete="off" />
       </div>
 
-      <div class="shop-view active" data-shop="toys">
-        <div id="toysList" class="shop-list"></div>
+      <div class="shop-view active" data-shop="tree">
+        <div id="techTreeHost"></div>
       </div>
       <div class="shop-view" data-shop="hiring">
         <div id="elvesList" class="shop-list"></div>
-      </div>
-      <div class="shop-view" data-shop="upgrades">
-        <div id="upgradesList" class="shop-list"></div>
       </div>
 
       <div id="shopEmpty" class="shop-empty" hidden data-i18n="shop.empty">No matches.</div>

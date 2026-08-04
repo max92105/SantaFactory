@@ -17,7 +17,8 @@
   position: relative;
 }
 
-/* Festive ribbon accent across the very top */
+/* Festive ribbon accent across the very top — slowly drifts, so the very first
+   thing on screen is alive rather than a static app bar. */
 .hud::before {
   content: "";
   position: absolute;
@@ -28,6 +29,22 @@
   background: linear-gradient(90deg, #ef4444, #fbbf24, #4ade80, #4a9eff, #ef4444);
   background-size: 200% 100%;
   opacity: 0.85;
+  animation: hud-ribbon 22s linear infinite;
+}
+
+@keyframes hud-ribbon {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud::before {
+    animation: none;
+  }
 }
 
 /* ── Brand + menu ──────────────────────────────────────────────────────── */
@@ -166,9 +183,20 @@
   align-items: stretch;
 }
 
+/* Each resource icon sits on a faint disc tinted with its own colour, so the
+   HUD reads as a row of gauges instead of loose emoji. */
 .res-icon {
-  font-size: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  font-size: 24px;
   line-height: 1;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--res-color) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--res-color) 22%, transparent);
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
 }
 
@@ -191,6 +219,7 @@
   font-weight: 700;
   font-family: var(--font-mono);
   color: var(--res-color);
+  text-shadow: 0 0 18px color-mix(in srgb, var(--res-color) 35%, transparent);
 }
 
 /* Per-resource value tint (bright on dark = readable, no box needed) */
@@ -460,35 +489,63 @@
   flex-direction: column;
 }
 
+/* ── Tabs: one segmented control ────────────────────────────────────────────
+   The whole nav is a single inset track and every tab is a segment inside it,
+   so all six read as equal parts of one control. (The earlier version raised
+   only the active tab into a panel, which left the tabs beside it floating on
+   an empty band with nothing containing them.) */
 .tab-nav {
   display: flex;
-  gap: var(--space-xs);
-  padding: 0 var(--space-xl);
-  border-bottom: 1px solid var(--border);
+  gap: 2px;
+  margin: var(--space-md) var(--space-xl);
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
 }
 
 .tab-btn {
+  position: relative;
   flex: 1;
   text-align: center;
-  padding: var(--space-md) var(--space-lg);
+  padding: 8px var(--space-md);
   background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  border-radius: 999px;
   color: var(--text-muted);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-.tab-btn:hover {
+.tab-btn:hover:not(.active) {
   color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
 }
 
+/* Active segment: a filled pill that sits proud of the track. */
 .tab-btn.active {
   color: var(--text);
-  border-bottom-color: var(--accent);
+  background: linear-gradient(180deg, #23304d, #1a2338);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.09) inset, 0 3px 10px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(125, 211, 252, 0.35);
+}
+
+/* A soft lit bar under the label, so the selection also reads at a glance. */
+.tab-btn.active::after {
+  content: "";
+  position: absolute;
+  left: 26%;
+  right: 26%;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
 }
 
 /* Attention badge (e.g. broken stations on the Factory tab) */
@@ -596,9 +653,11 @@
     height: 32px;
   }
 
-  /* Shrink resources so all three fit one row */
+  /* Shrink resources so they all fit one row */
   .res-icon {
-    font-size: 21px;
+    width: 30px;
+    height: 30px;
+    font-size: 17px;
   }
   .res-value {
     font-size: 15px;
@@ -659,13 +718,15 @@
     right: 0;
   }
 
+  /* Narrow: the track scrolls sideways rather than squeezing the segments. */
   .tab-nav {
     overflow-x: auto;
-    padding: 0 var(--space-sm);
+    margin: var(--space-sm) var(--space-md);
+    padding: 3px;
   }
   .tab-btn {
-    padding: var(--space-sm) var(--space-md);
-    white-space: nowrap;
+    flex: 0 0 auto;
+    padding: 7px var(--space-md);
   }
   .tab-content {
     padding: var(--space-md);

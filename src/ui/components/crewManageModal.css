@@ -1,0 +1,630 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   CREW MANAGE MODAL — the station crew console.
+   Logic: crewManageModal.ts
+
+   Two stacked sections in one sheet: a type × shift ROSTER matrix (fixed size
+   however many elves you own) and an ADD CREW picker that never closes on
+   assign. The matrix is a CSS grid so columns line up between the header row,
+   every elf row and the coverage footer.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.crew-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(4, 8, 16, 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.crew-sheet {
+  width: min(880px, 100%);
+  max-height: min(90vh, 900px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.crew-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent);
+}
+
+.crew-head-icon {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.crew-head-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.crew-head-title {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.crew-head-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.crew-head-stats {
+  display: flex;
+  gap: var(--space-lg);
+}
+
+.crew-hstat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+
+.crew-hstat span {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.crew-hstat strong {
+  font-size: 18px;
+  font-family: var(--font-mono);
+}
+
+/* "At home" is the number players kept missing — give it its own colour. */
+.crew-hstat.home strong {
+  color: #c4b5fd;
+}
+
+.crew-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 17px;
+  cursor: pointer;
+  padding: var(--space-xs);
+  border-radius: var(--radius-sm);
+}
+.crew-close:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* ── Body ───────────────────────────────────────────────────────────────── */
+.crew-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.crew-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: var(--space-sm);
+}
+
+.crew-empty-state {
+  padding: var(--space-lg);
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-dim);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+}
+
+.crew-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: var(--space-sm);
+}
+
+/* ── Roster matrix ──────────────────────────────────────────────────────── */
+.roster {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.roster-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.6fr) repeat(var(--slot-count), minmax(78px, 1fr)) 56px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.roster-row:last-child {
+  border-bottom: none;
+}
+
+.roster-cell {
+  padding: 6px var(--space-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.roster-label {
+  justify-content: flex-start;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.roster-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roster-icon img,
+.roster-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Header + footer rows read as chrome, not data. */
+.roster-head,
+.roster-foot {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.roster-head .roster-cell {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+
+.roster-slot {
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.1;
+}
+
+.roster-slot-icon {
+  font-size: 14px;
+}
+
+.roster-slot-name {
+  font-size: 9px;
+}
+
+/* The shift happening right now is tinted down every row of the column. */
+.roster-slot.now,
+.roster-count.now,
+.roster-cover.now {
+  background: rgba(125, 211, 252, 0.09);
+}
+.roster-slot.now {
+  color: var(--accent, #7dd3fc);
+  font-weight: 700;
+}
+
+.roster-total {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+/* ── Count cells: − value + ─────────────────────────────────────────────── */
+.roster-count {
+  gap: 2px;
+}
+
+.roster-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.roster-count.zero .roster-value {
+  color: var(--text-dim);
+  opacity: 0.5;
+}
+
+.roster-btn {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+}
+
+/* Steppers stay out of the way until you're working on a row — the matrix
+   should read as data first, controls second. */
+.roster-row:hover .roster-btn,
+.roster-btn:focus-visible {
+  opacity: 1;
+}
+
+.roster-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+.roster-btn.plus:hover:not(:disabled) {
+  border-color: var(--success);
+  color: var(--success);
+}
+.roster-btn.minus:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.roster-btn:disabled {
+  opacity: 0 !important;
+  cursor: default;
+}
+
+.roster-count.blocked {
+  background: rgba(248, 113, 113, 0.07);
+}
+
+.roster-blocked {
+  font-size: 12px;
+  opacity: 0.6;
+  cursor: help;
+}
+
+.roster-off {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.16);
+  color: #fbbf24;
+  cursor: help;
+  flex-shrink: 0;
+}
+
+.roster-foot .roster-cell {
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+.roster-foot .roster-label {
+  font-family: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+
+/* An uncovered shift is the single most useful thing this table can tell you. */
+.roster-cover.gap {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+/* ── Add crew ───────────────────────────────────────────────────────────────
+   Compact chips, not cards: the whole type → shifts → assign flow has to fit
+   without scrolling, and the chosen type's rules get their own full-size bar
+   below (where they actually matter). */
+.crew-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.crew-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.crew-type:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.crew-type.active {
+  border-color: var(--accent, #7dd3fc);
+  background: rgba(125, 211, 252, 0.13);
+}
+
+/* All of this type are out — kept visible (you own them) but not pickable. */
+.crew-type.exhausted {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.crew-type-icon,
+.crew-type-icon img {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.crew-type-name {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.crew-type-n {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.crew-type.active .crew-type-n {
+  background: rgba(125, 211, 252, 0.25);
+}
+
+.crew-type-home {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: #c4b5fd;
+}
+
+/* ── Rules for the picked type (chips themselves are in styles/base.css) ─── */
+.crew-rules-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+}
+
+.crew-rules-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: var(--space-xs);
+}
+.crew-rules-who img {
+  width: 22px;
+  height: 22px;
+}
+
+/* ── Shift picker ───────────────────────────────────────────────────────── */
+.crew-shift-pick {
+  margin-top: var(--space-md);
+}
+
+.crew-pick-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.crew-pick-label strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+.crew-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--space-sm);
+}
+
+.crew-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.crew-slot:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.crew-slot.on {
+  border-color: var(--success);
+  background: rgba(134, 239, 172, 0.12);
+}
+
+.crew-slot.now::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent, #7dd3fc);
+}
+
+.crew-slot.locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.crew-slot-lock {
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  font-size: 10px;
+}
+
+.crew-slot-icon {
+  font-size: 19px;
+}
+
+.crew-slot-name {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.crew-slot-cover {
+  font-size: 9.5px;
+  color: var(--text-dim);
+}
+
+.crew-warning {
+  font-size: 12px;
+  color: #fbbf24;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(251, 191, 36, 0.09);
+  border-radius: var(--radius-md);
+}
+
+.crew-warning-line {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 3px var(--space-md);
+}
+
+/* ── Assign row ─────────────────────────────────────────────────────────── */
+.crew-action-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.crew-assign {
+  flex: 1;
+  padding: 9px var(--space-lg);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--success);
+  color: #06240f;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.crew-assign:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.crew-assign:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+  cursor: default;
+}
+
+/* ── Footer: session log + undo ─────────────────────────────────────────── */
+.crew-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-top: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.crew-log {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.crew-log-empty {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.crew-log-item {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(134, 239, 172, 0.12);
+  color: #86efac;
+  white-space: nowrap;
+}
+
+.crew-undo {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.crew-undo:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.crew-done {
+  padding: 8px var(--space-xl);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.crew-done:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ── Narrow screens: the matrix scrolls sideways rather than crushing ───── */
+@media (max-width: 720px) {
+  .crew-head-stats {
+    gap: var(--space-md);
+  }
+  .crew-hstat strong {
+    font-size: 15px;
+  }
+  .roster {
+    overflow-x: auto;
+  }
+  .roster-row {
+    min-width: 520px;
+  }
+  .crew-foot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .crew-done {
+    width: 100%;
+  }
+}

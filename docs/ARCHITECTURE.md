@@ -42,6 +42,9 @@ src/
 ├─ helpers/                    Shared calculations & formatting (one source each)
 │  ├─ inventoryHelpers.ts      Stage counts, add/remove, sellable stock
 │  ├─ storageHelpers.ts        Warehouse fill/capacity/free space (the cap)
+│  ├─ elfRules.ts              ⭐ EVERY elf restriction (pure, no state)
+│  ├─ workforceHelpers.ts      The roster: reads, mutations, crew matrix
+│  ├─ techTree.ts              Progression graph: nodes, edges + layout
 │  ├─ costHelpers.ts           Producer price formula (scales with CURRENT elves)
 │  ├─ unlockHelpers.ts         Which toy lines are unlocked
 │  ├─ formatHelpers.ts         formatInt / formatMoney / formatMoneyPrecise / formatCost
@@ -102,6 +105,24 @@ and keeps running even when storage is full.
 **More warehouse space** — change the numbers in `storageConfig.ts`. The
 expansion upgrades, their prices, descriptions and shop rows are all generated
 from them; nothing else needs touching.
+
+**The progression map** — `helpers/techTree.ts` derives the whole graph from
+the toy catalog, the categories and `upgradesConfig`, so a new toy, category or
+warehouse tier appears on the map with no extra work. It places nodes by
+`log10(cost)` and then relaxes them so a node always sits right of its
+prerequisites. Only two things need a code change: a NEW LANE (add it to
+`buildLanes` + an `upgradeLane` case) or a prerequisite shape the
+`UnlockRule` types can't express (extend `buildGraph`). The view
+(`ui/components/techTreeView.ts`) is pure presentation over that graph.
+
+**A new elf restriction** — add the field to `ElfTypeDef` in
+`elfTypesConfig.ts`, add a matching `ElfRuleKind` + case in
+`helpers/elfRules.ts`, and one `rule.<kind>` string per locale. The hiring card,
+the crew console's type picker and the assign rules bar all render
+`elfRuleChips()`, so they pick it up together — there is no second place to
+teach the rule. If it's a rule about WHICH SHIFT an elf may take, extend
+`slotRestrictionFor()` and `SlotRestriction` instead; the roster matrix, the
+shift picker and `assignElf()` all gate on that one function.
 
 **A new mechanic** — create `config/<name>Config.ts` (tuning) +
 `systems/<Name>System.ts` (logic), register it in `core/GameContext.ts`

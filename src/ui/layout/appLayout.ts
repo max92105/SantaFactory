@@ -238,11 +238,13 @@ export function renderAppLayout(ctx: GameContext, views: FrameViews): void {
   }
 
   // The Grinch: a non-blocking heist card with a live countdown + deal picker.
+  // First appearance plays his arrival cinematic, which ends by dropping him
+  // into this very card (components/grinchEntrance.ts).
   if (state.grinch.active) {
-    if (!grinchCardOpen()) showGrinchCard(ctx);
+    if (!grinchCardOpen()) showGrinchCard(ctx, dom.fxLayer);
     updateGrinchCard(state);
   } else if (grinchCardOpen()) {
-    removeGrinchCard(); // also closes an open deal modal if the timer ran out
+    removeGrinchCard(); // also closes an open deal modal / half-played entrance
   }
 
   // Random-event freeze modal: show while a choice is pending, remove after.

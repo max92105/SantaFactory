@@ -153,16 +153,16 @@ export function createGame(opts: CreateGameOptions): Game {
   }
 
   /**
-   * Is the player mid-interaction with a transient widget (the crew-assign
-   * window, a confirm popup, or the deliver modal)? While one is open we must
-   * not rebuild the lists out from under them. None of these set
-   * meta.isPaused, so the factory keeps ticking behind them either way —
-   * this only defers UI REBUILDS (not the simulation) until they close.
+   * Is the player mid-interaction with a transient widget (the crew console, the
+   * deliver modal, a held repair button)? While one is open we must not rebuild
+   * the lists out from under them. None of these set meta.isPaused, so the
+   * factory keeps ticking behind them either way — this only defers UI REBUILDS
+   * (not the simulation) until they close.
    */
   function isUserBusy(): boolean {
     return (
       document.querySelector(
-        ".crew-modal-overlay, .confirm-pop, .deliver-overlay, .detail-broken.holding, .detail-repairs.holding"
+        ".crew-modal-overlay, .deliver-overlay, .detail-broken.holding, .detail-repairs.holding"
       ) !== null
     );
   }

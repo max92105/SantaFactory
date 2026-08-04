@@ -1,0 +1,396 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   TECH TREE VIEW — the pan/zoom progression map. Logic: techTreeView.ts
+
+   Structure: .tree (clipping viewport) > .tree-world (transformed) > SVG edges
+   + absolutely-positioned .tnode buttons. One transform on .tree-world moves
+   everything, so panning never touches individual nodes.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.tree {
+  position: relative;
+  width: 100%;
+  height: clamp(440px, 68vh, 780px);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: radial-gradient(circle at 30% 20%, #141d33 0%, #0c1120 55%, #080c16 100%);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.tree.dragging {
+  cursor: grabbing;
+}
+
+.tree:focus-visible {
+  outline: 1px solid var(--accent);
+}
+
+/* Faint grid so panning reads as movement across a space. */
+.tree::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 46px 46px;
+  pointer-events: none;
+}
+
+.tree-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.tree-edges {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* ── Edges ──────────────────────────────────────────────────────────────── */
+.edge {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.09);
+  stroke-width: 2;
+}
+
+/* Prerequisite owned → the path you've already walked. */
+.edge.lit {
+  stroke: rgba(125, 211, 252, 0.35);
+  stroke-width: 2.5;
+}
+
+/* Owned → currently-buyable: the live frontier, animated toward the target. */
+.edge.open {
+  stroke: rgba(134, 239, 172, 0.75);
+  stroke-width: 3;
+  stroke-dasharray: 7 7;
+  animation: edge-flow 0.9s linear infinite;
+}
+
+@keyframes edge-flow {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+
+.tree-nodes {
+  position: absolute;
+  inset: 0;
+}
+
+/* ── Nodes ──────────────────────────────────────────────────────────────── */
+.tnode {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 7px 4px 5px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: #131b2e;
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.2s ease;
+}
+
+.tnode:hover {
+  transform: translate(-50%, -50%) scale(1.09);
+  z-index: 5;
+}
+
+.tnode-icon {
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.tnode-label {
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.tnode-cost {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+}
+
+/* Handbuild satellites are smaller — they hang off their toy, not the spine. */
+.tnode.is-sub {
+  width: 60px;
+  padding: 4px 3px;
+}
+.tnode.is-sub .tnode-icon {
+  font-size: 15px;
+}
+.tnode.is-sub .tnode-label {
+  font-size: 8px;
+}
+
+/* ── Node states ────────────────────────────────────────────────────────── */
+.tnode.state-owned {
+  border-color: rgba(125, 211, 252, 0.5);
+  background: linear-gradient(180deg, #17304a, #12203a);
+}
+.tnode.state-owned .tnode-cost {
+  color: var(--accent);
+}
+
+.tnode.state-available {
+  border-color: rgba(134, 239, 172, 0.55);
+  box-shadow: 0 0 0 3px rgba(134, 239, 172, 0.09);
+}
+
+/* Buyable AND affordable — the thing to click next. */
+.tnode.state-available.affordable {
+  border-color: var(--success);
+  box-shadow: 0 0 18px rgba(134, 239, 172, 0.35), 0 0 0 3px rgba(134, 239, 172, 0.14);
+  animation: tnode-ready 2s ease-in-out infinite;
+}
+
+@keyframes tnode-ready {
+  0%, 100% {
+    box-shadow: 0 0 18px rgba(134, 239, 172, 0.3), 0 0 0 3px rgba(134, 239, 172, 0.12);
+  }
+  50% {
+    box-shadow: 0 0 26px rgba(134, 239, 172, 0.5), 0 0 0 5px rgba(134, 239, 172, 0.16);
+  }
+}
+
+/* The road ahead stays visible, just quieter the further out it is. */
+.tnode.state-next {
+  opacity: 0.66;
+}
+.tnode.state-far {
+  opacity: 0.34;
+}
+.tnode.state-far:hover,
+.tnode.state-next:hover {
+  opacity: 1;
+}
+
+.tnode.selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.22);
+  z-index: 6;
+}
+
+/* ── Lane labels (pinned left, ride the vertical pan only) ──────────────── */
+.tree-lanes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  overflow: hidden;
+}
+
+/* Positioned in screen space by techTreeView.positionLanes() so they stay
+   readable at every zoom level. */
+.tree-lane-label {
+  position: absolute;
+  left: 10px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(8, 12, 22, 0.82);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.tree-lane-icon {
+  font-size: 12px;
+}
+
+/* ── Controls ───────────────────────────────────────────────────────────── */
+.tree-controls {
+  position: absolute;
+  right: var(--space-md);
+  top: var(--space-md);
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tree-ctl {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(12, 18, 32, 0.9);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.tree-ctl:hover {
+  background: rgba(30, 44, 74, 0.95);
+  border-color: var(--accent);
+}
+
+.tree-ctl.accent {
+  border-color: rgba(134, 239, 172, 0.5);
+  color: var(--success);
+}
+
+.tree-hint {
+  position: absolute;
+  left: var(--space-md);
+  bottom: var(--space-md);
+  z-index: 8;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  background: rgba(8, 12, 22, 0.75);
+  padding: 3px 9px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+/* ── Detail panel ───────────────────────────────────────────────────────── */
+.tree-detail {
+  position: absolute;
+  right: var(--space-md);
+  bottom: var(--space-md);
+  z-index: 9;
+  width: min(310px, calc(100% - 2 * var(--space-md)));
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.16));
+  background: rgba(14, 20, 34, 0.97);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6);
+  animation: tree-detail-in 0.16s ease-out;
+}
+
+@keyframes tree-detail-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.tree-detail[hidden] {
+  display: none;
+}
+
+.tree-detail-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+}
+.tree-detail-close:hover {
+  color: var(--text);
+}
+
+.tree-detail-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  padding-right: var(--space-lg);
+}
+
+.tree-detail-icon {
+  font-size: 26px;
+}
+
+.tree-detail-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.tree-detail-effect {
+  font-size: 11px;
+  color: var(--success);
+  font-family: var(--font-mono);
+}
+
+.tree-detail-desc {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin-bottom: var(--space-sm);
+}
+
+.tree-detail-req {
+  font-size: 11px;
+  color: #fbbf24;
+  margin-bottom: var(--space-sm);
+}
+
+.tree-buy {
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--success);
+  color: #06240f;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.tree-buy:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.tree-buy:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge.open,
+  .tnode.state-available.affordable {
+    animation: none;
+  }
+  .tnode,
+  .tree-detail {
+    transition: none;
+    animation: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .tree {
+    height: clamp(380px, 60vh, 560px);
+  }
+  .tree-detail {
+    left: var(--space-md);
+    width: auto;
+  }
+  .tree-hint {
+    display: none;
+  }
+}

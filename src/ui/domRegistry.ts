@@ -65,7 +65,8 @@ export type DomRefs = {
   totalElves: HTMLElement;
   assignedElves: HTMLElement;
   unassignedElves: HTMLElement;
-  unassignedTypes: HTMLDivElement;
+  spentElves: HTMLElement;
+  wfShifts: HTMLDivElement;
   factoryRail: HTMLDivElement;
   factoryDetail: HTMLDivElement;
 
@@ -75,9 +76,8 @@ export type DomRefs = {
   shopContentTitle: HTMLElement;
   shopSearch: HTMLInputElement;
   shopEmpty: HTMLElement;
-  toysList: HTMLDivElement;
   elvesList: HTMLDivElement;
-  upgradesList: HTMLDivElement;
+  techTreeHost: HTMLDivElement;
 
   // Storage page
   storageList: HTMLDivElement;
@@ -194,7 +194,8 @@ export function getDomRefs(): DomRefs {
     totalElves: mustGet("totalElves"),
     assignedElves: mustGet("assignedElves"),
     unassignedElves: mustGet("unassignedElves"),
-    unassignedTypes: mustGet("unassignedTypes"),
+    spentElves: mustGet("spentElves"),
+    wfShifts: mustGet("wfShifts"),
     factoryRail: mustGet("factoryRail"),
     factoryDetail: mustGet("factoryDetail"),
 
@@ -204,9 +205,8 @@ export function getDomRefs(): DomRefs {
     shopContentTitle: mustGet("shopContentTitle"),
     shopSearch: mustGet("shopSearch") as HTMLInputElement,
     shopEmpty: mustGet("shopEmpty"),
-    toysList: mustGet("toysList"),
     elvesList: mustGet("elvesList"),
-    upgradesList: mustGet("upgradesList"),
+    techTreeHost: mustGet("techTreeHost"),
 
     // Storage page
     storageList: mustGet("storageList"),

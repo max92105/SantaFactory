@@ -1,24 +1,32 @@
-<!-- FACTORY PAGE — workforce bar, production-line rail, focused line detail.
-     Pick a line on the left; schedule its shifts and watch its flow on the right. -->
+<!-- FACTORY PAGE — workforce header, production-line rail, focused line detail.
+     Pick a line on the left; the detail shows a COMPACT crew summary (the full
+     type × shift roster lives in the Manage Crew console) and the line's flow. -->
 <div id="tab-factory" class="tab-panel">
   <div class="factory">
-    <!-- Workforce summary + idle capacity by elf type -->
+    <!-- Workforce header: the four numbers that actually describe your day.
+         "At home" is elves already sent home — they come back tomorrow, and
+         nothing used to show them anywhere. -->
     <div class="workforce-bar">
-      <div class="workforce-totals">
-        <div class="workforce-stat">
-          <span>🧝 <span data-i18n="factory.total">Elves</span></span>
-          <strong id="totalElves">0</strong>
-        </div>
-        <div class="workforce-stat highlight">
-          <span data-i18n="factory.onShift">On shift</span>
-          <strong id="assignedElves">0</strong>
-        </div>
-        <div class="workforce-stat">
-          <span data-i18n="factory.idleElves">Idle elves</span>
-          <strong id="unassignedElves">0</strong>
-        </div>
+      <div class="wf-stat wf-total">
+        <span class="wf-label" data-i18n="factory.total">Elves</span>
+        <strong class="wf-value" id="totalElves">0</strong>
       </div>
-      <div id="unassignedTypes" class="unassigned-types"></div>
+      <div class="wf-sep"></div>
+      <div class="wf-stat wf-onshift">
+        <span class="wf-label" data-i18n="factory.onShift">On shift now</span>
+        <strong class="wf-value" id="assignedElves">0</strong>
+      </div>
+      <div class="wf-stat wf-idle">
+        <span class="wf-label" data-i18n="factory.idleElves">Idle</span>
+        <strong class="wf-value" id="unassignedElves">0</strong>
+      </div>
+      <div class="wf-stat wf-home">
+        <span class="wf-label" data-i18n="factory.atHome">At home</span>
+        <strong class="wf-value" id="spentElves">0</strong>
+      </div>
+
+      <!-- Live day clock: which shift is running and how the crew is spread. -->
+      <div class="wf-shifts" id="wfShifts"></div>
     </div>
 
     <div class="factory-body">

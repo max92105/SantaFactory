@@ -1,8 +1,13 @@
 /**
- * shopPage — the "Upgrades" tab: a category rail (New Toys / Hiring / Upgrades)
- * beside a searchable, scrolling list. Built to scale to many toys, elf types
- * and upgrades — the rail stays put, the list scrolls, and a search box filters
- * the active category.
+ * shopPage — the "Upgrades" tab. Two views behind a small rail:
+ *
+ *   Progression — every toy line and upgrade as one connected, zoomable MAP
+ *                 (components/techTreeView.ts over helpers/techTree.ts). This
+ *                 replaced two flat lists of ~50 toys and ~90 upgrades, where
+ *                 nothing showed how anything related to anything else.
+ *   Hiring      — still a plain searchable list: you buy elves over and over,
+ *                 so they're a shop, not a one-time unlock to navigate to.
+ *
  * Markup: shopPage.html · Styles: shopPage.css
  * Logic: ShopSystem (purchases); definitions in config/toyTypesConfig.ts,
  * config/elfTypesConfig.ts and config/upgradesConfig.ts.
@@ -13,69 +18,46 @@ import "./shopPage.css";
 
 import type { Page } from "../Page";
 import type { GameContext } from "../../../core/GameContext";
-import { toyTypes, toyCategoryId, type ToyTypeDef } from "../../../config/toyTypesConfig";
-import { toyCategories } from "../../../config/toyCategoriesConfig";
 import { elfTypes, elfCategories, type ElfTypeDef } from "../../../config/elfTypesConfig";
-import { upgrades, describeUpgradeEffect } from "../../../config/upgradesConfig";
-import { isUnlockRuleMet } from "../../../config/unlockRules";
 import { getElfCost } from "../../../helpers/costHelpers";
 import { countOfType } from "../../../helpers/workforceHelpers";
-import { isToyUnlocked, isCategoryUnlocked } from "../../../helpers/unlockHelpers";
 import { elfIconHtml } from "../../elfIcons";
-import { formatCost, formatMoneyPrecise } from "../../../helpers/formatHelpers";
+import { formatCost } from "../../../helpers/formatHelpers";
+import { createTechTreeView, type TechTreeView } from "../../components/techTreeView";
 import { t } from "../../i18n/i18n";
-import {
-  toyName,
-  elfName,
-  elfDesc,
-  elfCategoryName,
-  elfCategoryDesc,
-  upgradeName,
-  upgradeDesc,
-  slotName,
-  elfTraitChips,
-  toyCategoryLabel,
-  specialtyLabel,
-} from "../../i18n/localize";
+import { elfName, elfDesc, elfCategoryName, elfCategoryDesc, slotName, elfRuleChips } from "../../i18n/localize";
 
-type Category = "toys" | "hiring" | "upgrades";
+type Category = "tree" | "hiring";
 
-const CATEGORY_TITLE: Record<Category, string> = { toys: "shop.toys", hiring: "shop.hiring", upgrades: "shop.upgrades" };
-const CATEGORY_PLACEHOLDER: Record<Category, string> = {
-  toys: "shop.searchToys",
-  hiring: "shop.searchElves",
-  upgrades: "shop.searchUpgrades",
-};
+const CATEGORY_TITLE: Record<Category, string> = { tree: "shop.tree", hiring: "shop.hiring" };
 
 export function createShopPage(): Page {
   // View state persists across rebuilds (rebuild() recreates rows every action)
-  let activeCategory: Category = "toys";
+  let activeCategory: Category = "tree";
   let query = "";
-
-  function listFor(ctx: GameContext): HTMLElement {
-    if (activeCategory === "hiring") return ctx.dom.elvesList;
-    if (activeCategory === "upgrades") return ctx.dom.upgradesList;
-    return ctx.dom.toysList;
-  }
+  let tree: TechTreeView | null = null;
 
   function applyView(ctx: GameContext): void {
     ctx.dom.shopCats.forEach((b) => b.classList.toggle("active", b.dataset.shop === activeCategory));
     ctx.dom.shopViews.forEach((v) => v.classList.toggle("active", v.dataset.shop === activeCategory));
     ctx.dom.shopContentTitle.textContent = t(CATEGORY_TITLE[activeCategory]);
-    ctx.dom.shopSearch.placeholder = t(CATEGORY_PLACEHOLDER[activeCategory]);
+    // The map has its own navigation, so the search box only serves Hiring.
+    const searching = activeCategory === "hiring";
+    ctx.dom.shopSearch.hidden = !searching;
+    ctx.dom.shopSearch.placeholder = t("shop.searchElves");
+    if (!searching) ctx.dom.shopEmpty.hidden = true;
   }
 
-  /** Hide rows in the active list that don't match the search; toggle empty state. */
+  /** Hide rows in the hiring list that don't match the search; toggle empty state. */
   function applyFilter(ctx: GameContext): void {
+    if (activeCategory !== "hiring") return;
     const q = query.trim().toLowerCase();
     let visible = 0;
-    listFor(ctx)
-      .querySelectorAll<HTMLElement>(".shop-row")
-      .forEach((row) => {
-        const match = q === "" || (row.dataset.name ?? "").includes(q);
-        row.hidden = !match;
-        if (match) visible += 1;
-      });
+    ctx.dom.elvesList.querySelectorAll<HTMLElement>(".shop-row").forEach((row) => {
+      const match = q === "" || (row.dataset.name ?? "").includes(q);
+      row.hidden = !match;
+      if (match) visible += 1;
+    });
     ctx.dom.shopEmpty.hidden = visible > 0;
   }
 
@@ -85,11 +67,15 @@ export function createShopPage(): Page {
     },
 
     bind(ctx) {
+      tree = createTechTreeView(ctx, ctx.dom.techTreeHost);
+
       ctx.dom.shopCats.forEach((btn) => {
         btn.onclick = () => {
-          activeCategory = (btn.dataset.shop as Category) ?? "toys";
+          activeCategory = (btn.dataset.shop as Category) ?? "tree";
           applyView(ctx);
           applyFilter(ctx);
+          // The map can only measure itself once its panel is actually visible.
+          if (activeCategory === "tree") tree?.rebuild();
         };
       });
 
@@ -100,145 +86,18 @@ export function createShopPage(): Page {
     },
 
     rebuild(ctx) {
-      buildToysList(ctx);
       buildElvesList(ctx);
-      buildUpgradesList(ctx);
+      tree?.rebuild();
       applyView(ctx);
       applyFilter(ctx);
     },
 
     renderFrame() {
-      // Lists refresh via rebuild() after every purchase/sale/wage event
+      // Hiring rows refresh via rebuild(); the map only needs its affordability
+      // outlines retouched as money moves.
+      tree?.renderFrame();
     },
   };
-}
-
-/** Shared factory for one purchasable row (title / sub / meta + action button). */
-function buildShopRow(opts: {
-  icon: string;
-  title: string;
-  tag?: string;
-  sub: string;
-  meta: string;
-  searchKey: string;
-  buttonLabel: string;
-  disabled: boolean;
-  onBuy?: () => void;
-}): HTMLDivElement {
-  const row = document.createElement("div");
-  row.className = "shop-row";
-  row.dataset.name = opts.searchKey.toLowerCase();
-
-  const iconEl = document.createElement("div");
-  iconEl.className = "shop-row-icon";
-  iconEl.textContent = opts.icon;
-
-  const info = document.createElement("div");
-  info.className = "shop-row-info";
-  info.innerHTML = `
-    <div class="shop-row-title">${opts.title}${opts.tag ? ` <span class="shop-row-tag">${opts.tag}</span>` : ""}</div>
-    <div class="shop-row-sub">${opts.sub}</div>
-    <div class="shop-row-meta">${opts.meta}</div>
-  `;
-
-  const btn = document.createElement("button");
-  btn.className = "shop-buy-btn";
-  btn.textContent = opts.buttonLabel;
-  btn.disabled = opts.disabled;
-  if (opts.onBuy) btn.onclick = opts.onBuy;
-
-  row.appendChild(iconEl);
-  row.appendChild(info);
-  row.appendChild(btn);
-  return row;
-}
-
-/**
- * Toys grouped by category. Each category shows a header; a locked category
- * (its unlock upgrade not yet owned) grays its toys and points the player at
- * the Upgrades tab — teaching the one gate that opens the toys, the specialist
- * elves and the station together.
- */
-function buildToysList(ctx: GameContext): void {
-  const state = ctx.getState();
-  ctx.dom.toysList.innerHTML = "";
-
-  for (const cat of toyCategories) {
-    const toys = toyTypes.filter((toy) => toyCategoryId(toy) === cat.id);
-    if (toys.length === 0) continue;
-    const catLocked = !isCategoryUnlocked(state, cat.id);
-
-    const header = document.createElement("div");
-    header.className = "shop-group";
-    // Small "needs X station + Y elves" hint so the extra steps are visible up front.
-    const stepHint = cat.specialistSteps.length
-      ? `<span class="shop-group-desc">${t("shop.categorySteps", {
-          steps: cat.specialistSteps.map((s) => `${s.icon} ${stepLabel(s.id)}`).join(" → "),
-          specialty: cat.specialistSteps.map((s) => specialtyLabel(s.specialty)).filter((v, i, a) => a.indexOf(v) === i).join(", "),
-        })}</span>`
-      : "";
-    const lockNote = catLocked
-      ? `<span class="shop-group-lock">🔒 ${t("shop.categoryLockedNote", { name: toyCategoryLabel(cat.id) })}</span>`
-      : "";
-    header.innerHTML = `<span class="shop-group-name">${cat.icon} ${toyCategoryLabel(cat.id)}</span>${stepHint}${lockNote}`;
-    ctx.dom.toysList.appendChild(header);
-
-    for (const def of toys) {
-      ctx.dom.toysList.appendChild(buildToyRow(ctx, def, catLocked));
-    }
-  }
-}
-
-/** Localized name of a specialist station (Tuning, Connect, …) for the shop hint. */
-function stepLabel(stepId: string): string {
-  // Reuse the pipeline step name key (step.<id>.name), falling back to the id.
-  return t(`step.${stepId}.name`);
-}
-
-/** One toy row: owned → in production; category locked → grayed with a reason;
- *  else buyable. Non-basic owned toys hint that clicking needs a hand-build. */
-function buildToyRow(ctx: GameContext, def: ToyTypeDef, catLocked: boolean): HTMLDivElement {
-  const state = ctx.getState();
-  const unlocked = isToyUnlocked(state, def.id);
-  const isSpecial = toyCategoryId(def) !== "basic";
-
-  let sub: string;
-  if (unlocked) sub = isSpecial ? t("shop.inProductionHandbuild") : t("shop.inProduction");
-  else if (catLocked) sub = t("shop.unlockCategoryFirst");
-  else sub = t("shop.unlockToy");
-
-  let buttonLabel: string;
-  let disabled: boolean;
-  if (unlocked) {
-    buttonLabel = t("shop.unlockedBtn");
-    disabled = true;
-  } else if (catLocked) {
-    buttonLabel = t("shop.categoryLockedBtn");
-    disabled = true;
-  } else {
-    buttonLabel = t("shop.unlockBtn", { cost: formatCost(def.unlockCost) });
-    disabled = state.resources.money < def.unlockCost;
-  }
-
-  const row = buildShopRow({
-    icon: def.icon,
-    title: toyName(def.id),
-    tag: unlocked ? t("shop.unlocked") : catLocked ? t("shop.locked") : undefined,
-    sub,
-    meta: t("shop.sellsFor", { value: formatMoneyPrecise(def.baseSellValue) }),
-    searchKey: `${toyName(def.id)} ${def.name} ${toyCategoryLabel(toyCategoryId(def))}`,
-    buttonLabel,
-    disabled,
-    onBuy:
-      unlocked || catLocked
-        ? undefined
-        : () => {
-            ctx.systems.shop.buyToyUnlock(ctx.getState(), def.id);
-            ctx.rebuildUI();
-          },
-  });
-  if (catLocked && !unlocked) row.classList.add("locked");
-  return row;
 }
 
 /** Format a small probability as a percentage (keeps precision for tiny odds). */
@@ -325,11 +184,14 @@ function buildElfRow(ctx: GameContext, def: ElfTypeDef): HTMLDivElement {
       <span class="elf-stat-value break">${formatPct(def.breakChance)}</span>
     </div>`;
 
-  // Special work rules get loud, readable chips right on the hiring card.
-  // (blockedSlots isn't chipped here — the Shifts stat below already shows it.)
-  const traits = elfTraitChips(def.id);
-  const traitsHtml = traits.length
-    ? `<div class="elf-traits">${traits.map((tr) => `<span class="elf-trait">${tr}</span>`).join("")}</div>`
+  // Work rules as chips, straight from helpers/elfRules.ts — the exact same
+  // list (and colours) the crew console shows, so what you read when hiring is
+  // what you read when scheduling.
+  const rules = elfRuleChips(def.id);
+  const traitsHtml = rules.length
+    ? `<div class="elf-traits">${rules
+        .map((r) => `<span class="rule-chip tone-${r.tone}">${r.icon} ${r.text}</span>`)
+        .join("")}</div>`
     : "";
 
   row.innerHTML = `
@@ -356,36 +218,4 @@ function buildElfRow(ctx: GameContext, def: ElfTypeDef): HTMLDivElement {
   row.appendChild(btn);
   return row;
 }
-
-/** One row per upgrade; owned upgrades show as bought and stay disabled. */
-function buildUpgradesList(ctx: GameContext): void {
-  const state = ctx.getState();
-  ctx.dom.upgradesList.innerHTML = "";
-
-  for (const def of upgrades) {
-    // Hide upgrades whose prerequisite isn't met yet (e.g. bike hand-building).
-    if (!isUnlockRuleMet(state, def.unlock)) continue;
-
-    const owned = !!state.owned.upgrades[def.id];
-
-    const effectText = def.effect.type === "unlock" ? t("upgrade.effect.unlock") : describeUpgradeEffect(def.effect);
-    const row = buildShopRow({
-      icon: "⬆️",
-      title: upgradeName(def.id),
-      tag: owned ? t("shop.owned") : undefined,
-      sub: upgradeDesc(def.id),
-      meta: t("shop.effect", { effect: effectText }),
-      searchKey: `${upgradeName(def.id)} ${upgradeDesc(def.id)} ${def.name}`,
-      buttonLabel: owned ? t("shop.ownedBtn") : t("shop.buyBtn", { cost: formatCost(def.cost) }),
-      disabled: owned || state.resources.money < def.cost,
-      onBuy: owned
-        ? undefined
-        : () => {
-            ctx.systems.shop.buyUpgrade(ctx.getState(), def.id);
-            ctx.rebuildUI();
-          },
-    });
-
-    ctx.dom.upgradesList.appendChild(row);
-  }
-}
+

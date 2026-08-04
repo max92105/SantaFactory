@@ -15,6 +15,7 @@ import type { GameState } from "../../state/GameState";
 import { getSellableStock } from "../../helpers/inventoryHelpers";
 import { formatInt, formatMoney } from "../../helpers/formatHelpers";
 import { createStepper } from "./stepper";
+import { playGrinchEntrance, stopGrinchEntrance } from "./grinchEntrance";
 import { t } from "../i18n/i18n";
 import { toyName, toyIcon } from "../i18n/localize";
 
@@ -25,13 +26,21 @@ export function grinchCardOpen(): boolean {
   return document.querySelector(`.${CARD_CLASS}`) !== null;
 }
 
-/** Remove the card AND any open deal modal (e.g. when the timer runs out). */
+/** Remove the card, any open deal modal, and a half-played entrance (e.g. when
+ *  the timer runs out mid-cinematic). */
 export function removeGrinchCard(): void {
   document.querySelector(`.${CARD_CLASS}`)?.remove();
   document.querySelector(`.${DEAL_CLASS}`)?.remove();
+  stopGrinchEntrance();
 }
 
-export function showGrinchCard(ctx: GameContext): void {
+/**
+ * Show the heist card. With `entranceLayer`, the card is built hidden and his
+ * arrival cinematic plays first — his face flies into this card's portrait and
+ * the card pops in as he lands (components/grinchEntrance.ts). Without it (e.g.
+ * re-showing after a language switch) the card just appears.
+ */
+export function showGrinchCard(ctx: GameContext, entranceLayer?: HTMLElement): void {
   removeGrinchCard();
   const threat = ctx.getState().grinch.active;
   if (!threat) return;
@@ -62,7 +71,20 @@ export function showGrinchCard(ctx: GameContext): void {
     </div>
   `;
   card.querySelector<HTMLButtonElement>("[data-grinch-deal]")!.onclick = () => openDealModal(ctx);
+
+  if (!entranceLayer) {
+    document.body.appendChild(card);
+    return;
+  }
+
+  // Mount hidden so the portrait has a real, measurable position to fly into,
+  // then reveal it the instant he lands there.
+  card.classList.add("arriving");
   document.body.appendChild(card);
+  const target = card.querySelector<HTMLElement>(".grinch-face")?.getBoundingClientRect() ?? null;
+  playGrinchEntrance(entranceLayer, target, () => {
+    card.classList.remove("arriving");
+  });
 }
 
 /** Per-frame refresh: countdown + both progress readouts. */

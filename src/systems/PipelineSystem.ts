@@ -36,6 +36,7 @@ import { isStationBroken, setStationBroken, brokenStepIds } from "../helpers/sta
 import { freeSpace } from "../helpers/storageHelpers";
 import { MAINTENANCE_STEP, REPAIR_STEP } from "../config/stationsConfig";
 import { getElfType } from "../config/elfTypesConfig";
+import { pluralizeElves } from "../helpers/textHelpers";
 import { t } from "../ui/i18n/i18n";
 import { stepName, elfName, slotName } from "../ui/i18n/localize";
 import { isNotifyEnabled } from "../ui/settings";
@@ -352,7 +353,7 @@ export function createPipelineSystem() {
   /** Send a batch of elves home (spent until tomorrow). */
   function removeElves(state: GameState, ids: number[]): number {
     const n = removeElvesFromState(state, ids);
-    if (n > 0) state.meta.statusText = t("sys.sentHome", { n });
+    if (n > 0) state.meta.statusText = t("sys.sentHome", { n, elves: pluralizeElves(n) });
     return n;
   }
 

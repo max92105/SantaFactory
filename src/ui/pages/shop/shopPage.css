@@ -289,16 +289,8 @@
   margin-top: 5px;
 }
 
-.elf-trait {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 9px;
-  background: rgba(251, 191, 36, 0.1);
-  border: 1px solid rgba(251, 191, 36, 0.3);
-  color: #fcd34d;
-  white-space: nowrap;
-}
+/* The chips themselves are .rule-chip in styles/base.css (shared with the crew
+   console) — only the row wrapper is the shop's business. */
 
 .elf-stat {
   display: flex;

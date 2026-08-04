@@ -1,0 +1,94 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   CONVEYOR — throughput bar for a production step. Logic: conveyor.ts
+
+   One element, three looks: a discrete fill at low rates, scrolling stripes
+   whose speed encodes the rate at high ones, and a dead grey belt when the
+   line is halted. The stripe animation runs on background-position (compositor
+   friendly) rather than transforms of many children.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.conveyor {
+  --belt-color: var(--success, #86efac);
+  flex: 1;
+  min-width: 90px;
+}
+
+.conveyor-track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* ── Discrete fill (low rates): the honest accumulator ──────────────────── */
+.conveyor-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: inherit;
+  background: var(--belt-color);
+  transition: width 0.1s linear;
+}
+
+/* ── Belt (high rates): scrolling stripes, speed set inline from the rate ── */
+.conveyor-belt {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background-image: repeating-linear-gradient(
+    115deg,
+    var(--belt-color) 0 8px,
+    color-mix(in srgb, var(--belt-color) 45%, transparent) 8px 16px
+  );
+  background-size: 34px 100%;
+  animation: conveyor-scroll 1s linear infinite;
+  animation-play-state: paused;
+}
+
+.conveyor.fast .conveyor-belt {
+  opacity: 0.95;
+  animation-play-state: running;
+}
+
+@keyframes conveyor-scroll {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 34px 0;
+  }
+}
+
+/* ── Halted: stripes freeze, everything greys, so a stopped line is obvious ── */
+.conveyor.halted {
+  --belt-color: #6b7280;
+}
+
+.conveyor.halted .conveyor-belt {
+  opacity: 0.5;
+  animation-play-state: paused;
+}
+
+.conveyor.halted .conveyor-fill {
+  width: 100% !important;
+  opacity: 0.35;
+}
+
+/* Idle (no crew): flat empty track, no belt at all. */
+.conveyor:not(.running):not(.halted) .conveyor-fill {
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conveyor-belt {
+    animation: none !important;
+  }
+  .conveyor.fast .conveyor-belt {
+    opacity: 0.7;
+  }
+  .conveyor-fill {
+    transition: none;
+  }
+}
